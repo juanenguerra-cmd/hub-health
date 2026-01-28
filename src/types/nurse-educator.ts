@@ -18,6 +18,10 @@ export interface AuditTemplate {
   criticalFailKeys: string[];
   sessionQuestions: TemplateQuestion[];
   sampleQuestions: TemplateQuestion[];
+  archived?: boolean;
+  archivedAt?: string;
+  archivedBy?: string;
+  replacedByTemplateId?: string;
 }
 
 export interface TemplateReference {
