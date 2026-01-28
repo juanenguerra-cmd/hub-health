@@ -1,0 +1,629 @@
+import { useState } from 'react';
+import { useApp } from '@/contexts/AppContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
+import { computeSampleResult, todayYMD, nowISO } from '@/lib/calculations';
+import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/types/nurse-educator';
+import { 
+  Play, 
+  FileText, 
+  CheckCircle2, 
+  XCircle,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Save,
+  Trash2,
+  Eye
+} from 'lucide-react';
+
+export function SessionsPage() {
+  const { templates, sessions, setSessions, qaActions, setQaActions } = useApp();
+  
+  // View state
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [activeSession, setActiveSession] = useState<AuditSession | null>(null);
+  const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  
+  // New session form
+  const [newSessionUnit, setNewSessionUnit] = useState('');
+  const [newSessionAuditor, setNewSessionAuditor] = useState('');
+  
+  const activeTemplates = templates.filter(t => !t.archived);
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+
+  // Filter sessions
+  const filteredSessions = sessions.filter(s => {
+    if (statusFilter !== 'All' && s.header?.status !== statusFilter) return false;
+    if (searchTerm) {
+      const hay = `${s.templateTitle} ${s.header?.unit} ${s.header?.sessionId}`.toLowerCase();
+      if (!hay.includes(searchTerm.toLowerCase())) return false;
+    }
+    return true;
+  }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Start a new session
+  const startNewSession = () => {
+    if (!selectedTemplate) return;
+    
+    const today = todayYMD();
+    const sessionId = `${selectedTemplate.id.slice(0, 4).toUpperCase()}-${today.replace(/-/g, '')}-${newSessionUnit || 'GEN'}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
+    
+    const newSession: AuditSession = {
+      id: `sess_${Math.random().toString(16).slice(2, 10)}`,
+      templateId: selectedTemplate.id,
+      templateTitle: selectedTemplate.title,
+      createdAt: nowISO(),
+      header: {
+        status: 'in_progress',
+        sessionId,
+        auditDate: today,
+        auditor: newSessionAuditor || 'Auditor',
+        unit: newSessionUnit || ''
+      },
+      samples: []
+    };
+    
+    setSessions([newSession, ...sessions]);
+    setActiveSession(newSession);
+    setShowNewSessionDialog(false);
+    setNewSessionUnit('');
+    setNewSessionAuditor('');
+  };
+
+  // Add a sample to active session
+  const addSample = () => {
+    if (!activeSession || !selectedTemplate) return;
+    
+    const newSample = {
+      id: `smp_${Math.random().toString(16).slice(2, 10)}`,
+      answers: {} as Record<string, string>,
+      result: null
+    };
+    
+    const updated = {
+      ...activeSession,
+      samples: [...activeSession.samples, newSample]
+    };
+    
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  // Update sample answer
+  const updateSampleAnswer = (sampleId: string, key: string, value: string) => {
+    if (!activeSession) return;
+    
+    const updated = {
+      ...activeSession,
+      samples: activeSession.samples.map(smp => {
+        if (smp.id !== sampleId) return smp;
+        return { ...smp, answers: { ...smp.answers, [key]: value } };
+      })
+    };
+    
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  // Score a sample
+  const scoreSample = (sampleId: string) => {
+    if (!activeSession) return;
+    const tpl = templates.find(t => t.id === activeSession.templateId);
+    if (!tpl) return;
+    
+    const updated = {
+      ...activeSession,
+      samples: activeSession.samples.map(smp => {
+        if (smp.id !== sampleId) return smp;
+        const result = computeSampleResult(tpl, smp.answers);
+        return { ...smp, result };
+      })
+    };
+    
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  // Delete a sample
+  const deleteSample = (sampleId: string) => {
+    if (!activeSession) return;
+    
+    const updated = {
+      ...activeSession,
+      samples: activeSession.samples.filter(smp => smp.id !== sampleId)
+    };
+    
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  // Complete session and generate QA actions
+  const completeSession = () => {
+    if (!activeSession) return;
+    
+    // Score all unscored samples
+    const tpl = templates.find(t => t.id === activeSession.templateId);
+    if (!tpl) return;
+    
+    const scoredSamples = activeSession.samples.map(smp => {
+      if (smp.result) return smp;
+      return { ...smp, result: computeSampleResult(tpl, smp.answers) };
+    });
+    
+    const completed: AuditSession = {
+      ...activeSession,
+      samples: scoredSamples,
+      header: { ...activeSession.header, status: 'complete' }
+    };
+    
+    // Generate QA actions for failed samples
+    const newActions: QaAction[] = [];
+    for (const smp of scoredSamples) {
+      if (smp.result && !smp.result.pass) {
+        for (const action of smp.result.actionNeeded) {
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 14);
+          
+          newActions.push({
+            id: `qa_${Math.random().toString(16).slice(2, 10)}`,
+            createdAt: nowISO(),
+            status: 'open',
+            templateId: activeSession.templateId,
+            templateTitle: activeSession.templateTitle,
+            unit: activeSession.header.unit,
+            auditDate: activeSession.header.auditDate,
+            sessionId: activeSession.header.sessionId,
+            sample: smp.answers.patient_code || smp.id,
+            issue: action.label,
+            reason: action.reason,
+            topic: '',
+            summary: '',
+            owner: '',
+            dueDate: dueDate.toISOString().slice(0, 10),
+            completedAt: '',
+            notes: '',
+            ftagTags: tpl.ftagTags || [],
+            nydohTags: tpl.nydohTags || [],
+            reAuditDueDate: '',
+            reAuditCompletedAt: '',
+            reAuditSessionRef: '',
+            reAuditTemplateId: '',
+            ev_policyReviewed: false,
+            ev_educationProvided: false,
+            ev_competencyValidated: false,
+            ev_correctiveAction: false,
+            ev_monitoringInPlace: false,
+            linkedEduSessionId: ''
+          });
+        }
+      }
+    }
+    
+    setSessions(sessions.map(s => s.id === completed.id ? completed : s));
+    if (newActions.length > 0) {
+      setQaActions([...newActions, ...qaActions]);
+    }
+    setActiveSession(null);
+  };
+
+  // Toggle session expansion
+  const toggleSession = (id: string) => {
+    const newSet = new Set(expandedSessions);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setExpandedSessions(newSet);
+  };
+
+  // Open session for viewing/editing
+  const openSession = (session: AuditSession) => {
+    setSelectedTemplateId(session.templateId);
+    setActiveSession(session);
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Audit Sessions</h1>
+          <p className="text-muted-foreground">
+            Run audits, enter samples, and score compliance
+          </p>
+        </div>
+        
+        <Dialog open={showNewSessionDialog} onOpenChange={setShowNewSessionDialog}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Play className="w-4 h-4" />
+              Start New Audit
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Start New Audit Session</DialogTitle>
+              <DialogDescription>
+                Select an audit tool and enter session details
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Audit Tool</Label>
+                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an audit tool..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeTemplates.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Unit</Label>
+                <Input 
+                  value={newSessionUnit} 
+                  onChange={(e) => setNewSessionUnit(e.target.value)}
+                  placeholder="e.g., 1A, 2B, ICU"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Auditor Name</Label>
+                <Input 
+                  value={newSessionAuditor} 
+                  onChange={(e) => setNewSessionAuditor(e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+              
+              <Button 
+                onClick={startNewSession} 
+                disabled={!selectedTemplateId}
+                className="w-full"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Start Audit
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Active Session Panel */}
+      {activeSession && selectedTemplate && (
+        <Card className="border-primary">
+          <CardHeader className="bg-primary/5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">{activeSession.templateTitle}</CardTitle>
+                <CardDescription>
+                  Session: {activeSession.header.sessionId} • 
+                  Unit: {activeSession.header.unit || 'N/A'} • 
+                  Date: {activeSession.header.auditDate}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <StatusBadge status={activeSession.header.status === 'complete' ? 'success' : 'warning'}>
+                  {activeSession.header.status === 'complete' ? 'Complete' : 'In Progress'}
+                </StatusBadge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {/* Samples */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Samples ({activeSession.samples.length})</h3>
+                {activeSession.header.status !== 'complete' && (
+                  <Button size="sm" onClick={addSample} variant="outline">
+                    <Plus className="w-4 h-4 mr-1" /> Add Sample
+                  </Button>
+                )}
+              </div>
+              
+              {activeSession.samples.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No samples yet. Click "Add Sample" to begin.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activeSession.samples.map((sample, idx) => (
+                    <div key={sample.id} className="border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium">Sample #{idx + 1}</h4>
+                        <div className="flex items-center gap-2">
+                          {sample.result && (
+                            <ComplianceIndicator rate={sample.result.pct} size="sm" showLabel={false} />
+                          )}
+                          {activeSession.header.status !== 'complete' && (
+                            <>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => scoreSample(sample.id)}
+                              >
+                                Score
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => deleteSample(sample.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Questions Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {selectedTemplate.sampleQuestions.map(q => (
+                          <div key={q.key} className="space-y-1">
+                            <Label className="text-xs">
+                              {q.label}
+                              {q.required && <span className="text-destructive ml-1">*</span>}
+                            </Label>
+                            
+                            {q.type === 'patientCode' && (
+                              <Input
+                                value={sample.answers[q.key] || ''}
+                                onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
+                                placeholder="e.g., P123"
+                                disabled={activeSession.header.status === 'complete'}
+                              />
+                            )}
+                            
+                            {q.type === 'yn' && (
+                              <RadioGroup
+                                value={sample.answers[q.key] || ''}
+                                onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
+                                className="flex gap-4"
+                                disabled={activeSession.header.status === 'complete'}
+                              >
+                                <div className="flex items-center space-x-1">
+                                  <RadioGroupItem value="yes" id={`${sample.id}-${q.key}-yes`} />
+                                  <Label htmlFor={`${sample.id}-${q.key}-yes`} className="text-xs">Yes</Label>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <RadioGroupItem value="no" id={`${sample.id}-${q.key}-no`} />
+                                  <Label htmlFor={`${sample.id}-${q.key}-no`} className="text-xs">No</Label>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
+                                  <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-xs">N/A</Label>
+                                </div>
+                              </RadioGroup>
+                            )}
+                            
+                            {q.type === 'select' && q.options && (
+                              <Select
+                                value={sample.answers[q.key] || ''}
+                                onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
+                                disabled={activeSession.header.status === 'complete'}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {q.options.map(opt => (
+                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            
+                            {q.type === 'text' && (
+                              <Input
+                                value={sample.answers[q.key] || ''}
+                                onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
+                                disabled={activeSession.header.status === 'complete'}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Result display */}
+                      {sample.result && (
+                        <div className="mt-4 pt-3 border-t">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              {sample.result.pass ? (
+                                <CheckCircle2 className="w-5 h-5 text-success" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-error" />
+                              )}
+                              <span className="font-medium">
+                                {sample.result.pass ? 'PASS' : 'FAIL'} — {sample.result.pct}%
+                              </span>
+                            </div>
+                            
+                            {sample.result.criticalFails.length > 0 && (
+                              <StatusBadge status="error">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                {sample.result.criticalFails.length} Critical
+                              </StatusBadge>
+                            )}
+                          </div>
+                          
+                          {sample.result.actionNeeded.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs text-muted-foreground mb-1">Action Needed:</p>
+                              <ul className="text-sm space-y-1">
+                                {sample.result.actionNeeded.map((a, i) => (
+                                  <li key={i} className="flex items-start gap-2">
+                                    <span className="text-error">•</span>
+                                    <span>{a.label} ({a.reason})</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Session Actions */}
+              {activeSession.header.status !== 'complete' && activeSession.samples.length > 0 && (
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button variant="outline" onClick={() => setActiveSession(null)}>
+                    Save & Close
+                  </Button>
+                  <Button onClick={completeSession}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Complete Session
+                  </Button>
+                </div>
+              )}
+              
+              {activeSession.header.status === 'complete' && (
+                <div className="flex justify-end pt-4 border-t">
+                  <Button variant="outline" onClick={() => setActiveSession(null)}>
+                    Close
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Session History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Session History</CardTitle>
+          <CardDescription>View and manage past audit sessions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-4 mb-4">
+            <div className="flex-1 min-w-[200px]">
+              <Input
+                placeholder="Search sessions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Status</SelectItem>
+                <SelectItem value="complete">Complete</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Session List */}
+          {filteredSessions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No audit sessions found</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredSessions.slice(0, 20).map(session => {
+                const isExpanded = expandedSessions.has(session.id);
+                const passingCount = session.samples.filter(s => s.result?.pass).length;
+                const totalSamples = session.samples.length;
+                const complianceRate = totalSamples > 0 ? Math.round((passingCount / totalSamples) * 100) : 0;
+                
+                return (
+                  <div key={session.id} className="border rounded-lg overflow-hidden">
+                    <div 
+                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/50"
+                      onClick={() => toggleSession(session.id)}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{session.templateTitle}</span>
+                          <StatusBadge 
+                            status={session.header.status === 'complete' ? 'success' : 'warning'}
+                          >
+                            {session.header.status === 'complete' ? 'Complete' : 'In Progress'}
+                          </StatusBadge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {session.header.sessionId} • Unit: {session.header.unit || 'N/A'} • 
+                          {session.header.auditDate}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm font-medium">{totalSamples} samples</p>
+                          {totalSamples > 0 && (
+                            <ComplianceIndicator rate={complianceRate} size="sm" showLabel={false} />
+                          )}
+                        </div>
+                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      </div>
+                    </div>
+                    
+                    {isExpanded && (
+                      <div className="border-t p-4 bg-muted/20">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm text-muted-foreground">
+                            Auditor: {session.header.auditor} • 
+                            Created: {new Date(session.createdAt).toLocaleDateString()}
+                          </p>
+                          <Button size="sm" onClick={() => openSession(session)}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            {session.header.status === 'complete' ? 'View' : 'Continue'}
+                          </Button>
+                        </div>
+                        
+                        {session.samples.length > 0 && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {session.samples.slice(0, 8).map((smp, idx) => (
+                              <div 
+                                key={smp.id} 
+                                className={`text-xs p-2 rounded border ${
+                                  smp.result?.pass 
+                                    ? 'bg-success/10 border-success/30' 
+                                    : smp.result 
+                                      ? 'bg-error/10 border-error/30' 
+                                      : 'bg-muted'
+                                }`}
+                              >
+                                Sample #{idx + 1}: {smp.result ? `${smp.result.pct}%` : 'Not scored'}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
