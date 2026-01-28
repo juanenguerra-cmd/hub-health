@@ -15,6 +15,7 @@ import type {
 } from '@/types/nurse-educator';
 import {
   loadTemplates,
+  saveTemplates,
   loadSessions,
   saveSessions,
   loadQaActions,
@@ -23,11 +24,14 @@ import {
   saveEduSessions,
   loadOrientationRecords,
   loadEduLibrary,
+  saveEduLibrary,
   loadStaffDirectory,
   loadAdminOwners,
   loadFacilityName,
+  saveFacilityName,
   generateDemoData
 } from '@/lib/storage';
+import { parseBackupFile, processBackupData, createBackup, type RestoreResult } from '@/lib/backup-restore';
 
 interface AppContextType {
   // Data
@@ -59,6 +63,13 @@ interface AppContextType {
   setSessions: (sessions: AuditSession[]) => void;
   setQaActions: (actions: QaAction[]) => void;
   setEduSessions: (sessions: EducationSession[]) => void;
+  setTemplates: (templates: AuditTemplate[]) => void;
+  setEduLibrary: (library: EduTopic[]) => void;
+  setFacilityName: (name: string) => void;
+  
+  // Backup & Restore
+  restoreFromBackup: (content: string) => RestoreResult;
+  exportBackup: () => string;
   
   // Demo mode
   loadDemoData: () => void;
@@ -146,6 +157,85 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveEduSessions(newSessions);
   };
   
+  const setTemplatesData = (newTemplates: AuditTemplate[]) => {
+    setTemplates(newTemplates);
+    saveTemplates(newTemplates);
+  };
+  
+  const setEduLibraryData = (newLibrary: EduTopic[]) => {
+    setEduLibrary(newLibrary);
+    saveEduLibrary(newLibrary);
+  };
+  
+  const setFacilityNameData = (name: string) => {
+    setFacilityName(name);
+    saveFacilityName(name);
+  };
+  
+  // Backup & Restore
+  const restoreFromBackup = (content: string): RestoreResult => {
+    const backup = parseBackupFile(content);
+    
+    if (!backup) {
+      return {
+        success: false,
+        message: 'Invalid backup file format. Please select a valid backup JSON file.',
+        counts: { templates: 0, sessions: 0, eduSessions: 0, eduLibrary: 0, qaActions: 0 }
+      };
+    }
+    
+    const processed = processBackupData(backup);
+    
+    // Import the data
+    if (processed.templates.length > 0) {
+      setTemplates(processed.templates);
+      saveTemplates(processed.templates);
+    }
+    
+    if (processed.sessions.length > 0) {
+      setSessionsState(processed.sessions);
+      saveSessions(processed.sessions);
+    }
+    
+    if (processed.eduSessions.length > 0) {
+      setEduSessionsState(processed.eduSessions);
+      saveEduSessions(processed.eduSessions);
+    }
+    
+    if (processed.eduLibrary.length > 0) {
+      setEduLibrary(processed.eduLibrary);
+      saveEduLibrary(processed.eduLibrary);
+    }
+    
+    if (processed.qaActions.length > 0) {
+      setQaActionsState(processed.qaActions);
+      saveQaActions(processed.qaActions);
+    }
+    
+    return {
+      success: true,
+      message: 'Backup restored successfully!',
+      counts: {
+        templates: processed.templates.length,
+        sessions: processed.sessions.length,
+        eduSessions: processed.eduSessions.length,
+        eduLibrary: processed.eduLibrary.length,
+        qaActions: processed.qaActions.length
+      }
+    };
+  };
+  
+  const exportBackup = (): string => {
+    return createBackup({
+      templates,
+      sessions,
+      eduSessions,
+      eduLibrary,
+      qaActions,
+      facilityName
+    });
+  };
+  
   // Load demo data
   const loadDemoData = () => {
     const demo = generateDemoData();
@@ -178,6 +268,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSessions,
       setQaActions,
       setEduSessions,
+      setTemplates: setTemplatesData,
+      setEduLibrary: setEduLibraryData,
+      setFacilityName: setFacilityNameData,
+      restoreFromBackup,
+      exportBackup,
       loadDemoData
     }}>
       {children}

@@ -5,6 +5,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
 import { QaActionsPage } from '@/pages/QaActionsPage';
 import { EducationPage } from '@/pages/EducationPage';
+import { SettingsPage } from '@/pages/SettingsPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
@@ -33,7 +34,7 @@ function AppContent() {
       case 'reports':
         return <PlaceholderPage title="Reports" description="Generate QAPI summaries, action plans, and huddle reports" />;
       case 'settings':
-        return <PlaceholderPage title="Settings" description="Configure facility info, owners, staff directory, and backup" />;
+        return <SettingsPage />;
       default:
         return <DashboardPage />;
     }
