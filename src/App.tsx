@@ -3,8 +3,13 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { AppHeader } from '@/components/AppHeader';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
+import { SessionsPage } from '@/pages/SessionsPage';
 import { QaActionsPage } from '@/pages/QaActionsPage';
 import { EducationPage } from '@/pages/EducationPage';
+import { AnalyticsPage } from '@/pages/AnalyticsPage';
+import { CalendarPage } from '@/pages/CalendarPage';
+import { ReportsPage } from '@/pages/ReportsPage';
+import { FollowUpPage } from '@/pages/FollowUpPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { Toaster } from '@/components/ui/toaster';
@@ -20,7 +25,7 @@ function AppContent() {
       case 'templates':
         return <TemplatesPage />;
       case 'sessions':
-        return <PlaceholderPage title="Audit Sessions" description="Run and manage audit sessions with samples and results" />;
+        return <SessionsPage />;
       case 'qa-actions':
         return <QaActionsPage />;
       case 'education':
@@ -28,11 +33,13 @@ function AppContent() {
       case 'orientation':
         return <PlaceholderPage title="Staff Orientation" description="Track new hire orientation with 30/60/90-day retention checkpoints" />;
       case 'analytics':
-        return <PlaceholderPage title="Analytics+" description="Advanced heatmaps, recurring issues, and time-to-close metrics" />;
+        return <AnalyticsPage />;
       case 'calendar':
-        return <PlaceholderPage title="Calendar" description="View scheduled audits, education, and follow-ups" />;
+        return <CalendarPage />;
+      case 'follow-up':
+        return <FollowUpPage />;
       case 'reports':
-        return <PlaceholderPage title="Reports" description="Generate QAPI summaries, action plans, and huddle reports" />;
+        return <ReportsPage />;
       case 'settings':
         return <SettingsPage />;
       default:

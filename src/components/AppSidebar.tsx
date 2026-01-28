@@ -11,7 +11,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Inbox
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const navItems = [
   { id: 'qa-actions', label: 'QA Actions', icon: AlertCircle },
   { id: 'education', label: 'Education', icon: GraduationCap },
   { id: 'orientation', label: 'Orientation', icon: Users },
+  { id: 'follow-up', label: 'Follow-Up Queue', icon: Inbox },
   { id: 'analytics', label: 'Analytics+', icon: BarChart3 },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
