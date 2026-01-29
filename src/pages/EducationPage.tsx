@@ -6,22 +6,21 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/StatusBadge';
 import { KpiCard, KpiGrid } from '@/components/KpiCard';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { detectEducationCategory, todayYMD } from '@/lib/calculations';
+import { EducationSessionFormModal } from '@/components/education/EducationSessionFormModal';
+import { SignOffSheetModal } from '@/components/education/SignOffSheetModal';
+import { SessionDetailModal } from '@/components/education/SessionDetailModal';
 import type { EducationSession } from '@/types/nurse-educator';
 import { 
   Search, 
   Plus, 
   GraduationCap,
   Calendar,
-  Users,
   CheckCircle2,
   Clock,
-  User,
-  ChevronRight,
-  X
+  ChevronRight
 } from 'lucide-react';
 
 // Generate year options (current year ± 2 years)
@@ -43,8 +42,14 @@ const MONTHS = [
 ];
 
 export function EducationPage() {
-  const { eduSessions, eduFilters, setEduFilters } = useApp();
+  const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName } = useApp();
+  
+  // Modal states
   const [selectedSession, setSelectedSession] = useState<EducationSession | null>(null);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editSession, setEditSession] = useState<EducationSession | null>(null);
+  const [showSignOffModal, setShowSignOffModal] = useState(false);
+  const [signOffSession, setSignOffSession] = useState<EducationSession | null>(null);
   
   // Month/Year filter state
   const [filterMonth, setFilterMonth] = useState<string>('All');
@@ -87,13 +92,6 @@ export function EducationPage() {
     s.status === 'planned' && s.scheduledDate && s.scheduledDate < today
   ).length;
 
-  // Category breakdown for KPI
-  const byCategory: Record<string, number> = {};
-  eduSessions.filter(s => s.status === 'completed').forEach(s => {
-    const cat = s.category || detectEducationCategory(s.topic || '', s.summary || '');
-    byCategory[cat] = (byCategory[cat] || 0) + 1;
-  });
-
   const getSessionDate = (session: EducationSession) => {
     return session.status === 'completed' ? session.completedDate : session.scheduledDate;
   };
@@ -106,6 +104,35 @@ export function EducationPage() {
     return session.status === 'planned' && session.scheduledDate && session.scheduledDate < today;
   };
 
+  // Handlers
+  const handleCreateSession = () => {
+    setEditSession(null);
+    setShowFormModal(true);
+  };
+
+  const handleEditSession = () => {
+    setEditSession(selectedSession);
+    setSelectedSession(null);
+    setShowFormModal(true);
+  };
+
+  const handleSaveSession = (session: EducationSession) => {
+    const exists = eduSessions.find(s => s.id === session.id);
+    if (exists) {
+      // Update existing
+      setEduSessions(eduSessions.map(s => s.id === session.id ? session : s));
+    } else {
+      // Add new
+      setEduSessions([session, ...eduSessions]);
+    }
+  };
+
+  const handleGenerateSignOff = () => {
+    setSignOffSession(selectedSession);
+    setSelectedSession(null);
+    setShowSignOffModal(true);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -113,7 +140,7 @@ export function EducationPage() {
           <h1 className="text-2xl font-bold">Education & Inservices</h1>
           <p className="text-muted-foreground">Plan and track staff education sessions</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleCreateSession}>
           <Plus className="w-4 h-4" />
           Plan Inservice
         </Button>
@@ -283,118 +310,30 @@ export function EducationPage() {
         </CardContent>
       </Card>
 
-      {/* Session Detail Dialog */}
-      <Dialog open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <GraduationCap className="w-5 h-5 text-primary" />
-              Session Details
-            </DialogTitle>
-          </DialogHeader>
-          {selectedSession && (
-            <div className="space-y-4">
-              {/* Status Badge */}
-              <div>
-                {selectedSession.status === 'completed' ? (
-                  <StatusBadge status="success">
-                    <CheckCircle2 className="w-3 h-3" /> Completed
-                  </StatusBadge>
-                ) : isOverdue(selectedSession) ? (
-                  <StatusBadge status="error">
-                    <Clock className="w-3 h-3" /> Overdue
-                  </StatusBadge>
-                ) : (
-                  <StatusBadge status="warning">
-                    <Clock className="w-3 h-3" /> Planned
-                  </StatusBadge>
-                )}
-              </div>
+      {/* Session Detail Modal */}
+      <SessionDetailModal
+        open={!!selectedSession}
+        onOpenChange={(open) => !open && setSelectedSession(null)}
+        session={selectedSession}
+        onEdit={handleEditSession}
+        onGenerateSignOff={handleGenerateSignOff}
+      />
 
-              {/* Topic */}
-              <div>
-                <h3 className="text-lg font-semibold">{selectedSession.topic || 'Untitled Session'}</h3>
-                {selectedSession.summary && (
-                  <p className="text-sm text-muted-foreground mt-1">{selectedSession.summary}</p>
-                )}
-              </div>
+      {/* Create/Edit Form Modal */}
+      <EducationSessionFormModal
+        open={showFormModal}
+        onOpenChange={setShowFormModal}
+        session={editSession}
+        onSave={handleSaveSession}
+      />
 
-              {/* Details Grid */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Category</p>
-                  <Badge variant="outline" className="mt-1">
-                    {getCategory(selectedSession)}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Date</p>
-                  <p className="flex items-center gap-1 mt-1">
-                    <Calendar className="w-4 h-4" />
-                    {selectedSession.status === 'completed' 
-                      ? selectedSession.completedDate 
-                      : selectedSession.scheduledDate || 'TBD'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Instructor</p>
-                  <p className="flex items-center gap-1 mt-1">
-                    <User className="w-4 h-4" />
-                    {selectedSession.instructor || '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Audience</p>
-                  <p className="flex items-center gap-1 mt-1">
-                    <Users className="w-4 h-4" />
-                    {selectedSession.audience || '—'}
-                  </p>
-                </div>
-                {selectedSession.unit && (
-                  <div>
-                    <p className="text-muted-foreground">Unit</p>
-                    <p className="mt-1">Unit {selectedSession.unit}</p>
-                  </div>
-                )}
-                {selectedSession.templateTitle && (
-                  <div>
-                    <p className="text-muted-foreground">Related Audit</p>
-                    <p className="mt-1 text-xs">{selectedSession.templateTitle}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Attendees */}
-              {selectedSession.attendees && selectedSession.attendees.length > 0 && (
-                <div>
-                  <p className="text-muted-foreground text-sm mb-2">Attendees ({selectedSession.attendees.length})</p>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedSession.attendees.map((name, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{name}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Notes */}
-              {selectedSession.notes && (
-                <div>
-                  <p className="text-muted-foreground text-sm">Notes</p>
-                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded">{selectedSession.notes}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={() => setSelectedSession(null)}>
-                  Close
-                </Button>
-                <Button>Edit Session</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Sign-Off Sheet Modal */}
+      <SignOffSheetModal
+        open={showSignOffModal}
+        onOpenChange={setShowSignOffModal}
+        session={signOffSession}
+        facilityName={facilityName}
+      />
     </div>
   );
 }
