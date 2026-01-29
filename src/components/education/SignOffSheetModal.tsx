@@ -29,8 +29,8 @@ export function SignOffSheetModal({
 
   const sessionDate = session.status === 'completed' ? session.completedDate : session.scheduledDate;
   
-  // Generate 25 numbered rows (odd numbers: 1, 3, 5... 49)
-  const rows = Array.from({ length: 25 }, (_, i) => i * 2 + 1);
+  // Generate 25 sequential numbered rows (1, 2, 3... 25)
+  const rows = Array.from({ length: 25 }, (_, i) => i + 1);
 
   const handlePrint = () => {
     const printContent = printRef.current;
@@ -109,6 +109,9 @@ export function SignOffSheetModal({
               width: 100%; 
               border-collapse: collapse; 
             }
+            thead {
+              display: table-header-group;
+            }
             th { 
               background: #f5f5f5; 
               border: 1px solid #ddd; 
@@ -122,7 +125,7 @@ export function SignOffSheetModal({
               padding: 6px 8px; 
               height: 24px;
             }
-            td:first-child { 
+            td:first-child {
               width: 30px; 
               text-align: center;
               color: #666;
@@ -136,9 +139,18 @@ export function SignOffSheetModal({
               color: #888;
               font-style: italic;
             }
+            tr {
+              page-break-inside: avoid;
+            }
             @media print {
               body { padding: 0; }
               @page { margin: 0.5in; }
+              thead {
+                display: table-header-group;
+              }
+              tr {
+                page-break-inside: avoid;
+              }
             }
           </style>
         </head>
