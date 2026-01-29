@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,49 @@ export function SessionsPage() {
   
   const activeTemplates = templates.filter(t => !t.archived);
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+
+  // Check for pre-selected template from TemplatesPage
+  useEffect(() => {
+    const startAuditData = sessionStorage.getItem('NES_START_AUDIT');
+    if (startAuditData) {
+      try {
+        const { templateId, unit, auditor } = JSON.parse(startAuditData);
+        sessionStorage.removeItem('NES_START_AUDIT');
+        
+        // Pre-fill and auto-start the session
+        const template = templates.find(t => t.id === templateId);
+        if (template) {
+          setSelectedTemplateId(templateId);
+          setNewSessionUnit(unit || '');
+          setNewSessionAuditor(auditor || '');
+          
+          // Auto-start the session
+          const today = todayYMD();
+          const sessionId = `${template.id.slice(0, 4).toUpperCase()}-${today.replace(/-/g, '')}-${unit || 'GEN'}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
+          
+          const newSession: AuditSession = {
+            id: `sess_${Math.random().toString(16).slice(2, 10)}`,
+            templateId: template.id,
+            templateTitle: template.title,
+            createdAt: nowISO(),
+            header: {
+              status: 'in_progress',
+              sessionId,
+              auditDate: today,
+              auditor: auditor || 'Auditor',
+              unit: unit || ''
+            },
+            samples: []
+          };
+          
+          setSessions([newSession, ...sessions]);
+          setActiveSession(newSession);
+        }
+      } catch (e) {
+        console.error('Failed to parse start audit data:', e);
+      }
+    }
+  }, [templates]);
 
   // Filter sessions
   const filteredSessions = sessions.filter(s => {
