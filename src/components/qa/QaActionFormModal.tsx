@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
+import { GraduationCap, ClipboardList } from 'lucide-react';
 import type { QaAction, AuditTemplate } from '@/types/nurse-educator';
 import { todayYMD } from '@/lib/calculations';
+import { findMatchingCompetencies, formatCompetenciesForNotes } from '@/lib/competency-library';
 
 interface QaActionFormModalProps {
   open: boolean;
@@ -47,6 +49,11 @@ export function QaActionFormModal({
     ev_correctiveAction: false,
     ev_monitoringInPlace: false
   });
+
+  // Find matching competencies based on issue and topic
+  const matchingCompetencies = useMemo(() => {
+    return findMatchingCompetencies(formData.issue || '', formData.topic || '');
+  }, [formData.issue, formData.topic]);
 
   useEffect(() => {
     if (action) {
@@ -291,6 +298,52 @@ export function QaActionFormModal({
               </div>
             </div>
           </div>
+
+          {/* Competency Recommendations */}
+          {matchingCompetencies.length > 0 && (
+            <div className="border rounded-lg p-4 bg-muted/30">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5 text-primary" />
+                  <Label className="font-medium">Recommended Competencies (MASTERED.IT)</Label>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const competencyNotes = formatCompetenciesForNotes(matchingCompetencies);
+                    const existingNotes = formData.notes || '';
+                    const separator = existingNotes.trim() ? '\n\n' : '';
+                    setFormData({
+                      ...formData,
+                      notes: existingNotes + separator + competencyNotes,
+                      ev_competencyValidated: false // Mark as needing validation
+                    });
+                    toast({ title: 'Competencies Added', description: `${matchingCompetencies.length} competencies added to notes.` });
+                  }}
+                >
+                  <ClipboardList className="h-4 w-4 mr-1" />
+                  Add to Notes
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {matchingCompetencies.slice(0, 5).map((comp) => (
+                  <div key={comp.id} className="text-sm border-b pb-2 last:border-0">
+                    <div className="font-medium">[{comp.code}] {comp.title}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {comp.disciplines.join(', ')} • {comp.platform === 'C' ? 'Clinical Comp' : 'Mastered'}
+                    </div>
+                  </div>
+                ))}
+                {matchingCompetencies.length > 5 && (
+                  <div className="text-xs text-muted-foreground">
+                    +{matchingCompetencies.length - 5} more matching competencies
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div>
