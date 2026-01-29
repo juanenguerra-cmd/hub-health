@@ -18,7 +18,7 @@ const LS_KEYS = {
   qaActions: 'NES_QA_ACTIONS_V1',
   eduSessions: 'NES_EDU_SESSIONS_V1',
   orientationRecords: 'NES_ORIENTATION_V1',
-  eduLibrary: 'NES_EDU_LIBRARY_V2', // Updated version to load new seed topics
+  eduLibrary: 'NES_EDU_LIBRARY_V3', // Updated version to trigger merge of new IPCP topics
   staffDirectory: 'NES_STAFF_DIR_V1',
   adminOwners: 'NES_ADMIN_OWNERS_V1',
   facilityName: 'NES_FACILITY_NAME_V1',
@@ -133,7 +133,7 @@ export function saveOrientationRecords(records: OrientationRecord[]): void {
   localStorage.setItem(LS_KEYS.orientationRecords, JSON.stringify(records));
 }
 
-// Education Library
+// Education Library - merge seed topics with user data to ensure new topics are available
 export function loadEduLibrary(): EduTopic[] {
   try {
     const raw = localStorage.getItem(LS_KEYS.eduLibrary);
@@ -142,7 +142,22 @@ export function loadEduLibrary(): EduTopic[] {
       return SEED_EDU_TOPICS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : SEED_EDU_TOPICS;
+    if (!Array.isArray(parsed)) {
+      saveEduLibrary(SEED_EDU_TOPICS);
+      return SEED_EDU_TOPICS;
+    }
+    
+    // Merge: keep user's existing topics, add any new seed topics they don't have
+    const existingIds = new Set(parsed.map((t: EduTopic) => t.id));
+    const newSeedTopics = SEED_EDU_TOPICS.filter(t => !existingIds.has(t.id));
+    
+    if (newSeedTopics.length > 0) {
+      const merged = [...parsed, ...newSeedTopics];
+      saveEduLibrary(merged);
+      return merged;
+    }
+    
+    return parsed;
   } catch {
     return SEED_EDU_TOPICS;
   }

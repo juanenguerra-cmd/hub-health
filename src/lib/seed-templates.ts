@@ -505,11 +505,816 @@ export const SEED_TEMPLATES: AuditTemplate[] = [
       { key: "not_expired", label: "No expired IV supplies in use?", type: "yn", required: true, score: 20 },
       { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
     ]
+  },
+  // ==================== IPCP AUDIT TOOLS ====================
+  // Hand Hygiene Direct Observation
+  {
+    id: "audit_hh_observation_v1",
+    title: "Hand Hygiene Direct Observation",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "High Priority", "Daily Audit"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "HH on entry/exit and before/after resident contact.",
+      risk: "Inadequate hand hygiene is the leading cause of HAI transmission.",
+      evidenceToShow: "HH log + coaching/remediation + re-check"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Hand hygiene is foundational to infection prevention." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State mandate for infection prevention." }
+    ],
+    passingThreshold: 90,
+    criticalFailKeys: ["hh_performed"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 },
+      { key: "shift", label: "Shift", type: "select", options: ["7-3", "3-11", "11-7", "7A-7P", "7P-7A"], required: false, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "observation_code", label: "Observation Code", type: "patientCode", required: true, score: 0 },
+      { key: "staff_role", label: "Staff role observed", type: "select", options: ["RN", "LPN", "CNA", "MD", "PT/OT", "Dietary", "EVS", "Other"], required: true, score: 0 },
+      { key: "moment", label: "HH Moment", type: "select", options: ["Room entry", "Room exit", "Before contact", "After contact", "After body fluid exposure"], required: true, score: 0 },
+      { key: "hh_performed", label: "Hand hygiene performed?", type: "yn", required: true, score: 50, criticalFailIf: "no" },
+      { key: "proper_technique", label: "Proper technique (20+ seconds)?", type: "yn", required: true, score: 30 },
+      { key: "glove_change", label: "Gloves changed between tasks (if applicable)?", type: "yn", required: false, score: 20 },
+      { key: "notes", label: "Notes / coaching provided", type: "text", required: false, score: 0 }
+    ]
+  },
+  // PPE Task-Based Compliance
+  {
+    id: "audit_ppe_compliance_v1",
+    title: "PPE Task-Based Compliance Audit",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "High Priority", "Daily Audit"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Correct PPE selection and use during actual care tasks.",
+      risk: "PPE mismatch during observation leads to transmission and survey deficiencies.",
+      evidenceToShow: "PPE audit + correction loop entries"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Correct PPE prevents healthcare-associated infections." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for PPE compliance." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["correct_ppe_worn"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 },
+      { key: "shift", label: "Shift", type: "select", options: ["7-3", "3-11", "11-7"], required: false, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "observation_code", label: "Observation Code", type: "patientCode", required: true, score: 0 },
+      { key: "staff_role", label: "Staff role observed", type: "select", options: ["RN", "LPN", "CNA", "PT/OT", "Therapy", "EVS"], required: true, score: 0 },
+      { key: "precaution_type", label: "Precaution type", type: "select", options: ["Standard", "Contact", "Droplet", "Airborne", "EBP"], required: true, score: 0 },
+      { key: "correct_ppe_worn", label: "Correct PPE worn for task/precaution?", type: "yn", required: true, score: 50, criticalFailIf: "no" },
+      { key: "ppe_donned_correctly", label: "PPE donned correctly?", type: "yn", required: true, score: 25 },
+      { key: "ppe_doffed_correctly", label: "PPE doffed correctly without self-contamination?", type: "yn", required: true, score: 25 },
+      { key: "notes", label: "Notes / stop-correct-reobserve", type: "text", required: false, score: 0 }
+    ]
+  },
+  // EBP Appropriateness & Application
+  {
+    id: "audit_ebp_v1",
+    title: "Enhanced Barrier Precautions (EBP) Audit",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "Weekly Audit", "MDRO Prevention"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Right residents flagged + gown/glove during high-contact care.",
+      risk: "Failure to apply EBP correctly spreads MDROs throughout the facility.",
+      evidenceToShow: "EBP roster + audits + corrections"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "EBP prevents MDRO transmission during high-contact care." },
+      { system: "CDC", code: "EBP Guidance", title: "Enhanced Barrier Precautions", whyItMatters: "CDC/CMS EBP guidance for nursing homes." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["ebp_status_correct", "ebp_followed"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "patient_code", label: "Resident Code", type: "patientCode", required: true, score: 0 },
+      { key: "ebp_status_correct", label: "EBP status correctly identified in system?", type: "yn", required: true, score: 30, criticalFailIf: "no" },
+      { key: "ebp_signage", label: "EBP signage posted if applicable?", type: "yn", required: true, score: 20 },
+      { key: "ebp_followed", label: "Gown/glove used during high-contact care?", type: "yn", required: true, score: 30, criticalFailIf: "no" },
+      { key: "staff_verbalize", label: "Staff can verbalize EBP triggers?", type: "yn", required: false, score: 20 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Isolation/EBP Room Readiness
+  {
+    id: "audit_room_readiness_v1",
+    title: "Isolation/EBP Room Readiness Audit",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "Daily Audit", "Survey-Ready"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Signage correct + PPE stocked + HH available at point of care.",
+      risk: "Missing supplies and signage lead to immediate survey deficiencies.",
+      evidenceToShow: "Room check log + photo/attestation if used"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Room readiness is observable during survey." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for supplies at point of care." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["signage_correct", "supplies_present"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "room_number", label: "Room Number", type: "text", required: true, score: 0 },
+      { key: "precaution_type", label: "Precaution type", type: "select", options: ["Contact", "Droplet", "Airborne", "EBP", "Multiple"], required: true, score: 0 },
+      { key: "signage_correct", label: "Signage correct and visible?", type: "yn", required: true, score: 25, criticalFailIf: "no" },
+      { key: "supplies_present", label: "PPE supplies stocked at door/bedside?", type: "yn", required: true, score: 25, criticalFailIf: "no" },
+      { key: "hh_available", label: "Hand hygiene available at point of care?", type: "yn", required: true, score: 25 },
+      { key: "trash_not_overflow", label: "Trash/linen not overflowing?", type: "yn", required: true, score: 15 },
+      { key: "fixed_same_shift", label: "Issues fixed same shift?", type: "yn", required: false, score: 10 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Shared Equipment Cleaning Between Residents
+  {
+    id: "audit_equipment_cleaning_v1",
+    title: "Shared Equipment Cleaning Audit",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "Daily Audit", "High Risk"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Equipment wiped with correct product/contact time between residents.",
+      risk: "Shared equipment is a major infection-control citation trigger.",
+      evidenceToShow: "Equipment cleaning audit + competency checks"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Equipment cleaning prevents cross-contamination." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for equipment decontamination." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["cleaned_between_use"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "observation_code", label: "Observation Code", type: "patientCode", required: true, score: 0 },
+      { key: "equipment_type", label: "Equipment type", type: "select", options: ["Vital signs cart", "Glucometer", "Wheelchair", "Hoyer lift", "Gait belt", "Thermometer", "Other"], required: true, score: 0 },
+      { key: "cleaned_between_use", label: "Cleaned between residents when observed?", type: "yn", required: true, score: 50, criticalFailIf: "no" },
+      { key: "correct_product", label: "Correct disinfectant product used?", type: "yn", required: true, score: 25 },
+      { key: "contact_time", label: "Appropriate contact time observed?", type: "yn", required: true, score: 25 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // High-Touch Environmental Cleaning Verification
+  {
+    id: "audit_env_cleaning_v1",
+    title: "High-Touch Environmental Cleaning Verification",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "Weekly Audit", "EVS"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "High-touch surfaces completed + IP verification spot checks.",
+      risk: "Environmental contamination contributes to HAI transmission.",
+      evidenceToShow: "EVS logs + IP verification + re-clean proof"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Environmental cleaning is critical for infection prevention." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for sanitary environment." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["high_touch_cleaned"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "room_area", label: "Room/Area", type: "text", required: true, score: 0 },
+      { key: "high_touch_cleaned", label: "High-touch surfaces cleaned per checklist?", type: "yn", required: true, score: 40, criticalFailIf: "no" },
+      { key: "evs_checklist_complete", label: "EVS checklist completed and signed?", type: "yn", required: true, score: 20 },
+      { key: "ip_verification", label: "IP verification spot check passed?", type: "yn", required: true, score: 25 },
+      { key: "reclean_48hrs", label: "Failures re-cleaned within 48 hrs?", type: "yn", required: false, score: 15 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Clean vs Dirty Workflow Rounds
+  {
+    id: "audit_clean_dirty_v1",
+    title: "Clean vs Dirty Workflow Audit",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "Weekly Audit"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Carts/sinks/storage separation; no cross-contamination.",
+      risk: "Mixed clean/dirty items visible during survey is immediate deficiency.",
+      evidenceToShow: "Rounds log + correction loop"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Clean/dirty separation prevents contamination." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for proper workflow." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["no_mixed_items"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "area", label: "Area checked", type: "select", options: ["Med cart", "Treatment cart", "Clean utility", "Soiled utility", "Nurse station", "Storage room"], required: true, score: 0 },
+      { key: "no_mixed_items", label: "No mixed clean/dirty items?", type: "yn", required: true, score: 50, criticalFailIf: "no" },
+      { key: "proper_storage", label: "Items stored properly (covered, off floor)?", type: "yn", required: true, score: 25 },
+      { key: "corrected_same_shift", label: "Failures corrected same shift?", type: "yn", required: true, score: 25 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Linen/Waste/Soiled Utility Audit
+  {
+    id: "audit_linen_waste_v1",
+    title: "Linen/Waste/Soiled Utility Audit",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "Weekly Audit"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Overflow, covered bins, transport workflow correct.",
+      risk: "Overflowing waste and improper linen handling spreads pathogens.",
+      evidenceToShow: "Soiled utility audit + corrective actions"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Proper waste handling prevents infection spread." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for waste management." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["no_overflow"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Floor", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "area", label: "Area checked", type: "text", required: true, score: 0 },
+      { key: "no_overflow", label: "No overflow in bins/hampers?", type: "yn", required: true, score: 35, criticalFailIf: "no" },
+      { key: "containers_covered", label: "Containers covered appropriately?", type: "yn", required: true, score: 25 },
+      { key: "correct_separation", label: "Correct separation (biohazard/regular/linen)?", type: "yn", required: true, score: 25 },
+      { key: "transport_correct", label: "Transport workflow correct?", type: "yn", required: false, score: 15 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Don/Doff Competency Return Demo
+  {
+    id: "audit_dondoff_competency_v1",
+    title: "Don/Doff Competency Return Demo",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Competency", "Weekly Audit", "Training"],
+    ftagTags: ["F945"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Staff demonstrates correct don/doff sequence.",
+      risk: "Improper don/doff leads to self-contamination and infection spread.",
+      evidenceToShow: "Competency checklist + remediation log"
+    },
+    references: [
+      { system: "CMS", code: "F945", title: "Training Requirements", whyItMatters: "Staff must be trained and competent in PPE use." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for competency validation." }
+    ],
+    passingThreshold: 90,
+    criticalFailKeys: ["sequence_correct"],
+    sessionQuestions: [
+      { key: "unit", label: "Unit/Department", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "staff_code", label: "Staff ID/Initials", type: "text", required: true, score: 0 },
+      { key: "staff_role", label: "Staff role", type: "select", options: ["RN", "LPN", "CNA", "PT/OT", "EVS", "Dietary"], required: true, score: 0 },
+      { key: "sequence_correct", label: "Correct don sequence demonstrated?", type: "yn", required: true, score: 35, criticalFailIf: "no" },
+      { key: "doff_correct", label: "Correct doff sequence without self-contamination?", type: "yn", required: true, score: 35 },
+      { key: "hh_after_doff", label: "Hand hygiene after doff?", type: "yn", required: true, score: 20 },
+      { key: "remediation_if_fail", label: "Remediation provided if failed?", type: "yn", required: false, score: 10 },
+      { key: "notes", label: "Notes / revalidation date", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Infection Surveillance Timeliness Audit
+  {
+    id: "audit_surveillance_v1",
+    title: "Infection Surveillance Timeliness Audit",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Infection Prevention", "Weekly Audit", "Documentation"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "New infections captured; provider notified; line list updated.",
+      risk: "Missed surveillance leads to delayed treatment and outbreak spread.",
+      evidenceToShow: "Line list + notification log"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Surveillance is core to infection prevention program." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for infection surveillance." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["provider_notified", "line_list_updated"],
+    sessionQuestions: [
+      { key: "review_week", label: "Week reviewed", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "infection_code", label: "Infection/Case Code", type: "text", required: true, score: 0 },
+      { key: "infection_type", label: "Infection type", type: "select", options: ["UTI", "SSTI", "Respiratory", "GI", "MDRO", "COVID", "Other"], required: true, score: 0 },
+      { key: "onset_captured", label: "Onset date captured in record?", type: "yn", required: true, score: 20 },
+      { key: "provider_notified", label: "Provider notified timely?", type: "yn", required: true, score: 30, criticalFailIf: "no" },
+      { key: "line_list_updated", label: "Line list updated same day?", type: "yn", required: true, score: 30, criticalFailIf: "no" },
+      { key: "labs_documented", label: "Labs/symptoms documented?", type: "yn", required: true, score: 20 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Antibiotic Stewardship Review
+  {
+    id: "audit_abx_stewardship_v1",
+    title: "Antibiotic Stewardship Review",
+    version: "1.0.0",
+    category: "Infection Control",
+    placementTags: ["Stewardship", "Weekly Audit", "Pharmacy"],
+    ftagTags: ["F881"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Indication, dose, duration/stop date, culture follow-through.",
+      risk: "Inappropriate antibiotic use promotes resistance and adverse effects.",
+      evidenceToShow: "ABX review note + pharmacy/MD follow-up"
+    },
+    references: [
+      { system: "CMS", code: "F881", title: "Antibiotic Stewardship Program", whyItMatters: "Facilities must have antibiotic stewardship program." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for stewardship." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["indication_documented", "stop_date_present"],
+    sessionQuestions: [
+      { key: "review_period", label: "Review period", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "patient_code", label: "Resident Code", type: "patientCode", required: true, score: 0 },
+      { key: "antibiotic", label: "Antibiotic name", type: "text", required: true, score: 0 },
+      { key: "indication_documented", label: "Indication documented?", type: "yn", required: true, score: 30, criticalFailIf: "no" },
+      { key: "culture_before", label: "Culture obtained before treatment (if indicated)?", type: "yn", required: true, score: 20 },
+      { key: "stop_date_present", label: "Stop date or timeout plan documented?", type: "yn", required: true, score: 30, criticalFailIf: "no" },
+      { key: "culture_followup", label: "Culture results reviewed and acted upon?", type: "yn", required: true, score: 20 },
+      { key: "notes", label: "Notes / escalation needed", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Vaccine Offer/Documentation Audit (Flu/Pneumo)
+  {
+    id: "audit_vaccine_flupneumo_v1",
+    title: "Vaccine Offer/Documentation Audit (Flu/Pneumo)",
+    version: "1.0.0",
+    category: "Immunization",
+    placementTags: ["Immunization", "Monthly Audit", "Survey-Ready"],
+    ftagTags: ["F883"],
+    nydohTags: ["10 NYCRR 415.19", "NY LTC Immunization Act"],
+    purpose: {
+      summary: "Education + offer + accept/decline/contra documented.",
+      risk: "Missing vaccine documentation is a common survey deficiency.",
+      evidenceToShow: "Vax audit + declination/contra forms"
+    },
+    references: [
+      { system: "CMS", code: "F883", title: "Influenza and Pneumococcal Immunizations", whyItMatters: "Facilities must offer and document vaccinations." },
+      { system: "NYDOH", code: "NY LTC Immunization Act", title: "NYS Immunization Requirements", whyItMatters: "State mandate for vaccine documentation." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["documentation_complete"],
+    sessionQuestions: [
+      { key: "review_month", label: "Month reviewed", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "patient_code", label: "Resident Code", type: "patientCode", required: true, score: 0 },
+      { key: "vaccine_type", label: "Vaccine reviewed", type: "select", options: ["Influenza", "Pneumococcal", "Both"], required: true, score: 0 },
+      { key: "education_provided", label: "Education provided and documented?", type: "yn", required: true, score: 25 },
+      { key: "offer_documented", label: "Vaccine offered and documented?", type: "yn", required: true, score: 25 },
+      { key: "documentation_complete", label: "Accept/decline/contraindication documented?", type: "yn", required: true, score: 30, criticalFailIf: "no" },
+      { key: "consent_form", label: "Consent/declination form signed?", type: "yn", required: true, score: 20 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // COVID Immunization Documentation Audit
+  {
+    id: "audit_covid_vax_v1",
+    title: "COVID Immunization Documentation Audit",
+    version: "1.0.0",
+    category: "Immunization",
+    placementTags: ["Immunization", "Monthly Audit", "COVID"],
+    ftagTags: ["F887"],
+    nydohTags: ["10 NYCRR 415.19", "NY DOH COVID vaccine regs"],
+    purpose: {
+      summary: "COVID offer/admin/decline documented + roster accurate.",
+      risk: "Incomplete COVID vaccine documentation leads to survey deficiencies.",
+      evidenceToShow: "COVID vax log + consent/decline evidence"
+    },
+    references: [
+      { system: "CMS", code: "F887", title: "COVID-19 Immunization", whyItMatters: "Facilities must offer and document COVID vaccinations." },
+      { system: "NYDOH", code: "NY DOH COVID vaccine regs", title: "NYS COVID Vaccine Requirements", whyItMatters: "State COVID vaccine documentation requirements." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["documentation_complete"],
+    sessionQuestions: [
+      { key: "review_month", label: "Month reviewed", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "patient_code", label: "Resident Code", type: "patientCode", required: true, score: 0 },
+      { key: "vaccination_status", label: "Vaccination status", type: "select", options: ["Up to date", "Partially vaccinated", "Declined", "Contraindicated", "Unknown"], required: true, score: 0 },
+      { key: "offer_documented", label: "COVID vaccine offered and documented?", type: "yn", required: true, score: 30 },
+      { key: "documentation_complete", label: "Complete documentation (admin/decline/contra)?", type: "yn", required: true, score: 35, criticalFailIf: "no" },
+      { key: "roster_accurate", label: "Roster status matches medical record?", type: "yn", required: true, score: 20 },
+      { key: "consent_signed", label: "Consent/declination signed?", type: "yn", required: true, score: 15 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
+  // Outbreak Packet Readiness Check
+  {
+    id: "audit_outbreak_readiness_v1",
+    title: "Outbreak Packet Readiness Check",
+    version: "1.0.0",
+    category: "Emergency Preparedness",
+    placementTags: ["Infection Prevention", "Quarterly Audit", "Emergency Prep"],
+    ftagTags: ["F880"],
+    nydohTags: ["10 NYCRR 415.19"],
+    purpose: {
+      summary: "Packet templates complete and ready; drill documented.",
+      risk: "Unpreparedness during outbreak leads to spread and regulatory scrutiny.",
+      evidenceToShow: "Outbreak packet + drill minutes"
+    },
+    references: [
+      { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Outbreak preparedness is part of IPC program." },
+      { system: "NYDOH", code: "10 NYCRR 415.19", title: "Infection control requirements", whyItMatters: "State requirement for emergency preparedness." }
+    ],
+    passingThreshold: 100,
+    criticalFailKeys: ["packet_complete"],
+    sessionQuestions: [
+      { key: "quarter", label: "Quarter reviewed", type: "select", options: ["Q1", "Q2", "Q3", "Q4"], required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "check_area", label: "Check area", type: "select", options: ["Outbreak packet", "Communication templates", "Supply inventory", "Cohorting plan", "Testing protocol"], required: true, score: 0 },
+      { key: "packet_complete", label: "Outbreak packet complete and accessible?", type: "yn", required: true, score: 40, criticalFailIf: "no" },
+      { key: "templates_current", label: "Templates current (dated within 12 months)?", type: "yn", required: true, score: 20 },
+      { key: "drill_completed", label: "Tabletop drill completed this quarter?", type: "yn", required: true, score: 25 },
+      { key: "action_items_closed", label: "Drill action items closed?", type: "yn", required: true, score: 15 },
+      { key: "notes", label: "Notes / gaps identified", type: "text", required: false, score: 0 }
+    ]
   }
 ];
 
-// Seed Education Topics with trigger audit links and evidence artifacts
+// ==================== SEED EDUCATION TOPICS ====================
+// Comprehensive IPCP Education Topic Library with trigger audits and evidence artifacts
 export const SEED_EDU_TOPICS: EduTopic[] = [
+  // IPCP Program Overview
+  {
+    id: "edu_ipcp_overview",
+    topic: "IPCP Overview (Program + Roles)",
+    description: "How the facility prevents/identifies/reports/investigates/controls infections; who does what.",
+    purpose: "Standardize expectations + survey-ready staff answers",
+    disciplines: "All staff + leadership",
+    ftags: "F880;F882",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_hh_observation_v1",
+    evidenceArtifacts: ["IPCP program documentation", "Staff role assignments", "Training sign-in sheets"]
+  },
+  // Hand Hygiene
+  {
+    id: "edu_hand_hygiene_moments",
+    topic: "Hand Hygiene Moments + Technique",
+    description: "When to perform HH (entry/exit, before/after care) + technique.",
+    purpose: "Reduce transmission; fix top observable failures",
+    disciplines: "All staff entering resident rooms",
+    ftags: "F880;F945",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_hh_observation_v1",
+    evidenceArtifacts: ["HH audit results", "Competency validation records", "Coaching documentation"]
+  },
+  // PPE Selection
+  {
+    id: "edu_ppe_selection",
+    topic: "PPE Selection by Task",
+    description: "Correct PPE choice based on care task + signage/orders.",
+    purpose: "Prevent PPE mismatch on observation",
+    disciplines: "Nursing/CNAs/Therapy/EVS",
+    ftags: "F880;F945",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_ppe_compliance_v1",
+    evidenceArtifacts: ["PPE audit results", "Task-based PPE guide", "Competency records"]
+  },
+  // Don/Doff
+  {
+    id: "edu_dondoff",
+    topic: "Donning/Doffing Return-Demo",
+    description: "Step sequence and avoiding self-contamination.",
+    purpose: "Competency validation; defensible remediation",
+    disciplines: "Nursing/CNAs/Therapy/EVS",
+    ftags: "F880;F945",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_dondoff_competency_v1",
+    evidenceArtifacts: ["Competency checklist", "Return demo records", "Remediation log"]
+  },
+  // EBP
+  {
+    id: "edu_ebp_triggers",
+    topic: "Enhanced Barrier Precautions (EBP) Triggers",
+    description: "Who qualifies + high-contact care triggers (gown/glove).",
+    purpose: "Prevent MDRO spread; ensure staff can verbalize triggers",
+    disciplines: "Nursing/CNAs/Therapy",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_ebp_v1",
+    evidenceArtifacts: ["EBP roster", "Staff verbalization records", "Audit results"]
+  },
+  // TBP Basics
+  {
+    id: "edu_tbp_basics",
+    topic: "Transmission-Based Precautions (TBP) Basics",
+    description: "Contact/Droplet/Airborne basics; room entry actions.",
+    purpose: "Correct isolation practice; reduce spread",
+    disciplines: "All staff entering rooms",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_room_readiness_v1",
+    evidenceArtifacts: ["TBP training records", "Isolation audit results", "Signage verification"]
+  },
+  // Signage & Supplies
+  {
+    id: "edu_signage_supplies",
+    topic: "Signage + Point-of-Care Supply Standard",
+    description: "What must be posted and staged at the door/bedside.",
+    purpose: "Make practice match policy; avoid 'supply hunt'",
+    disciplines: "Charge RN/Unit Mgr/Nursing",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_room_readiness_v1",
+    evidenceArtifacts: ["Room readiness audits", "Supply par level documentation", "Signage standards"]
+  },
+  // Clean vs Dirty Workflow
+  {
+    id: "edu_clean_dirty",
+    topic: "Clean vs Dirty Workflow (Carts/Sinks/Storage)",
+    description: "Prevent cross-contamination on carts and in soiled utility areas.",
+    purpose: "Eliminate visible survey failures",
+    disciplines: "Nursing/CNAs/EVS",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_clean_dirty_v1",
+    evidenceArtifacts: ["Workflow audit results", "Cart organization photos", "Corrective actions"]
+  },
+  // Shared Equipment Cleaning
+  {
+    id: "edu_equipment_cleaning",
+    topic: "Shared/Re-usable Equipment Cleaning",
+    description: "How/when to clean equipment between residents; contact time.",
+    purpose: "Eliminate a major infection-control citation trigger",
+    disciplines: "Nursing/CNAs/Therapy",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_equipment_cleaning_v1",
+    evidenceArtifacts: ["Equipment cleaning audit", "Contact time validation", "Competency records"]
+  },
+  // High-Touch Environmental Cleaning
+  {
+    id: "edu_hightouch_cleaning",
+    topic: "High-Touch Environmental Cleaning (EVS + Nursing Split)",
+    description: "High-touch surfaces, frequency, ownership, verification.",
+    purpose: "Make logs match reality; reduce spread",
+    disciplines: "EVS + Nursing leaders",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_env_cleaning_v1",
+    evidenceArtifacts: ["EVS logs", "IP verification records", "Re-clean documentation"]
+  },
+  // Disinfectant Contact Time
+  {
+    id: "edu_disinfectant_contact",
+    topic: "Disinfectant Contact Time + Product Use",
+    description: "Which products are used and required wet contact times.",
+    purpose: "Prevent 'wipe-and-run' failures",
+    disciplines: "EVS + Nursing",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_equipment_cleaning_v1",
+    evidenceArtifacts: ["Product training records", "Contact time audits", "Product reference sheets"]
+  },
+  // Linen/Waste Handling
+  {
+    id: "edu_linen_waste",
+    topic: "Linen/Waste/Soiled Utility Handling",
+    description: "Bagging/transport; covered containers; no overflow.",
+    purpose: "Maintain sanitary environment; reduce contamination",
+    disciplines: "Nursing/CNAs/EVS/Laundry",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_linen_waste_v1",
+    evidenceArtifacts: ["Soiled utility audits", "Transport workflow documentation", "Corrective actions"]
+  },
+  // Sharps Safety
+  {
+    id: "edu_sharps_safety",
+    topic: "Sharps Safety + Injection Safety",
+    description: "Sharps placement/fill line; safe injection practices.",
+    purpose: "Reduce bloodborne exposure risk",
+    disciplines: "Nursing",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    evidenceArtifacts: ["Sharps audit results", "Injection safety competency", "Exposure reports"]
+  },
+  // Respiratory Hygiene
+  {
+    id: "edu_respiratory_hygiene",
+    topic: "Respiratory Hygiene + Source Control",
+    description: "Masking when symptomatic; cough etiquette; unit workflow.",
+    purpose: "Reduce respiratory spread + outbreak risk",
+    disciplines: "All staff",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    evidenceArtifacts: ["Respiratory hygiene signage", "Mask availability audits", "Outbreak data"]
+  },
+  // Specimen Collection
+  {
+    id: "edu_specimen_collection",
+    topic: "Specimen Collection/Transport",
+    description: "Proper collection/labeling/timely transport to avoid contamination.",
+    purpose: "Improve diagnostic accuracy; timely treatment",
+    disciplines: "Nursing",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    evidenceArtifacts: ["Specimen collection competency", "Lab rejection rates", "Transport audits"]
+  },
+  // Infection Surveillance
+  {
+    id: "edu_surveillance_workflow",
+    topic: "Infection Surveillance & Line List Workflow",
+    description: "Identify onset, document symptoms/labs, notify provider, update line list.",
+    purpose: "Prove surveillance system is active",
+    disciplines: "IP/Charge RN/Nursing leaders",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_surveillance_v1",
+    evidenceArtifacts: ["Line list documentation", "Provider notification log", "Surveillance reports"]
+  },
+  // Outbreak Response
+  {
+    id: "edu_outbreak_response",
+    topic: "Outbreak Recognition + Response Tabletop",
+    description: "Outbreak definition, testing logs, cohorting, notifications, clearance.",
+    purpose: "Demonstrate readiness + organized response",
+    disciplines: "IP/DON/Unit leaders/EVS",
+    ftags: "F880",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_outbreak_readiness_v1",
+    evidenceArtifacts: ["Outbreak drill records", "Response checklist", "Communication templates"]
+  },
+  // NHSN Reporting
+  {
+    id: "edu_nhsn_reporting",
+    topic: "NHSN Reporting Basics (if applicable)",
+    description: "What gets reported and how you track/report required metrics.",
+    purpose: "Support reporting compliance & readiness",
+    disciplines: "IP/QAPI/Leadership",
+    ftags: "F884",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    evidenceArtifacts: ["NHSN submission records", "Data validation logs", "Reporting calendar"]
+  },
+  // Antibiotic Stewardship
+  {
+    id: "edu_abx_stewardship",
+    topic: "Antibiotic Stewardship for Nurses",
+    description: "Indication, culture review, stop date, time-outs, documentation standards.",
+    purpose: "Reduce inappropriate use + resistance",
+    disciplines: "Nursing/IP/Leadership",
+    ftags: "F881",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_abx_stewardship_v1",
+    evidenceArtifacts: ["ABX review records", "Culture follow-up documentation", "Stewardship reports"]
+  },
+  // Culture Follow-Through
+  {
+    id: "edu_culture_followthrough",
+    topic: "Culture Follow-Through + Lab Notification",
+    description: "Ensure abnormal labs trigger provider notification + documentation.",
+    purpose: "Prevent missed follow-up and delays",
+    disciplines: "Nursing/IP",
+    ftags: "F880;F881",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_surveillance_v1",
+    evidenceArtifacts: ["Lab notification log", "Follow-up documentation", "Delay analysis"]
+  },
+  // Flu/Pneumo Vaccines
+  {
+    id: "edu_flu_pneumo_vaccine",
+    topic: "Influenza & Pneumococcal Vaccine Education/Offer",
+    description: "Resident education, offer, document acceptance/refusal/contraindication.",
+    purpose: "Meet immunization offering/documentation requirements",
+    disciplines: "Nursing/Medical Records/IP",
+    ftags: "F883",
+    nysdohRegs: "10 NYCRR 415.19;NY LTC Immunization Act",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_vaccine_flupneumo_v1",
+    evidenceArtifacts: ["Vaccine audit results", "Consent/declination forms", "Education records"]
+  },
+  // COVID Vaccines
+  {
+    id: "edu_covid_vaccine",
+    topic: "COVID-19 Immunization Offer & Documentation",
+    description: "Offer/document COVID vaccines; maintain records per survey expectations.",
+    purpose: "Meet COVID immunization survey requirements",
+    disciplines: "Nursing/Medical Records/IP",
+    ftags: "F887",
+    nysdohRegs: "10 NYCRR 415.19;NY DOH COVID vaccine regs",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_covid_vax_v1",
+    evidenceArtifacts: ["COVID vax log", "Consent documentation", "Roster reconciliation"]
+  },
+  // COVID Testing
+  {
+    id: "edu_covid_testing",
+    topic: "COVID Testing/Response Basics (if used)",
+    description: "Testing workflow during outbreaks/positivity; documentation/communication.",
+    purpose: "Reduce spread; meet testing expectations",
+    disciplines: "IP/Nursing leaders",
+    ftags: "F886",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    evidenceArtifacts: ["Testing logs", "Communication records", "Outbreak response documentation"]
+  },
+  // IC Training System
+  {
+    id: "edu_ic_training_system",
+    topic: "Infection Control Training Program (System)",
+    description: "How training is assigned, tracked, validated; remediation + re-check.",
+    purpose: "Prove training system effectiveness",
+    disciplines: "Educator/IP/Leadership",
+    ftags: "F945",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    triggerAuditId: "audit_dondoff_competency_v1",
+    evidenceArtifacts: ["Training assignment records", "Completion tracking", "Remediation documentation"]
+  },
+  // CNA Annual In-Service
+  {
+    id: "edu_cna_annual",
+    topic: "Nurse Aide Annual In-Service Minimum (12 hrs) + Content",
+    description: "Annual minimum hours + required content categories; documentation.",
+    purpose: "Meet required in-service expectations",
+    disciplines: "Educator/DON/CNAs",
+    ftags: "F947",
+    nysdohRegs: "10 NYCRR 415.19",
+    facilityPolicy: "",
+    archived: false,
+    evidenceArtifacts: ["Annual hour tracking", "Content coverage documentation", "Sign-in sheets"]
+  },
+  // ==================== EXISTING F-TAG TOPICS ====================
   {
     id: "edu_f880_ipc",
     topic: "Infection Prevention and Control: PPE & Hand Hygiene",
