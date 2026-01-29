@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { filterActionsByRange, computeClosedLoopStats, todayYMD } from '@/lib/calculations';
 import { KpiCard, KpiGrid } from '@/components/KpiCard';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { QaActionFormModal } from '@/components/qa/QaActionFormModal';
+import { toast } from '@/hooks/use-toast';
+import type { QaAction } from '@/types/nurse-educator';
 import { 
   Search, 
   Plus, 
@@ -15,11 +22,19 @@ import {
   FileText,
   User,
   Calendar,
-  MoreVertical
+  Pencil,
+  Trash2,
+  Play,
+  ClipboardCheck
 } from 'lucide-react';
 
 export function QaActionsPage() {
-  const { qaActions, actionsFilters, setActionsFilters, templates } = useApp();
+  const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab } = useApp();
+  
+  // Modal states
+  const [selectedAction, setSelectedAction] = useState<QaAction | null>(null);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editAction, setEditAction] = useState<QaAction | null>(null);
 
   const daysAgo = parseInt(actionsFilters.range, 10);
   const today = todayYMD();
@@ -67,6 +82,47 @@ export function QaActionsPage() {
     return <StatusBadge status="info"><Clock className="w-3 h-3" /> Open</StatusBadge>;
   };
 
+  // Handlers
+  const handleCreateAction = () => {
+    setEditAction(null);
+    setShowFormModal(true);
+  };
+
+  const handleEditAction = () => {
+    setEditAction(selectedAction);
+    setSelectedAction(null);
+    setShowFormModal(true);
+  };
+
+  const handleDeleteAction = () => {
+    if (!selectedAction) return;
+    setQaActions(qaActions.filter(a => a.id !== selectedAction.id));
+    setSelectedAction(null);
+    toast({ title: 'Action Deleted', description: 'The QA action has been deleted.' });
+  };
+
+  const handleSaveAction = (action: QaAction) => {
+    const exists = qaActions.find(a => a.id === action.id);
+    if (exists) {
+      setQaActions(qaActions.map(a => a.id === action.id ? action : a));
+    } else {
+      setQaActions([action, ...qaActions]);
+    }
+  };
+
+  const handleStartAudit = (templateId: string) => {
+    if (!templateId) {
+      toast({ title: 'No Audit Tool', description: 'This action is not linked to an audit tool.', variant: 'destructive' });
+      return;
+    }
+    
+    // Store the template to start in sessionStorage
+    sessionStorage.setItem('NES_START_AUDIT', JSON.stringify({ templateId, from: 'qa-action', actionId: selectedAction?.id }));
+    setSelectedAction(null);
+    setActiveTab('sessions');
+    toast({ title: 'Starting Audit', description: 'Navigate to start the audit session.' });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -74,7 +130,7 @@ export function QaActionsPage() {
           <h1 className="text-2xl font-bold">QA Action Tracker</h1>
           <p className="text-muted-foreground">Closed-loop QAPI tracking with owners and re-audits</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleCreateAction}>
           <Plus className="w-4 h-4" />
           Add Action
         </Button>
@@ -175,7 +231,11 @@ export function QaActionsPage() {
           </Card>
         ) : (
           filtered.map(action => (
-            <Card key={action.id} className="hover:shadow-sm transition-shadow">
+            <Card 
+              key={action.id} 
+              className="hover:shadow-sm transition-shadow cursor-pointer"
+              onClick={() => setSelectedAction(action)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -223,16 +283,143 @@ export function QaActionsPage() {
                       )}
                     </div>
                   </div>
-                  
-                  <Button variant="ghost" size="icon" className="shrink-0">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))
         )}
       </div>
+
+      {/* Action Detail Modal */}
+      <Dialog open={!!selectedAction} onOpenChange={(open) => !open && setSelectedAction(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5 text-primary" />
+              QA Action Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedAction && (
+            <div className="space-y-4">
+              {/* Status */}
+              <div>{getStatusBadge(selectedAction)}</div>
+              
+              {/* Issue */}
+              <div>
+                <h3 className="text-lg font-semibold">{selectedAction.issue}</h3>
+                {selectedAction.topic && (
+                  <p className="text-sm text-muted-foreground mt-1">{selectedAction.topic}</p>
+                )}
+              </div>
+              
+              {/* Details Grid */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Owner</p>
+                  <p className="flex items-center gap-1 mt-1">
+                    <User className="w-4 h-4" />
+                    {selectedAction.owner || 'Unassigned'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Due Date</p>
+                  <p className="flex items-center gap-1 mt-1">
+                    <Calendar className="w-4 h-4" />
+                    {selectedAction.dueDate || 'Not set'}
+                  </p>
+                </div>
+                {selectedAction.unit && (
+                  <div>
+                    <p className="text-muted-foreground">Unit</p>
+                    <p className="mt-1">Unit {selectedAction.unit}</p>
+                  </div>
+                )}
+                {selectedAction.templateTitle && (
+                  <div>
+                    <p className="text-muted-foreground">Audit Tool</p>
+                    <p className="mt-1 text-xs">{selectedAction.templateTitle}</p>
+                  </div>
+                )}
+                {selectedAction.reAuditDueDate && (
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Re-Audit Due</p>
+                    <p className="mt-1">{selectedAction.reAuditDueDate} {selectedAction.reAuditCompletedAt && `(Completed: ${selectedAction.reAuditCompletedAt})`}</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Evidence Checklist */}
+              <div>
+                <p className="text-muted-foreground text-sm mb-2">Evidence Checklist</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={selectedAction.ev_policyReviewed ? "default" : "outline"}>Policy Reviewed</Badge>
+                  <Badge variant={selectedAction.ev_educationProvided ? "default" : "outline"}>Education</Badge>
+                  <Badge variant={selectedAction.ev_competencyValidated ? "default" : "outline"}>Competency</Badge>
+                  <Badge variant={selectedAction.ev_correctiveAction ? "default" : "outline"}>Corrective Action</Badge>
+                  <Badge variant={selectedAction.ev_monitoringInPlace ? "default" : "outline"}>Monitoring</Badge>
+                </div>
+              </div>
+              
+              {/* Notes */}
+              {selectedAction.notes && (
+                <div>
+                  <p className="text-muted-foreground text-sm">Notes</p>
+                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded">{selectedAction.notes}</p>
+                </div>
+              )}
+              
+              {/* Actions */}
+              <div className="flex flex-wrap justify-between gap-2 pt-4 border-t">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete QA Action?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete this action item. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteAction} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <div className="flex gap-2">
+                  {selectedAction.templateId && (
+                    <Button variant="outline" onClick={() => handleStartAudit(selectedAction.reAuditTemplateId || selectedAction.templateId)}>
+                      <Play className="w-4 h-4 mr-1" />
+                      Start Re-Audit
+                    </Button>
+                  )}
+                  <Button onClick={handleEditAction}>
+                    <Pencil className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create/Edit Form Modal */}
+      <QaActionFormModal
+        open={showFormModal}
+        onOpenChange={setShowFormModal}
+        action={editAction}
+        templates={templates}
+        onSave={handleSaveAction}
+      />
     </div>
   );
 }
