@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ClipboardCheck, Play, Eye, Settings2, FileText, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { ClipboardCheck, Play, Eye, Settings2, FileText, AlertTriangle, CheckCircle2, XCircle, Printer } from 'lucide-react';
 import type { AuditTemplate } from '@/types/nurse-educator';
+import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 
 export function TemplatesPage() {
   const { templates, setActiveTab } = useApp();
@@ -21,6 +22,9 @@ export function TemplatesPage() {
   const [runAuditTemplate, setRunAuditTemplate] = useState<AuditTemplate | null>(null);
   const [auditUnit, setAuditUnit] = useState('');
   const [auditAuditor, setAuditAuditor] = useState('');
+  
+  // State for print pre-audit form
+  const [printPreAuditTemplate, setPrintPreAuditTemplate] = useState<AuditTemplate | null>(null);
   
   const activeTemplates = templates.filter(t => !t.archived);
 
@@ -114,6 +118,9 @@ export function TemplatesPage() {
                 <Button size="sm" variant="outline" className="gap-2" onClick={() => handlePreview(tpl)}>
                   <Eye className="w-4 h-4" />
                   Preview
+                </Button>
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => setPrintPreAuditTemplate(tpl)}>
+                  <Printer className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -316,12 +323,30 @@ export function TemplatesPage() {
               <Play className="w-4 h-4" />
               Run This Audit
             </Button>
+            <Button variant="outline" className="gap-2" onClick={() => {
+              if (previewTemplate) {
+                setPrintPreAuditTemplate(previewTemplate);
+                setPreviewTemplate(null);
+              }
+            }}>
+              <Printer className="w-4 h-4" />
+              Print Form
+            </Button>
             <Button variant="outline" onClick={() => setPreviewTemplate(null)}>
               Close
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pre-Audit Print Modal */}
+      {printPreAuditTemplate && (
+        <PreAuditPrintModal
+          open={!!printPreAuditTemplate}
+          onOpenChange={(open) => !open && setPrintPreAuditTemplate(null)}
+          template={printPreAuditTemplate}
+        />
+      )}
     </div>
   );
 }

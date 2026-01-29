@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { computeSampleResult, todayYMD, nowISO } from '@/lib/calculations';
 import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/types/nurse-educator';
+import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
+import { PostAuditPrintModal } from '@/components/audit/PostAuditPrintModal';
 import { 
   Play, 
   FileText, 
@@ -21,7 +23,8 @@ import {
   Plus,
   Save,
   Trash2,
-  Eye
+  Eye,
+  Printer
 } from 'lucide-react';
 
 export function SessionsPage() {
@@ -34,6 +37,10 @@ export function SessionsPage() {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  
+  // Print modals state
+  const [printPreAuditTemplate, setPrintPreAuditTemplate] = useState<AuditTemplate | null>(null);
+  const [printPostAuditSession, setPrintPostAuditSession] = useState<AuditSession | null>(null);
   
   // New session form
   const [newSessionUnit, setNewSessionUnit] = useState('');
@@ -336,14 +343,30 @@ export function SessionsPage() {
                 />
               </div>
               
-              <Button 
-                onClick={startNewSession} 
-                disabled={!selectedTemplateId}
-                className="w-full"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Start Audit
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={startNewSession} 
+                  disabled={!selectedTemplateId}
+                  className="flex-1"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Audit
+                </Button>
+                <Button 
+                  variant="outline"
+                  disabled={!selectedTemplateId}
+                  onClick={() => {
+                    const tpl = templates.find(t => t.id === selectedTemplateId);
+                    if (tpl) {
+                      setPrintPreAuditTemplate(tpl);
+                      setShowNewSessionDialog(false);
+                    }
+                  }}
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print Form
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -542,7 +565,11 @@ export function SessionsPage() {
               )}
               
               {activeSession.header.status === 'complete' && (
-                <div className="flex justify-end pt-4 border-t">
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button variant="outline" className="gap-2" onClick={() => setPrintPostAuditSession(activeSession)}>
+                    <Printer className="w-4 h-4" />
+                    Print Results
+                  </Button>
                   <Button variant="outline" onClick={() => setActiveSession(null)}>
                     Close
                   </Button>
@@ -634,10 +661,18 @@ export function SessionsPage() {
                             Auditor: {session.header.auditor} • 
                             Created: {new Date(session.createdAt).toLocaleDateString()}
                           </p>
-                          <Button size="sm" onClick={() => openSession(session)}>
-                            <Eye className="w-4 h-4 mr-1" />
-                            {session.header.status === 'complete' ? 'View' : 'Continue'}
-                          </Button>
+                          <div className="flex gap-2">
+                            {session.header.status === 'complete' && (
+                              <Button size="sm" variant="outline" onClick={() => setPrintPostAuditSession(session)}>
+                                <Printer className="w-4 h-4 mr-1" />
+                                Print
+                              </Button>
+                            )}
+                            <Button size="sm" onClick={() => openSession(session)}>
+                              <Eye className="w-4 h-4 mr-1" />
+                              {session.header.status === 'complete' ? 'View' : 'Continue'}
+                            </Button>
+                          </div>
                         </div>
                         
                         {session.samples.length > 0 && (
@@ -667,6 +702,25 @@ export function SessionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Print Pre-Audit Modal */}
+      {printPreAuditTemplate && (
+        <PreAuditPrintModal
+          open={!!printPreAuditTemplate}
+          onOpenChange={(open) => !open && setPrintPreAuditTemplate(null)}
+          template={printPreAuditTemplate}
+        />
+      )}
+
+      {/* Print Post-Audit Modal */}
+      {printPostAuditSession && (
+        <PostAuditPrintModal
+          open={!!printPostAuditSession}
+          onOpenChange={(open) => !open && setPrintPostAuditSession(null)}
+          session={printPostAuditSession}
+          template={templates.find(t => t.id === printPostAuditSession.templateId)!}
+        />
+      )}
     </div>
   );
 }
