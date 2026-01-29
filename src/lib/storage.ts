@@ -35,7 +35,7 @@ const DEFAULT_OWNERS: AdminOwners = {
   admin: 'Administrator'
 };
 
-// Templates
+// Templates - merge seed templates with user data to ensure new templates are available
 export function loadTemplates(): AuditTemplate[] {
   try {
     const raw = localStorage.getItem(LS_KEYS.templates);
@@ -44,7 +44,22 @@ export function loadTemplates(): AuditTemplate[] {
       return SEED_TEMPLATES;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : SEED_TEMPLATES;
+    if (!Array.isArray(parsed)) {
+      saveTemplates(SEED_TEMPLATES);
+      return SEED_TEMPLATES;
+    }
+    
+    // Merge: keep user's existing templates, add any new seed templates they don't have
+    const existingIds = new Set(parsed.map((t: AuditTemplate) => t.id));
+    const newSeedTemplates = SEED_TEMPLATES.filter(t => !existingIds.has(t.id));
+    
+    if (newSeedTemplates.length > 0) {
+      const merged = [...parsed, ...newSeedTemplates];
+      saveTemplates(merged);
+      return merged;
+    }
+    
+    return parsed;
   } catch {
     return SEED_TEMPLATES;
   }
