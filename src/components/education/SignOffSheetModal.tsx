@@ -55,55 +55,58 @@ export function SignOffSheetModal({
             }
             .header { 
               display: flex; 
-              justify-content: space-between; 
               align-items: flex-start;
-              margin-bottom: 16px;
+              gap: 16px;
+              margin-bottom: 8px;
             }
-            .header-left h1 { 
-              font-size: 16px; 
+            .header-logo {
+              flex-shrink: 0;
+            }
+            .header-logo img {
+              max-height: 60px;
+              max-width: 150px;
+            }
+            .header-logo .facility-name {
+              font-size: 14px;
+              font-weight: 600;
+              color: #8B7355;
+              margin-top: 4px;
+            }
+            .header-logo .facility-subtitle {
+              font-size: 10px;
+              color: #8B7355;
+            }
+            .sheet-title { 
+              text-align: center;
+              font-size: 14px; 
               font-weight: bold; 
-              margin-bottom: 2px;
-            }
-            .header-left p { 
-              font-size: 12px; 
-              color: #666;
-            }
-            .header-right { 
-              text-align: right; 
-              font-size: 11px;
-            }
-            .header-right img {
-              max-height: 50px;
-              max-width: 120px;
-              margin-bottom: 4px;
+              margin: 16px 0 12px 0;
             }
             .topic-box { 
               border: 1px solid #ddd; 
-              padding: 12px; 
-              margin-bottom: 16px;
+              padding: 10px 12px; 
+              margin-bottom: 12px;
               background: #fafafa;
+              font-size: 11px;
             }
-            .topic-title { 
-              font-weight: bold; 
-              font-size: 12px;
-              margin-bottom: 8px;
+            .topic-row {
+              margin-bottom: 4px;
             }
-            .topic-description { 
-              margin-bottom: 8px; 
+            .topic-row:last-child {
+              margin-bottom: 0;
             }
-            .topic-description strong { font-weight: 600; }
-            .topic-policy { 
-              margin-bottom: 8px; 
+            .topic-label { 
+              font-weight: 600;
+              color: #1a4480;
             }
-            .topic-policy strong { font-weight: 600; }
-            .topic-meta { 
-              font-size: 10px;
-              color: #555;
+            .instructor-row {
+              display: flex;
+              gap: 24px;
             }
             .page-indicator {
               font-size: 10px;
-              color: #666;
-              margin-bottom: 8px;
+              color: #1a4480;
+              margin-bottom: 4px;
             }
             table { 
               width: 100%; 
@@ -113,32 +116,26 @@ export function SignOffSheetModal({
               display: table-header-group;
             }
             th { 
-              background: #f5f5f5; 
-              border: 1px solid #ddd; 
+              background: #fff; 
+              border-bottom: 1px solid #8B7355; 
               padding: 6px 8px; 
               text-align: left;
               font-size: 10px;
               font-weight: 600;
+              color: #8B7355;
             }
             td { 
-              border: 1px solid #ddd; 
-              padding: 6px 8px; 
-              height: 24px;
+              border-bottom: 1px solid #ddd; 
+              padding: 4px 8px; 
+              height: 20px;
             }
             td:first-child {
-              width: 30px; 
-              text-align: center;
+              width: 25px; 
               color: #666;
             }
-            td:nth-child(2) { width: 35%; }
+            td:nth-child(2) { width: 40%; }
             td:nth-child(3) { width: 25%; }
-            td:nth-child(4) { width: 35%; }
-            .footer { 
-              margin-top: 16px;
-              font-size: 9px;
-              color: #888;
-              font-style: italic;
-            }
+            td:nth-child(4) { width: 30%; }
             tr {
               page-break-inside: avoid;
             }
@@ -216,76 +213,74 @@ export function SignOffSheetModal({
 
         {/* Preview */}
         <div className="border rounded-lg p-4 bg-white overflow-auto max-h-[500px]" ref={printRef}>
-          {/* Header */}
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h1 className="text-lg font-bold">{facilityName}</h1>
-              <p className="text-sm text-muted-foreground">Inservice Sign-In Sheet</p>
-            </div>
-            <div className="text-right text-sm">
-              {showLogo && logoUrl && (
+          {/* Header with Logo */}
+          <div className="flex items-start gap-4 mb-2">
+            {showLogo && logoUrl && (
+              <div className="flex-shrink-0">
                 <img 
                   src={logoUrl} 
                   alt="Logo" 
-                  className="max-h-12 max-w-[100px] mb-1 ml-auto"
+                  className="max-h-[60px] max-w-[150px]"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-semibold" style={{ color: '#8B7355' }}>{facilityName}</p>
+              {showLogo && (
+                <p className="text-xs" style={{ color: '#8B7355' }}>nursing and rehabilitation center</p>
               )}
-              <div><strong>Date:</strong> {sessionDate || 'TBD'}</div>
-              <div><strong>Unit:</strong> {session.unit || 'All Units'}</div>
             </div>
           </div>
 
+          {/* Centered Title */}
+          <h1 className="text-center text-sm font-bold my-3">Inservice Sign-In Sheet</h1>
+
           {/* Topic Box */}
-          <div className="border rounded p-3 mb-4 bg-muted/30">
-            <p className="font-semibold text-sm mb-2">
-              Topic: {session.topic || 'Untitled Session'}
-            </p>
+          <div className="border rounded p-2.5 mb-3 bg-muted/30 text-xs">
+            <div className="mb-1">
+              <span className="font-semibold text-primary">Topic:</span> {session.topic || 'Untitled Session'}
+            </div>
             {session.summary && (
-              <p className="text-sm mb-2">
-                <strong>Description:</strong> {session.summary}
-              </p>
+              <div className="mb-1">
+                <span className="font-semibold text-primary">Description:</span> {session.summary}
+              </div>
             )}
             {facilityPolicyNotes && (
-              <p className="text-sm mb-2">
-                <strong>Facility Policy Notes:</strong> {facilityPolicyNotes}
-              </p>
+              <div className="mb-1">
+                <span className="font-semibold text-primary">Facility Policy Notes:</span> {facilityPolicyNotes}
+              </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              <strong>Instructor:</strong> {session.instructor || '—'} &nbsp;&nbsp;
-              <strong>Audience:</strong> {session.audience || '—'}
-            </p>
+            <div className="flex gap-6">
+              <span><span className="font-semibold text-primary">Instructor:</span> {session.instructor || '—'}</span>
+              <span><span className="font-semibold text-primary">Audience:</span> {session.audience || '—'}</span>
+            </div>
           </div>
 
           {/* Page indicator */}
-          <p className="text-xs text-muted-foreground mb-2">Sign-in page 1 of 1</p>
+          <p className="text-[10px] text-primary mb-1">Sign-in page 1 of 1</p>
 
           {/* Sign-in Table */}
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="bg-muted/50">
-                <th className="border p-2 text-left w-8">#</th>
-                <th className="border p-2 text-left">Name</th>
-                <th className="border p-2 text-left">Position</th>
-                <th className="border p-2 text-left">Signature</th>
+              <tr>
+                <th className="border-b-2 p-1.5 text-left w-6 font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355' }}>#</th>
+                <th className="border-b-2 p-1.5 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '40%' }}>Name</th>
+                <th className="border-b-2 p-1.5 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '25%' }}>Position</th>
+                <th className="border-b-2 p-1.5 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '30%' }}>Signature</th>
               </tr>
             </thead>
             <tbody>
               {rows.map(num => (
                 <tr key={num}>
-                  <td className="border p-2 text-center text-muted-foreground">{num}</td>
-                  <td className="border p-2 h-7"></td>
-                  <td className="border p-2 h-7"></td>
-                  <td className="border p-2 h-7"></td>
+                  <td className="border-b border-gray-300 p-1.5 text-muted-foreground">{num}</td>
+                  <td className="border-b border-gray-300 p-1.5 h-5"></td>
+                  <td className="border-b border-gray-300 p-1.5 h-5"></td>
+                  <td className="border-b border-gray-300 p-1.5 h-5"></td>
                 </tr>
               ))}
             </tbody>
           </table>
-
-          {/* Footer */}
-          <p className="mt-4 text-xs text-muted-foreground italic">
-            This document is for internal QAPI evidence. Use de-identified resident references only.
-          </p>
         </div>
 
         {/* Actions */}
