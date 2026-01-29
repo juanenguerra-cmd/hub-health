@@ -42,7 +42,7 @@ const MONTHS = [
 ];
 
 export function EducationPage() {
-  const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName } = useApp();
+  const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName, eduLibrary } = useApp();
   
   // Modal states
   const [selectedSession, setSelectedSession] = useState<EducationSession | null>(null);
@@ -325,6 +325,7 @@ export function EducationPage() {
         onOpenChange={setShowFormModal}
         session={editSession}
         onSave={handleSaveSession}
+        eduLibrary={eduLibrary}
       />
 
       {/* Sign-Off Sheet Modal */}
