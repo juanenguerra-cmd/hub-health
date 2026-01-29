@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -12,7 +13,8 @@ import {
   CheckCircle2, 
   Clock,
   Pencil,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 
 interface SessionDetailModalProps {
@@ -20,6 +22,7 @@ interface SessionDetailModalProps {
   onOpenChange: (open: boolean) => void;
   session: EducationSession | null;
   onEdit: () => void;
+  onDelete: () => void;
   onGenerateSignOff: () => void;
 }
 
@@ -28,6 +31,7 @@ export function SessionDetailModal({
   onOpenChange,
   session,
   onEdit,
+  onDelete,
   onGenerateSignOff
 }: SessionDetailModalProps) {
   if (!session) return null;
@@ -138,18 +142,43 @@ export function SessionDetailModal({
           )}
 
           {/* Actions */}
-          <div className="flex flex-wrap justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-            <Button variant="outline" onClick={onGenerateSignOff}>
-              <FileText className="w-4 h-4 mr-1" />
-              Sign-Off Sheet
-            </Button>
-            <Button onClick={onEdit}>
-              <Pencil className="w-4 h-4 mr-1" />
-              Edit Session
-            </Button>
+          <div className="flex flex-wrap justify-between gap-2 pt-4 border-t">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-destructive hover:text-destructive">
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Education Session?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete "{session.topic}". This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+              <Button variant="outline" onClick={onGenerateSignOff}>
+                <FileText className="w-4 h-4 mr-1" />
+                Sign-Off Sheet
+              </Button>
+              <Button onClick={onEdit}>
+                <Pencil className="w-4 h-4 mr-1" />
+                Edit
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

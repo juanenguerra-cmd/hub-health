@@ -116,6 +116,12 @@ export function EducationPage() {
     setShowFormModal(true);
   };
 
+  const handleDeleteSession = () => {
+    if (!selectedSession) return;
+    setEduSessions(eduSessions.filter(s => s.id !== selectedSession.id));
+    setSelectedSession(null);
+  };
+
   const handleSaveSession = (session: EducationSession) => {
     const exists = eduSessions.find(s => s.id === session.id);
     if (exists) {
@@ -316,6 +322,7 @@ export function EducationPage() {
         onOpenChange={(open) => !open && setSelectedSession(null)}
         session={selectedSession}
         onEdit={handleEditSession}
+        onDelete={handleDeleteSession}
         onGenerateSignOff={handleGenerateSignOff}
       />
 
