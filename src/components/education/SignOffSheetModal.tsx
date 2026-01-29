@@ -48,65 +48,74 @@ export function SignOffSheetModal({
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
               font-family: Arial, sans-serif; 
-              font-size: 9px;
-              line-height: 1.2;
-              padding: 12px;
+              font-size: 10px;
+              line-height: 1.3;
+              padding: 20px 30px;
               color: #333;
             }
+            .header-logo {
+              text-align: center;
+              margin-bottom: 12px;
+            }
             .header-logo img {
-              height: 40px;
+              height: 50px;
               width: auto;
             }
             .sheet-title { 
               text-align: center;
-              font-size: 12px; 
+              font-size: 14px; 
               font-weight: bold; 
-              margin: 8px 0;
+              margin: 12px 0;
+              color: #1a4480;
             }
             .topic-box { 
-              border: 1px solid #ccc; 
-              padding: 6px 8px; 
-              margin-bottom: 8px;
+              border: 1px solid #ddd; 
+              padding: 10px 12px; 
+              margin-bottom: 12px;
               background: #fafafa;
-              font-size: 9px;
+              font-size: 10px;
             }
             .topic-row {
-              margin-bottom: 2px;
+              margin-bottom: 3px;
             }
             .topic-label { 
               font-weight: 600;
               color: #1a4480;
             }
+            .instructor-row {
+              display: flex;
+              gap: 24px;
+            }
             .page-indicator {
-              font-size: 8px;
+              font-size: 9px;
               color: #1a4480;
-              margin-bottom: 2px;
+              margin-bottom: 4px;
             }
             table { 
               width: 100%; 
               border-collapse: collapse; 
             }
             th { 
-              border-bottom: 1px solid #8B7355; 
-              padding: 3px 4px; 
+              border-bottom: 2px solid #8B7355; 
+              padding: 6px 8px; 
               text-align: left;
-              font-size: 8px;
+              font-size: 10px;
               font-weight: 600;
               color: #8B7355;
             }
             td { 
               border-bottom: 1px solid #ddd; 
-              padding: 2px 4px; 
-              height: 16px;
-              font-size: 8px;
+              padding: 4px 8px; 
+              height: 22px;
+              font-size: 9px;
             }
-            td:first-child { width: 20px; color: #666; }
+            td:first-child { width: 25px; color: #666; }
             td:nth-child(2) { width: 40%; }
             td:nth-child(3) { width: 25%; }
             td:nth-child(4) { width: 30%; }
             @media print {
-              body { padding: 0; }
-              @page { margin: 0.4in; size: letter; }
+              body { padding: 15px 20px; }
+              @page { margin: 0.5in; size: letter; }
             }
           </style>
         </head>
@@ -157,63 +166,63 @@ export function SignOffSheetModal({
           </div>
         </div>
 
-        {/* Preview - Compact */}
-        <div className="border rounded-lg p-3 bg-white overflow-auto max-h-[400px] text-[9px]" ref={printRef}>
-          {/* Header with embedded Logo */}
+        {/* Preview */}
+        <div className="border rounded-lg p-4 bg-white overflow-auto max-h-[450px]" ref={printRef}>
+          {/* Centered Logo */}
           {showLogo && (
-            <div className="header-logo mb-1">
+            <div className="header-logo text-center mb-3">
               <img 
                 src={facilityLogo} 
                 alt="Long Beach Nursing and Rehabilitation Center" 
-                style={{ height: '40px', width: 'auto' }}
+                style={{ height: '50px', width: 'auto', display: 'inline-block' }}
               />
             </div>
           )}
 
           {/* Centered Title */}
-          <h1 className="text-center text-xs font-bold my-2">Inservice Sign-In Sheet</h1>
+          <h1 className="text-center text-sm font-bold my-3 text-primary">Inservice Sign-In Sheet</h1>
 
-          {/* Topic Box - Compact */}
-          <div className="border rounded p-2 mb-2 bg-gray-50 text-[9px]">
-            <div className="mb-0.5">
+          {/* Topic Box */}
+          <div className="border rounded p-2.5 mb-3 bg-gray-50 text-[10px]">
+            <div className="topic-row mb-1">
               <span className="font-semibold text-primary">Topic:</span> {session.topic || 'Untitled Session'}
             </div>
             {session.summary && (
-              <div className="mb-0.5">
+              <div className="topic-row mb-1">
                 <span className="font-semibold text-primary">Description:</span> {session.summary}
               </div>
             )}
             {facilityPolicyNotes && (
-              <div className="mb-0.5">
+              <div className="topic-row mb-1">
                 <span className="font-semibold text-primary">Policy Notes:</span> {facilityPolicyNotes}
               </div>
             )}
-            <div className="flex gap-4">
+            <div className="instructor-row flex gap-6">
               <span><span className="font-semibold text-primary">Instructor:</span> {session.instructor || '—'}</span>
               <span><span className="font-semibold text-primary">Audience:</span> {session.audience || '—'}</span>
             </div>
           </div>
 
           {/* Page indicator */}
-          <p className="text-[8px] text-primary mb-1">Sign-in page 1 of 1</p>
+          <p className="page-indicator text-[9px] text-primary mb-1">Sign-in page 1 of 1</p>
 
-          {/* Sign-in Table - Compact rows */}
-          <table className="w-full border-collapse text-[8px]">
+          {/* Sign-in Table */}
+          <table className="w-full border-collapse text-[10px]">
             <thead>
               <tr>
-                <th className="border-b p-1 text-left w-5 font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355' }}>#</th>
-                <th className="border-b p-1 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '40%' }}>Name</th>
-                <th className="border-b p-1 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '25%' }}>Position</th>
-                <th className="border-b p-1 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '30%' }}>Signature</th>
+                <th className="border-b-2 p-1.5 text-left w-6 font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355' }}>#</th>
+                <th className="border-b-2 p-1.5 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '40%' }}>Name</th>
+                <th className="border-b-2 p-1.5 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '25%' }}>Position</th>
+                <th className="border-b-2 p-1.5 text-left font-semibold" style={{ borderColor: '#8B7355', color: '#8B7355', width: '30%' }}>Signature</th>
               </tr>
             </thead>
             <tbody>
               {rows.map(num => (
                 <tr key={num}>
-                  <td className="border-b border-gray-200 p-1 text-gray-500">{num}</td>
-                  <td className="border-b border-gray-200 p-1 h-4"></td>
-                  <td className="border-b border-gray-200 p-1 h-4"></td>
-                  <td className="border-b border-gray-200 p-1 h-4"></td>
+                  <td className="border-b border-gray-200 p-1.5 text-gray-500">{num}</td>
+                  <td className="border-b border-gray-200 p-1.5 h-5"></td>
+                  <td className="border-b border-gray-200 p-1.5 h-5"></td>
+                  <td className="border-b border-gray-200 p-1.5 h-5"></td>
                 </tr>
               ))}
             </tbody>
