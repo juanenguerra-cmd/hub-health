@@ -13,9 +13,14 @@ import {
   AlertCircle,
   Building2,
   Database,
-  RefreshCw
+  RefreshCw,
+  Bell,
+  Settings
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { BackupSettingsModal } from '@/components/BackupSettingsModal';
+import { loadBackupSettings, updateLastBackupTime } from '@/lib/backup-settings-storage';
+import { formatLastBackup } from '@/types/backup-settings';
 
 export function SettingsPage() {
   const { 
@@ -39,6 +44,8 @@ export function SettingsPage() {
     counts?: Record<string, number>;
   } | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [showBackupSettings, setShowBackupSettings] = useState(false);
+  const [backupSettings, setBackupSettings] = useState(() => loadBackupSettings());
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,16 +96,24 @@ export function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nurse-educator-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `hub-health-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
+    // Update backup time
+    updateLastBackupTime();
+    setBackupSettings(loadBackupSettings());
+    
     toast({
       title: 'Backup Created',
       description: 'Your data has been exported successfully.',
     });
+  };
+
+  const handleBackupSettingsUpdate = () => {
+    setBackupSettings(loadBackupSettings());
   };
 
   const handleLoadDemo = () => {
@@ -191,6 +206,29 @@ export function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Backup Reminder Settings */}
+          <div className="rounded-lg border p-4 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <Bell className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-medium">Backup Reminders</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Last backup: {formatLastBackup(backupSettings.lastBackupAt)} • 
+                    Frequency: {backupSettings.reminderFrequency === '3days' ? 'Every 3 days' : 
+                               backupSettings.reminderFrequency.charAt(0).toUpperCase() + backupSettings.reminderFrequency.slice(1)}
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowBackupSettings(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                Configure
+              </Button>
+            </div>
+          </div>
+
           {/* Restore Section */}
           <div className="space-y-4">
             <div>
@@ -281,6 +319,12 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <BackupSettingsModal 
+        open={showBackupSettings} 
+        onOpenChange={setShowBackupSettings}
+        onSettingsUpdate={handleBackupSettingsUpdate}
+      />
     </div>
   );
 }
