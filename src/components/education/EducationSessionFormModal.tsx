@@ -5,14 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { EducationSession } from '@/types/nurse-educator';
-import { GraduationCap } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import type { EducationSession, EduTopic } from '@/types/nurse-educator';
+import { GraduationCap, BookOpen } from 'lucide-react';
 
 interface EducationSessionFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session?: EducationSession | null;
   onSave: (session: EducationSession) => void;
+  eduLibrary?: EduTopic[];
 }
 
 const CATEGORIES = [
@@ -41,10 +43,12 @@ export function EducationSessionFormModal({
   open,
   onOpenChange,
   session,
-  onSave
+  onSave,
+  eduLibrary = []
 }: EducationSessionFormModalProps) {
   const isEdit = !!session;
   
+  const [selectedTopicId, setSelectedTopicId] = useState<string>('');
   const [formData, setFormData] = useState({
     topic: '',
     summary: '',
@@ -58,6 +62,9 @@ export function EducationSessionFormModal({
     status: 'planned' as 'planned' | 'completed',
     attendees: ''
   });
+
+  // Filter out archived topics
+  const availableTopics = eduLibrary.filter(t => !t.archived);
 
   useEffect(() => {
     if (session) {
@@ -74,6 +81,7 @@ export function EducationSessionFormModal({
         status: session.status || 'planned',
         attendees: session.attendees?.join(', ') || ''
       });
+      setSelectedTopicId('');
     } else {
       setFormData({
         topic: '',
@@ -88,8 +96,48 @@ export function EducationSessionFormModal({
         status: 'planned',
         attendees: ''
       });
+      setSelectedTopicId('');
     }
   }, [session, open]);
+
+  // Handle topic library selection
+  const handleTopicSelect = (topicId: string) => {
+    setSelectedTopicId(topicId);
+    
+    if (topicId === 'custom') {
+      // User wants to enter custom topic - don't change form
+      return;
+    }
+    
+    const selectedTopic = availableTopics.find(t => t.id === topicId);
+    if (selectedTopic) {
+      // Auto-populate fields from the library topic
+      setFormData(prev => ({
+        ...prev,
+        topic: selectedTopic.topic || '',
+        summary: selectedTopic.description || selectedTopic.purpose || '',
+        audience: selectedTopic.disciplines || prev.audience,
+        // Build notes from regulatory references
+        notes: buildNotesFromTopic(selectedTopic)
+      }));
+    }
+  };
+
+  const buildNotesFromTopic = (topic: EduTopic): string => {
+    const parts: string[] = [];
+    
+    if (topic.ftags) {
+      parts.push(`F-Tags: ${topic.ftags}`);
+    }
+    if (topic.nysdohRegs) {
+      parts.push(`NYSDOH: ${topic.nysdohRegs}`);
+    }
+    if (topic.facilityPolicy) {
+      parts.push(`Policy: ${topic.facilityPolicy}`);
+    }
+    
+    return parts.join('\n');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +182,42 @@ export function EducationSessionFormModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Topic Library Selector - only show for new sessions */}
+          {!isEdit && availableTopics.length > 0 && (
+            <>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  Select from Topic Library
+                </Label>
+                <Select value={selectedTopicId} onValueChange={handleTopicSelect}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Choose a topic or enter custom..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50 max-h-[300px]">
+                    <SelectItem value="custom">
+                      <span className="text-muted-foreground">— Enter custom topic —</span>
+                    </SelectItem>
+                    {availableTopics.map(topic => (
+                      <SelectItem key={topic.id} value={topic.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{topic.topic}</span>
+                          {topic.ftags && (
+                            <span className="text-xs text-muted-foreground">{topic.ftags}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Selecting a topic will auto-fill the form below
+                </p>
+              </div>
+              <Separator />
+            </>
+          )}
+
           {/* Topic */}
           <div className="space-y-2">
             <Label htmlFor="topic">Topic *</Label>
@@ -166,10 +250,10 @@ export function EducationSessionFormModal({
                 value={formData.category}
                 onValueChange={(v) => setFormData({ ...formData, category: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   {CATEGORIES.map(cat => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
@@ -183,10 +267,10 @@ export function EducationSessionFormModal({
                 value={formData.status}
                 onValueChange={(v) => setFormData({ ...formData, status: v as 'planned' | 'completed' })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-background">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="planned">Planned</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
@@ -202,10 +286,10 @@ export function EducationSessionFormModal({
                 value={formData.audience}
                 onValueChange={(v) => setFormData({ ...formData, audience: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Select audience" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   {AUDIENCES.map(aud => (
                     <SelectItem key={aud} value={aud}>{aud}</SelectItem>
                   ))}
