@@ -239,6 +239,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       eduSessions,
       eduLibrary,
       qaActions,
+      orientationRecords,
+      adminOwners,
       facilityName
     });
   };

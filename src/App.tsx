@@ -15,9 +15,15 @@ import { FollowUpPage } from '@/pages/FollowUpPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
+import { BackupReminderBanner } from '@/components/BackupReminderBanner';
+import { useBrowserCloseWarning } from '@/hooks/use-browser-close-warning';
 
 function AppContent() {
-  const { activeTab } = useApp();
+  const { activeTab, sessions, qaActions, eduSessions } = useApp();
+  
+  // Enable browser close warning when there's data
+  const hasData = sessions.length > 0 || qaActions.length > 0 || eduSessions.length > 0;
+  useBrowserCloseWarning(hasData);
 
   const renderPage = () => {
     switch (activeTab) {
@@ -56,6 +62,7 @@ function AppContent() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <AppHeader />
         <main className="flex-1 overflow-auto p-4 lg:p-6">
+          <BackupReminderBanner />
           {renderPage()}
         </main>
         <footer className="py-2 px-4 text-center text-xs text-muted-foreground border-t border-border">

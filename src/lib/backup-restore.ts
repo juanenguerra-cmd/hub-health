@@ -6,7 +6,9 @@ import type {
   AuditSample,
   QaAction,
   EducationSession,
-  EduTopic
+  EduTopic,
+  OrientationRecord,
+  AdminOwners
 } from '@/types/nurse-educator';
 
 export interface BackupData {
@@ -18,7 +20,8 @@ export interface BackupData {
   eduSessions?: LegacyEduSession[];
   eduLibrary?: EduTopic[];
   qaActions?: QaAction[];
-  adminOwners?: Record<string, string>;
+  orientationRecords?: OrientationRecord[];
+  adminOwners?: AdminOwners;
   facilityName?: string;
 }
 
@@ -273,6 +276,8 @@ export function createBackup(data: {
   eduSessions: EducationSession[];
   eduLibrary: EduTopic[];
   qaActions: QaAction[];
+  orientationRecords: OrientationRecord[];
+  adminOwners: AdminOwners;
   facilityName: string;
 }): string {
   const backup = {
