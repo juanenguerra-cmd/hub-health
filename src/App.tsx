@@ -6,12 +6,13 @@ import { TemplatesPage } from '@/pages/TemplatesPage';
 import { SessionsPage } from '@/pages/SessionsPage';
 import { QaActionsPage } from '@/pages/QaActionsPage';
 import { EducationPage } from '@/pages/EducationPage';
+import { EduTopicLibraryPage } from '@/pages/EduTopicLibraryPage';
+import { OrientationPage } from '@/pages/OrientationPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { FollowUpPage } from '@/pages/FollowUpPage';
 import { SettingsPage } from '@/pages/SettingsPage';
-import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 
@@ -30,8 +31,10 @@ function AppContent() {
         return <QaActionsPage />;
       case 'education':
         return <EducationPage />;
+      case 'edu-library':
+        return <EduTopicLibraryPage />;
       case 'orientation':
-        return <PlaceholderPage title="Staff Orientation" description="Track new hire orientation with 30/60/90-day retention checkpoints" />;
+        return <OrientationPage />;
       case 'analytics':
         return <AnalyticsPage />;
       case 'calendar':

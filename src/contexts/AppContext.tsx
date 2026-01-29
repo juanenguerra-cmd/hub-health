@@ -23,6 +23,7 @@ import {
   loadEduSessions,
   saveEduSessions,
   loadOrientationRecords,
+  saveOrientationRecords,
   loadEduLibrary,
   saveEduLibrary,
   loadStaffDirectory,
@@ -65,6 +66,7 @@ interface AppContextType {
   setEduSessions: (sessions: EducationSession[]) => void;
   setTemplates: (templates: AuditTemplate[]) => void;
   setEduLibrary: (library: EduTopic[]) => void;
+  setOrientationRecords: (records: OrientationRecord[]) => void;
   setFacilityName: (name: string) => void;
   
   // Backup & Restore
@@ -165,6 +167,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setEduLibraryData = (newLibrary: EduTopic[]) => {
     setEduLibrary(newLibrary);
     saveEduLibrary(newLibrary);
+  };
+  
+  const setOrientationRecordsData = (newRecords: OrientationRecord[]) => {
+    setOrientationRecords(newRecords);
+    saveOrientationRecords(newRecords);
   };
   
   const setFacilityNameData = (name: string) => {
@@ -270,6 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setEduSessions,
       setTemplates: setTemplatesData,
       setEduLibrary: setEduLibraryData,
+      setOrientationRecords: setOrientationRecordsData,
       setFacilityName: setFacilityNameData,
       restoreFromBackup,
       exportBackup,

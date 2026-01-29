@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
-  Inbox
+  Inbox,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const navItems = [
   { id: 'sessions', label: 'Audit Sessions', icon: FileText },
   { id: 'qa-actions', label: 'QA Actions', icon: AlertCircle },
   { id: 'education', label: 'Education', icon: GraduationCap },
+  { id: 'edu-library', label: 'Topic Library', icon: BookOpen },
   { id: 'orientation', label: 'Orientation', icon: Users },
   { id: 'follow-up', label: 'Follow-Up Queue', icon: Inbox },
   { id: 'analytics', label: 'Analytics+', icon: BarChart3 },
