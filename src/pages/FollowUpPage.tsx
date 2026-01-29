@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
+import { EducationSessionFormModal } from '@/components/education/EducationSessionFormModal';
 import { todayYMD, daysBetween } from '@/lib/calculations';
 import { toast } from '@/hooks/use-toast';
-import type { QaAction, EducationSession } from '@/types/nurse-educator';
+import type { QaAction, EducationSession, EduTopic } from '@/types/nurse-educator';
 import { 
   AlertTriangle, 
   Clock, 
@@ -21,7 +22,8 @@ import {
   Play,
   Pencil,
   Trash2,
-  GraduationCap
+  GraduationCap,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -38,10 +40,11 @@ interface FollowUpItem {
   linkedId: string;
   templateId?: string;
   templateTitle?: string;
+  topic?: string;
 }
 
 export function FollowUpPage() {
-  const { qaActions, setQaActions, eduSessions, setEduSessions, templates, setActiveTab } = useApp();
+  const { qaActions, setQaActions, eduSessions, setEduSessions, eduLibrary, templates, setActiveTab } = useApp();
   const today = todayYMD();
   
   const [activeQueue, setActiveQueue] = useState('overdue');
@@ -49,6 +52,10 @@ export function FollowUpPage() {
   const [ownerFilter, setOwnerFilter] = useState('All');
   const [unitFilter, setUnitFilter] = useState('All');
   const [selectedItem, setSelectedItem] = useState<FollowUpItem | null>(null);
+  
+  // Education planning modal
+  const [showEduModal, setShowEduModal] = useState(false);
+  const [eduPrefill, setEduPrefill] = useState<Partial<EducationSession> | null>(null);
 
   // Build follow-up queue
   const followUpItems = useMemo<FollowUpItem[]>(() => {
@@ -75,7 +82,8 @@ export function FollowUpPage() {
         daysUntilDue: isOverdue ? -daysBetween(qa.dueDate, today) : daysUntil,
         linkedId: qa.id,
         templateId: qa.templateId,
-        templateTitle: qa.templateTitle
+        templateTitle: qa.templateTitle,
+        topic: qa.topic
       });
       
       // Re-audit due dates
@@ -96,7 +104,8 @@ export function FollowUpPage() {
           daysUntilDue: reIsOverdue ? -daysBetween(qa.reAuditDueDate, today) : reDaysUntil,
           linkedId: qa.id,
           templateId: qa.reAuditTemplateId || qa.templateId,
-          templateTitle: qa.templateTitle
+          templateTitle: qa.templateTitle,
+          topic: qa.topic
         });
       }
     }
@@ -122,7 +131,8 @@ export function FollowUpPage() {
         daysUntilDue: isOverdue ? -daysBetween(edu.scheduledDate, today) : daysUntil,
         linkedId: edu.id,
         templateId: edu.templateId,
-        templateTitle: edu.templateTitle
+        templateTitle: edu.templateTitle,
+        topic: edu.topic
       });
     }
     
@@ -205,6 +215,78 @@ export function FollowUpPage() {
     toast({ title: 'Starting Audit', description: `Launching ${template.title}...` });
   };
 
+  // Plan education from QA action
+  const handlePlanEducation = () => {
+    if (!selectedItem) return;
+    
+    const qa = qaActions.find(a => a.id === selectedItem.linkedId);
+    
+    // Try to find a matching topic from library based on the issue/topic
+    let matchingTopic: EduTopic | undefined;
+    if (qa?.topic || selectedItem.title) {
+      const searchTerms = (qa?.topic || selectedItem.title || '').toLowerCase();
+      matchingTopic = eduLibrary.find(t => 
+        !t.archived && (
+          t.topic.toLowerCase().includes(searchTerms) ||
+          searchTerms.includes(t.topic.toLowerCase().split(' ')[0])
+        )
+      );
+    }
+    
+    // Calculate scheduled date (7 days from now by default)
+    const scheduledDate = new Date();
+    scheduledDate.setDate(scheduledDate.getDate() + 7);
+    
+    // Create prefilled session data
+    const prefill: Partial<EducationSession> = {
+      topic: qa?.topic || qa?.issue || selectedItem.title || '',
+      summary: `Education to address: ${selectedItem.title}`,
+      unit: selectedItem.unit || '',
+      scheduledDate: scheduledDate.toISOString().slice(0, 10),
+      status: 'planned',
+      templateTitle: selectedItem.templateTitle || '',
+      templateId: selectedItem.templateId || '',
+      issue: selectedItem.title,
+      linkedQaActionId: selectedItem.linkedId,
+      notes: matchingTopic 
+        ? `F-Tags: ${matchingTopic.ftags || ''}\nNYSDOH: ${matchingTopic.nysdohRegs || ''}\nPolicy: ${matchingTopic.facilityPolicy || ''}`
+        : `Related to: ${selectedItem.templateTitle || 'QA Action'}\nUnit: ${selectedItem.unit || 'All'}`
+    };
+    
+    // If we found a matching topic, use its data
+    if (matchingTopic) {
+      prefill.topic = matchingTopic.topic;
+      prefill.summary = matchingTopic.description || matchingTopic.purpose || prefill.summary;
+      prefill.audience = matchingTopic.disciplines;
+    }
+    
+    setEduPrefill(prefill);
+    setSelectedItem(null);
+    setShowEduModal(true);
+  };
+
+  // Save education session and link to QA action
+  const handleSaveEducation = (session: EducationSession) => {
+    // Add the new session
+    setEduSessions([session, ...eduSessions]);
+    
+    // Update the QA action to mark education as provided and link the session
+    if (session.linkedQaActionId) {
+      setQaActions(qaActions.map(a => 
+        a.id === session.linkedQaActionId 
+          ? { ...a, ev_educationProvided: true, linkedEduSessionId: session.id }
+          : a
+      ));
+    }
+    
+    toast({ 
+      title: 'Education Planned', 
+      description: `Inservice "${session.topic}" scheduled for ${session.scheduledDate}.` 
+    });
+    setShowEduModal(false);
+    setEduPrefill(null);
+  };
+
   // Delete handlers
   const handleDeleteItem = () => {
     if (!selectedItem) return;
@@ -276,6 +358,13 @@ export function FollowUpPage() {
     ));
     toast({ title: 'Session Completed', description: 'The education session has been marked as complete.' });
     setSelectedItem(null);
+  };
+
+  // Check if QA action already has education linked
+  const getLinkedEducation = (linkedId: string) => {
+    const qa = qaActions.find(a => a.id === linkedId);
+    if (!qa?.linkedEduSessionId) return null;
+    return eduSessions.find(e => e.id === qa.linkedEduSessionId);
   };
 
   return (
@@ -376,7 +465,7 @@ export function FollowUpPage() {
             {activeQueue === 'due-soon' ? 'Due Soon' : activeQueue} Items
           </CardTitle>
           <CardDescription>
-            {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} requiring attention
+            {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} requiring attention • Click to view resolution options
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -388,78 +477,108 @@ export function FollowUpPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredItems.map(item => (
-                <div 
-                  key={item.id}
-                  className={cn(
-                    "p-4 rounded-lg border transition-all cursor-pointer hover:shadow-sm",
-                    item.status === 'overdue' && "border-destructive/30 bg-destructive/5",
-                    item.status === 'due-soon' && "border-warning/30 bg-warning/5",
-                    item.status === 'upcoming' && "border-border bg-muted/20"
-                  )}
-                  onClick={() => setSelectedItem(item)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className={cn(
-                        "p-2 rounded-lg",
-                        item.type === 'qa' && "bg-primary/10 text-primary",
-                        item.type === 'reaudit' && "bg-warning/10 text-warning",
-                        item.type === 'education' && "bg-success/10 text-success"
-                      )}>
-                        {getTypeIcon(item.type)}
+              {filteredItems.map(item => {
+                const linkedEdu = (item.type === 'qa' || item.type === 'reaudit') 
+                  ? getLinkedEducation(item.linkedId) 
+                  : null;
+                  
+                return (
+                  <div 
+                    key={item.id}
+                    className={cn(
+                      "p-4 rounded-lg border transition-all cursor-pointer hover:shadow-sm",
+                      item.status === 'overdue' && "border-destructive/30 bg-destructive/5",
+                      item.status === 'due-soon' && "border-warning/30 bg-warning/5",
+                      item.status === 'upcoming' && "border-border bg-muted/20"
+                    )}
+                    onClick={() => setSelectedItem(item)}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className={cn(
+                          "p-2 rounded-lg",
+                          item.type === 'qa' && "bg-primary/10 text-primary",
+                          item.type === 'reaudit' && "bg-warning/10 text-warning",
+                          item.type === 'education' && "bg-success/10 text-success"
+                        )}>
+                          {getTypeIcon(item.type)}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{item.title}</span>
+                            <StatusBadge 
+                              status={
+                                item.status === 'overdue' ? 'error' : 
+                                item.status === 'due-soon' ? 'warning' : 'info'
+                              }
+                            >
+                              {item.status === 'overdue' 
+                                ? `${Math.abs(item.daysUntilDue)}d overdue`
+                                : item.status === 'due-soon'
+                                  ? `Due in ${item.daysUntilDue}d`
+                                  : `${item.daysUntilDue}d`
+                              }
+                            </StatusBadge>
+                            <Badge variant="outline" className="text-xs capitalize">{item.type}</Badge>
+                          </div>
+                          
+                          <p className="text-sm text-muted-foreground mt-1">{item.details}</p>
+                          
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            {item.unit && (
+                              <span>Unit: {item.unit}</span>
+                            )}
+                            <span>Owner: {item.owner}</span>
+                            <span>Due: {item.dueDate}</span>
+                          </div>
+                          
+                          {/* Show linked education indicator */}
+                          {linkedEdu && (
+                            <div className="mt-2">
+                              <Badge variant="secondary" className="text-xs gap-1">
+                                <BookOpen className="w-3 h-3" />
+                                Education planned: {linkedEdu.scheduledDate}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{item.title}</span>
-                          <StatusBadge 
-                            status={
-                              item.status === 'overdue' ? 'error' : 
-                              item.status === 'due-soon' ? 'warning' : 'info'
-                            }
+                      {/* Quick action buttons */}
+                      <div className="flex gap-1">
+                        {(item.type === 'qa' || item.type === 'reaudit') && item.templateId && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartAudit(item.templateId!, item.linkedId);
+                            }}
+                            title="Start Audit"
                           >
-                            {item.status === 'overdue' 
-                              ? `${Math.abs(item.daysUntilDue)}d overdue`
-                              : item.status === 'due-soon'
-                                ? `Due in ${item.daysUntilDue}d`
-                                : `${item.daysUntilDue}d`
-                            }
-                          </StatusBadge>
-                          <Badge variant="outline" className="text-xs capitalize">{item.type}</Badge>
-                        </div>
-                        
-                        <p className="text-sm text-muted-foreground mt-1">{item.details}</p>
-                        
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          {item.unit && (
-                            <span>Unit: {item.unit}</span>
-                          )}
-                          <span>Owner: {item.owner}</span>
-                          <span>Due: {item.dueDate}</span>
-                        </div>
+                            <Play className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {(item.type === 'qa' || item.type === 'reaudit') && !linkedEdu && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedItem(item);
+                              setTimeout(() => handlePlanEducation(), 0);
+                            }}
+                            title="Plan Education"
+                          >
+                            <GraduationCap className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    
-                    {/* Quick action buttons */}
-                    <div className="flex gap-1">
-                      {(item.type === 'qa' || item.type === 'reaudit') && item.templateId && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartAudit(item.templateId!, item.linkedId);
-                          }}
-                          title="Start Audit"
-                        >
-                          <Play className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -530,6 +649,34 @@ export function FollowUpPage() {
                 )}
               </div>
               
+              {/* Linked Education Status */}
+              {(selectedItem.type === 'qa' || selectedItem.type === 'reaudit') && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium mb-2">Resolution Options</p>
+                  {(() => {
+                    const linkedEdu = getLinkedEducation(selectedItem.linkedId);
+                    if (linkedEdu) {
+                      return (
+                        <div className="text-sm">
+                          <Badge variant="secondary" className="gap-1 mb-2">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Education Scheduled
+                          </Badge>
+                          <p className="text-muted-foreground">
+                            "{linkedEdu.topic}" on {linkedEdu.scheduledDate}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="text-sm text-muted-foreground">
+                        No education planned yet. Use "Plan Education" to create an inservice session.
+                      </p>
+                    );
+                  })()}
+                </div>
+              )}
+              
               {/* Actions */}
               <div className="flex flex-wrap justify-between gap-2 pt-4 border-t">
                 <AlertDialog>
@@ -559,6 +706,15 @@ export function FollowUpPage() {
                 </AlertDialog>
                 
                 <div className="flex gap-2 flex-wrap">
+                  {/* Plan Education button for QA/Re-audit */}
+                  {(selectedItem.type === 'qa' || selectedItem.type === 'reaudit') && !getLinkedEducation(selectedItem.linkedId) && (
+                    <Button variant="outline" onClick={handlePlanEducation}>
+                      <GraduationCap className="w-4 h-4 mr-1" />
+                      Plan Education
+                    </Button>
+                  )}
+                  
+                  {/* Mark Complete buttons */}
                   {selectedItem.type === 'education' && (
                     <Button variant="outline" onClick={handleMarkEduComplete}>
                       <CheckCircle2 className="w-4 h-4 mr-1" />
@@ -571,12 +727,15 @@ export function FollowUpPage() {
                       Mark Complete
                     </Button>
                   )}
+                  
+                  {/* Start Audit button */}
                   {(selectedItem.type === 'qa' || selectedItem.type === 'reaudit') && selectedItem.templateId && (
                     <Button onClick={() => handleStartAudit(selectedItem.templateId!, selectedItem.linkedId)}>
                       <Play className="w-4 h-4 mr-1" />
                       Start {selectedItem.type === 'reaudit' ? 'Re-Audit' : 'Audit'}
                     </Button>
                   )}
+                  
                   <Button variant="outline" onClick={handleEditItem}>
                     <Pencil className="w-4 h-4 mr-1" />
                     Edit
@@ -587,6 +746,18 @@ export function FollowUpPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Education Planning Modal */}
+      <EducationSessionFormModal
+        open={showEduModal}
+        onOpenChange={(open) => {
+          setShowEduModal(open);
+          if (!open) setEduPrefill(null);
+        }}
+        session={eduPrefill as EducationSession | null}
+        onSave={handleSaveEducation}
+        eduLibrary={eduLibrary}
+      />
     </div>
   );
 }
