@@ -186,6 +186,15 @@ export interface EduTopic {
   evidenceArtifacts?: string[];
 }
 
+export interface CompetencySkill {
+  id: string;
+  code: string;
+  title: string;
+  disciplines: string[];
+  platform: 'Mastered' | 'C';
+  keywords: string[];
+}
+
 // Analytics types
 export interface TrendDataPoint {
   date: string;
