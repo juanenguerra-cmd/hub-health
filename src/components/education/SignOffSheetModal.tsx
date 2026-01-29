@@ -55,11 +55,12 @@ export function SignOffSheetModal({
             }
             .header-logo {
               text-align: center;
-              margin-bottom: 12px;
+              margin-bottom: 8px;
             }
             .header-logo img {
-              height: 50px;
+              height: 35px;
               width: auto;
+              max-width: 200px;
             }
             .sheet-title { 
               text-align: center;
