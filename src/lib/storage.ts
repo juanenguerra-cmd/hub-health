@@ -10,7 +10,7 @@ import type {
   StaffMember,
   AdminOwners
 } from '@/types/nurse-educator';
-import { SEED_TEMPLATES } from './seed-templates';
+import { SEED_TEMPLATES, SEED_EDU_TOPICS } from './seed-templates';
 
 const LS_KEYS = {
   templates: 'NES_TEMPLATES_V1',
@@ -18,7 +18,7 @@ const LS_KEYS = {
   qaActions: 'NES_QA_ACTIONS_V1',
   eduSessions: 'NES_EDU_SESSIONS_V1',
   orientationRecords: 'NES_ORIENTATION_V1',
-  eduLibrary: 'NES_EDU_LIBRARY_V1',
+  eduLibrary: 'NES_EDU_LIBRARY_V2', // Updated version to load new seed topics
   staffDirectory: 'NES_STAFF_DIR_V1',
   adminOwners: 'NES_ADMIN_OWNERS_V1',
   facilityName: 'NES_FACILITY_NAME_V1',
@@ -34,15 +34,6 @@ const DEFAULT_OWNERS: AdminOwners = {
   unitMgr: 'Unit Manager',
   admin: 'Administrator'
 };
-
-// Seed education library
-const SEED_EDU_LIBRARY: EduTopic[] = [
-  { id: 'edu_topic_hand_hygiene', topic: 'Hand Hygiene — 5 Moments + Glove Change', disciplines: 'All staff', purpose: 'Reduce cross-contamination and HAI risk.', description: 'Review WHO 5 Moments, glove change rules, sanitizer vs soap/water.', ftags: 'F880', nysdohRegs: '10 NYCRR 415.19', facilityPolicy: '' },
-  { id: 'edu_topic_infection_precautions', topic: 'Transmission-Based Precautions — Signage + PPE Flow', disciplines: 'Nursing; CNA; All staff', purpose: 'Ensure correct isolation practices.', description: 'When to initiate precautions, don/doff sequence, room setup.', ftags: 'F880', nysdohRegs: '10 NYCRR 415.19', facilityPolicy: '' },
-  { id: 'edu_topic_oxygen_safety', topic: 'Oxygen Safety — Orders, Labeling, Tubing Changes', disciplines: 'Nursing; CNA', purpose: 'Prevent hypoxia events and equipment contamination.', description: 'Verify orders, match delivery device/rate, weekly tubing labels.', ftags: 'F880', nysdohRegs: '10 NYCRR 415.19', facilityPolicy: '' },
-  { id: 'edu_topic_falls', topic: 'Fall Prevention — Interventions + Rounds', disciplines: 'Nursing; CNA', purpose: 'Reduce fall risk and injury severity.', description: 'High-risk interventions, purposeful rounding, call light reach.', ftags: 'F689', nysdohRegs: '10 NYCRR 415.26', facilityPolicy: '' },
-  { id: 'edu_topic_documentation', topic: 'Documentation Quality — Notifications + Follow-through', disciplines: 'Nursing', purpose: 'Ensure timely provider notification and complete charting.', description: 'Change of condition documentation, MD/Family notifications.', ftags: 'F842;F865', nysdohRegs: '10 NYCRR 415.10; 415.11', facilityPolicy: '' },
-];
 
 // Templates
 export function loadTemplates(): AuditTemplate[] {
@@ -132,13 +123,13 @@ export function loadEduLibrary(): EduTopic[] {
   try {
     const raw = localStorage.getItem(LS_KEYS.eduLibrary);
     if (!raw) {
-      saveEduLibrary(SEED_EDU_LIBRARY);
-      return SEED_EDU_LIBRARY;
+      saveEduLibrary(SEED_EDU_TOPICS);
+      return SEED_EDU_TOPICS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : SEED_EDU_LIBRARY;
+    return Array.isArray(parsed) ? parsed : SEED_EDU_TOPICS;
   } catch {
-    return SEED_EDU_LIBRARY;
+    return SEED_EDU_TOPICS;
   }
 }
 
