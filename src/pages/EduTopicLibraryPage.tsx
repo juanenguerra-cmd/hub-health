@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from '@/hooks/use-toast';
 import type { EduTopic } from '@/types/nurse-educator';
 import {
@@ -21,15 +22,20 @@ import {
   Archive,
   RotateCcw,
   FileText,
-  Tag
+  Tag,
+  ClipboardCheck,
+  ChevronDown,
+  CheckCircle2,
+  Play
 } from 'lucide-react';
 
 export function EduTopicLibraryPage() {
-  const { eduLibrary, setEduLibrary } = useApp();
+  const { eduLibrary, setEduLibrary, templates, setActiveTab } = useApp();
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<EduTopic | null>(null);
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -123,6 +129,33 @@ export function EduTopicLibraryPage() {
     }
     return true;
   });
+
+  const toggleExpanded = (id: string) => {
+    setExpandedTopics(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const getTriggerAuditTitle = (auditId: string | undefined) => {
+    if (!auditId) return null;
+    const template = templates.find(t => t.id === auditId);
+    return template?.title || null;
+  };
+
+  const runTriggerAudit = (auditId: string) => {
+    // Navigate to templates page - in future, could go directly to audit wizard
+    setActiveTab('templates');
+    toast({
+      title: 'Navigate to Templates',
+      description: 'Select the audit template to run a new session.'
+    });
+  };
 
   // CSV Export
   const exportCsv = () => {
@@ -405,73 +438,128 @@ export function EduTopicLibraryPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[250px]">Topic</TableHead>
-                    <TableHead>Disciplines</TableHead>
-                    <TableHead>F-Tags</TableHead>
-                    <TableHead>NYSDOH Regs</TableHead>
-                    <TableHead>Policy</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(topic => (
-                    <TableRow key={topic.id} className={topic.archived ? 'opacity-60' : ''}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-primary" />
-                            {topic.topic}
+            <div className="space-y-2">
+              {filtered.map(topic => {
+                const isExpanded = expandedTopics.has(topic.id);
+                const triggerAuditTitle = getTriggerAuditTitle(topic.triggerAuditId);
+                const hasExtras = topic.triggerAuditId || (topic.evidenceArtifacts && topic.evidenceArtifacts.length > 0);
+                
+                return (
+                  <Card key={topic.id} className={`${topic.archived ? 'opacity-60' : ''}`}>
+                    <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(topic.id)}>
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <FileText className="w-4 h-4 text-primary shrink-0" />
+                              <span className="font-medium">{topic.topic}</span>
+                              {topic.ftags && topic.ftags.split(';').map((tag, i) => (
+                                <Badge key={i} variant="outline" className="text-xs">
+                                  <Tag className="w-3 h-3 mr-1" />
+                                  {tag.trim()}
+                                </Badge>
+                              ))}
+                              {topic.triggerAuditId && (
+                                <Badge variant="secondary" className="text-xs gap-1">
+                                  <ClipboardCheck className="w-3 h-3" />
+                                  Has Audit
+                                </Badge>
+                              )}
+                            </div>
+                            {topic.purpose && (
+                              <p className="text-sm text-muted-foreground mt-1">{topic.purpose}</p>
+                            )}
+                            <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
+                              <span><strong>Disciplines:</strong> {topic.disciplines || '—'}</span>
+                              <span><strong>NYSDOH:</strong> {topic.nysdohRegs || '—'}</span>
+                              {topic.facilityPolicy && <span><strong>Policy:</strong> {topic.facilityPolicy}</span>}
+                            </div>
                           </div>
-                          {topic.purpose && (
-                            <p className="text-xs text-muted-foreground mt-1">{topic.purpose}</p>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {hasExtras && (
+                              <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="gap-1">
+                                  <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  Details
+                                </Button>
+                              </CollapsibleTrigger>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(topic)}>
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            {topic.archived ? (
+                              <Button variant="ghost" size="sm" onClick={() => restoreTopic(topic.id)} title="Restore">
+                                <RotateCcw className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => archiveTopic(topic.id)} title="Archive">
+                                <Archive className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 pt-0 border-t border-border mt-2">
+                          <div className="grid md:grid-cols-2 gap-4 pt-4">
+                            {/* Trigger Audit Section */}
+                            {topic.triggerAuditId && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-semibold flex items-center gap-2">
+                                  <ClipboardCheck className="w-4 h-4 text-primary" />
+                                  Trigger Audit
+                                </h4>
+                                <div className="bg-muted/50 rounded-lg p-3">
+                                  <p className="text-sm font-medium">{triggerAuditTitle || topic.triggerAuditId}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Use this audit to verify staff competency after education
+                                  </p>
+                                  <Button 
+                                    size="sm" 
+                                    className="mt-2 gap-2"
+                                    onClick={() => runTriggerAudit(topic.triggerAuditId!)}
+                                  >
+                                    <Play className="w-3 h-3" />
+                                    Run Audit
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Evidence Artifacts Section */}
+                            {topic.evidenceArtifacts && topic.evidenceArtifacts.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-semibold flex items-center gap-2">
+                                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                                  Evidence Artifacts
+                                </h4>
+                                <div className="bg-muted/50 rounded-lg p-3">
+                                  <ul className="space-y-1">
+                                    {topic.evidenceArtifacts.map((artifact, i) => (
+                                      <li key={i} className="text-sm flex items-start gap-2">
+                                        <span className="text-primary mt-0.5">•</span>
+                                        {artifact}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {topic.description && (
+                            <div className="mt-4">
+                              <h4 className="text-sm font-semibold mb-1">Description</h4>
+                              <p className="text-sm text-muted-foreground">{topic.description}</p>
+                            </div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{topic.disciplines || '—'}</span>
-                      </TableCell>
-                      <TableCell>
-                        {topic.ftags ? (
-                          <div className="flex flex-wrap gap-1">
-                            {topic.ftags.split(';').map((tag, i) => (
-                              <Badge key={i} variant="outline" className="text-xs">
-                                <Tag className="w-3 h-3 mr-1" />
-                                {tag.trim()}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs">{topic.nysdohRegs || '—'}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs">{topic.facilityPolicy || '—'}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(topic)}>
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          {topic.archived ? (
-                            <Button variant="ghost" size="sm" onClick={() => restoreTopic(topic.id)} title="Restore">
-                              <RotateCcw className="w-4 h-4" />
-                            </Button>
-                          ) : (
-                            <Button variant="ghost" size="sm" onClick={() => archiveTopic(topic.id)} title="Archive">
-                              <Archive className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </CardContent>

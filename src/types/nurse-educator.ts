@@ -182,6 +182,8 @@ export interface EduTopic {
   facilityPolicy: string;
   archived?: boolean;
   archivedAt?: string;
+  triggerAuditId?: string;
+  evidenceArtifacts?: string[];
 }
 
 // Analytics types
