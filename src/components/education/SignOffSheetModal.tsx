@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -142,6 +142,7 @@ export function SignOffSheetModal({
             <FileText className="w-4 h-4 text-primary" />
             Generate Sign-Off Sheet
           </DialogTitle>
+          <DialogDescription>Preview and print the inservice sign-in sheet.</DialogDescription>
         </DialogHeader>
 
         {/* Options */}
