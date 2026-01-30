@@ -11,9 +11,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ClipboardCheck, Play, Eye, Settings2, FileText, AlertTriangle, CheckCircle2, XCircle, Printer } from 'lucide-react';
 import type { AuditTemplate } from '@/types/nurse-educator';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
+import { TemplateManagementPage } from '@/pages/TemplateManagementPage';
 
 export function TemplatesPage() {
   const { templates, setActiveTab } = useApp();
+  
+  // State for management view
+  const [showManagement, setShowManagement] = useState(false);
   
   // State for preview dialog
   const [previewTemplate, setPreviewTemplate] = useState<AuditTemplate | null>(null);
@@ -53,6 +57,11 @@ export function TemplatesPage() {
     setPreviewTemplate(template);
   };
 
+  // Show management page if in management mode
+  if (showManagement) {
+    return <TemplateManagementPage onBack={() => setShowManagement(false)} />;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -60,7 +69,7 @@ export function TemplatesPage() {
           <h1 className="text-2xl font-bold">Audit Templates</h1>
           <p className="text-muted-foreground">Survey-ready audit tools with CMS F-tags and NYDOH references</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setShowManagement(true)}>
           <Settings2 className="w-4 h-4" />
           Manage Templates
         </Button>
