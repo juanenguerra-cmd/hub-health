@@ -45,6 +45,7 @@ export function SessionsPage() {
   // New session form
   const [newSessionUnit, setNewSessionUnit] = useState('');
   const [newSessionAuditor, setNewSessionAuditor] = useState('');
+  const [newSessionDate, setNewSessionDate] = useState(todayYMD());
   
   const activeTemplates = templates.filter(t => !t.archived);
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
@@ -106,8 +107,8 @@ export function SessionsPage() {
   const startNewSession = () => {
     if (!selectedTemplate) return;
     
-    const today = todayYMD();
-    const sessionId = `${selectedTemplate.id.slice(0, 4).toUpperCase()}-${today.replace(/-/g, '')}-${newSessionUnit || 'GEN'}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
+    const auditDate = newSessionDate || todayYMD();
+    const sessionId = `${selectedTemplate.id.slice(0, 4).toUpperCase()}-${auditDate.replace(/-/g, '')}-${newSessionUnit || 'GEN'}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
     
     const newSession: AuditSession = {
       id: `sess_${Math.random().toString(16).slice(2, 10)}`,
@@ -117,7 +118,7 @@ export function SessionsPage() {
       header: {
         status: 'in_progress',
         sessionId,
-        auditDate: today,
+        auditDate,
         auditor: newSessionAuditor || 'Auditor',
         unit: newSessionUnit || ''
       },
@@ -129,6 +130,18 @@ export function SessionsPage() {
     setShowNewSessionDialog(false);
     setNewSessionUnit('');
     setNewSessionAuditor('');
+    setNewSessionDate(todayYMD());
+  };
+
+  // Update audit date on active session
+  const updateAuditDate = (newDate: string) => {
+    if (!activeSession) return;
+    const updated = {
+      ...activeSession,
+      header: { ...activeSession.header, auditDate: newDate }
+    };
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
   };
 
   // Add a sample to active session
@@ -326,6 +339,15 @@ export function SessionsPage() {
               </div>
               
               <div className="space-y-2">
+                <Label>Audit Date</Label>
+                <Input 
+                  type="date"
+                  value={newSessionDate} 
+                  onChange={(e) => setNewSessionDate(e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
                 <Label>Unit</Label>
                 <Input 
                   value={newSessionUnit} 
@@ -377,12 +399,26 @@ export function SessionsPage() {
         <Card className="border-primary">
           <CardHeader className="bg-primary/5">
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1">
                 <CardTitle className="text-lg">{activeSession.templateTitle}</CardTitle>
-                <CardDescription>
-                  Session: {activeSession.header.sessionId} • 
-                  Unit: {activeSession.header.unit || 'N/A'} • 
-                  Date: {activeSession.header.auditDate}
+                <CardDescription className="flex items-center gap-2 flex-wrap">
+                  <span>Session: {activeSession.header.sessionId}</span>
+                  <span>•</span>
+                  <span>Unit: {activeSession.header.unit || 'N/A'}</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    Date: 
+                    {activeSession.header.status !== 'complete' ? (
+                      <Input 
+                        type="date"
+                        value={activeSession.header.auditDate}
+                        onChange={(e) => updateAuditDate(e.target.value)}
+                        className="h-6 w-auto text-xs px-1 py-0 inline-flex"
+                      />
+                    ) : (
+                      activeSession.header.auditDate
+                    )}
+                  </span>
                 </CardDescription>
               </div>
               <div className="flex gap-2">
