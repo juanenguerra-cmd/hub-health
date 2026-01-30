@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { filterActionsByRange, computeClosedLoopStats, todayYMD } from '@/lib/calculations';
 import { KpiCard, KpiGrid } from '@/components/KpiCard';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { QaActionFormModal } from '@/components/qa/QaActionFormModal';
@@ -298,6 +298,7 @@ export function QaActionsPage() {
               <ClipboardCheck className="w-5 h-5 text-primary" />
               QA Action Details
             </DialogTitle>
+            <DialogDescription>View and manage this QA action.</DialogDescription>
           </DialogHeader>
           
           {selectedAction && (

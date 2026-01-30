@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/StatusBadge';
 import { KpiCard, KpiGrid } from '@/components/KpiCard';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -207,6 +207,9 @@ export function OrientationPage() {
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingRecord ? 'Edit Orientee' : 'Add New Orientee'}</DialogTitle>
+              <DialogDescription>
+                {editingRecord ? 'Update orientee information and progress.' : 'Add a new orientee to track their progress.'}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4">

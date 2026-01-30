@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -44,6 +44,7 @@ export function PostAuditPrintModal({ open, onOpenChange, session, template }: P
             <Printer className="w-5 h-5" />
             Print Audit Results: {session.templateTitle}
           </DialogTitle>
+          <DialogDescription>Preview and print the completed audit results with scores and action items.</DialogDescription>
         </DialogHeader>
 
         {/* Print Controls */}
