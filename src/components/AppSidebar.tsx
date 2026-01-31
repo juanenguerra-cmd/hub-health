@@ -13,7 +13,8 @@ import {
   ChevronRight,
   FileSpreadsheet,
   Inbox,
-  BookOpen
+  BookOpen,
+  HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ const navItems = [
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
   { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'user-guide', label: 'User Guide', icon: HelpCircle },
 ];
 
 export function AppSidebar() {

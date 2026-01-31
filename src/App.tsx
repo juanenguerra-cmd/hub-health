@@ -13,6 +13,7 @@ import { CalendarPage } from '@/pages/CalendarPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { FollowUpPage } from '@/pages/FollowUpPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { UserGuidePage } from '@/pages/UserGuidePage';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { BackupReminderBanner } from '@/components/BackupReminderBanner';
@@ -51,6 +52,8 @@ function AppContent() {
         return <ReportsPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'user-guide':
+        return <UserGuidePage />;
       default:
         return <DashboardPage />;
     }
