@@ -17,11 +17,14 @@ import {
   History,
   ArrowLeft,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Copy,
+  Sparkles
 } from 'lucide-react';
 import type { AuditTemplate } from '@/types/nurse-educator';
 import type { TemplateChange } from '@/types/template-history';
 import { TemplateEditorModal } from '@/components/audit/TemplateEditorModal';
+import { TemplateCreationWizard } from '@/components/audit/TemplateCreationWizard';
 import { loadTemplateHistory, addTemplateChange, bumpVersion } from '@/lib/template-history-storage';
 import { toast } from 'sonner';
 
@@ -37,6 +40,7 @@ export function TemplateManagementPage({ onBack }: TemplateManagementPageProps) 
   const [editingTemplate, setEditingTemplate] = useState<AuditTemplate | null>(null);
   const [viewHistoryTemplate, setViewHistoryTemplate] = useState<AuditTemplate | null>(null);
   const [historyChanges, setHistoryChanges] = useState<TemplateChange[]>([]);
+  const [showCreationWizard, setShowCreationWizard] = useState(false);
 
   const activeTemplates = templates.filter(t => !t.archived);
   const archivedTemplates = templates.filter(t => t.archived);
@@ -114,45 +118,43 @@ export function TemplateManagementPage({ onBack }: TemplateManagementPageProps) 
     setViewHistoryTemplate(template);
   };
 
-  const handleCreateTemplate = () => {
-    const newTemplate: AuditTemplate = {
-      id: `audit_custom_${Math.random().toString(16).slice(2, 10)}`,
-      title: 'New Custom Audit',
+  const handleCreateTemplate = (template: AuditTemplate) => {
+    setTemplates([template, ...templates]);
+    toast.success('Custom template created!', {
+      description: `${template.title} is now available`
+    });
+  };
+
+  const handleDuplicateTemplate = (template: AuditTemplate) => {
+    const newId = `audit_dup_${Math.random().toString(16).slice(2, 10)}`;
+    const duplicatedTemplate: AuditTemplate = {
+      ...JSON.parse(JSON.stringify(template)),
+      id: newId,
+      title: `${template.title} (Copy)`,
       version: '1.0.0',
-      category: 'Other',
-      placementTags: ['Custom'],
-      ftagTags: [],
-      nydohTags: [],
-      purpose: {
-        summary: 'Custom audit template',
-        risk: 'Define compliance risks',
-        evidenceToShow: 'Document evidence requirements'
-      },
-      references: [],
-      passingThreshold: 90,
-      criticalFailKeys: [],
-      sessionQuestions: [],
-      sampleQuestions: [
-        { key: 'patient_code', label: 'Patient/Sample Code', type: 'patientCode', required: true, score: 0 }
-      ]
+      archived: false,
+      archivedAt: undefined,
+      archivedBy: undefined,
+      replacedByTemplateId: undefined
     };
 
     const change: TemplateChange = {
       id: `ch_${Math.random().toString(16).slice(2, 10)}`,
-      templateId: newTemplate.id,
-      version: newTemplate.version,
+      templateId: newId,
+      version: '1.0.0',
       previousVersion: '0.0.0',
       changedAt: new Date().toISOString(),
       changedBy: 'User',
       changeType: 'created',
-      changeDescription: 'Template created',
+      changeDescription: `Duplicated from "${template.title}" (v${template.version})`,
       details: []
     };
 
     addTemplateChange(change);
-    setTemplates([newTemplate, ...templates]);
-    setEditingTemplate(newTemplate);
-    toast.success('New template created');
+    setTemplates([duplicatedTemplate, ...templates]);
+    toast.success('Template duplicated!', {
+      description: `${duplicatedTemplate.title} created with fresh version history`
+    });
   };
 
   return (
@@ -169,8 +171,8 @@ export function TemplateManagementPage({ onBack }: TemplateManagementPageProps) 
             </p>
           </div>
         </div>
-        <Button onClick={handleCreateTemplate} className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => setShowCreationWizard(true)} className="gap-2">
+          <Sparkles className="w-4 h-4" />
           New Template
         </Button>
       </div>
@@ -233,18 +235,26 @@ export function TemplateManagementPage({ onBack }: TemplateManagementPageProps) 
                       <Edit className="w-3 h-3" />
                       Edit
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleViewHistory(tpl)}>
+                    <Button size="sm" variant="ghost" onClick={() => handleDuplicateTemplate(tpl)} title="Duplicate template">
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleViewHistory(tpl)} title="View history">
                       <History className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleArchiveTemplate(tpl)}>
+                    <Button size="sm" variant="ghost" onClick={() => handleArchiveTemplate(tpl)} title="Archive template">
                       <Archive className="w-4 h-4" />
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => handleRestoreTemplate(tpl)}>
-                    <RotateCcw className="w-4 h-4" />
-                    Restore
-                  </Button>
+                  <>
+                    <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => handleRestoreTemplate(tpl)}>
+                      <RotateCcw className="w-4 h-4" />
+                      Restore
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDuplicateTemplate(tpl)} title="Duplicate template">
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -313,6 +323,13 @@ export function TemplateManagementPage({ onBack }: TemplateManagementPageProps) 
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Template Creation Wizard */}
+      <TemplateCreationWizard
+        open={showCreationWizard}
+        onOpenChange={setShowCreationWizard}
+        onComplete={handleCreateTemplate}
+      />
     </div>
   );
 }
