@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
 import {
   BookOpen,
   Users,
@@ -26,11 +27,204 @@ import {
   ArrowRight,
   Zap,
   Shield,
-  TrendingUp
+  TrendingUp,
+  Search,
+  HelpCircle,
+  Database,
+  Printer,
+  RefreshCw
 } from 'lucide-react';
+
+// FAQ Data
+const faqData = [
+  {
+    category: 'Data & Backups',
+    icon: Database,
+    questions: [
+      {
+        q: 'Where is my data stored?',
+        a: 'All data is stored locally in your browser using localStorage. This means your data stays on your computer and is not sent to any server. However, this also means if you clear your browser data or use a different browser/computer, your data will not be available.',
+        tags: ['storage', 'local', 'browser', 'privacy']
+      },
+      {
+        q: 'How do I backup my data?',
+        a: 'Go to Settings and click "Export Backup" to download a JSON file containing all your data. Store this file safely. You can also configure automatic backup reminders to prompt you at regular intervals.',
+        tags: ['backup', 'export', 'save', 'download']
+      },
+      {
+        q: 'How do I restore from a backup?',
+        a: 'Go to Settings and click "Import Backup", then select your previously exported JSON file. This will restore all your templates, sessions, actions, and education data. Note: Importing will merge with or replace existing data.',
+        tags: ['restore', 'import', 'upload', 'recover']
+      },
+      {
+        q: 'Will I lose data if I clear my browser cache?',
+        a: 'Yes! Clearing browser data, cookies, or localStorage will delete all application data. Always export a backup before clearing browser data. We recommend setting up backup reminders in Settings.',
+        tags: ['cache', 'clear', 'delete', 'lost']
+      },
+      {
+        q: 'Can I use this on multiple computers?',
+        a: 'Since data is stored locally, each computer/browser has its own separate data. To sync between devices, export a backup from one device and import it on another. There is no automatic cloud sync.',
+        tags: ['sync', 'multiple', 'devices', 'computers', 'transfer']
+      }
+    ]
+  },
+  {
+    category: 'Audits & Templates',
+    icon: ClipboardCheck,
+    questions: [
+      {
+        q: 'How do I create a custom audit template?',
+        a: 'Go to Templates → Manage Templates and click "New Template". The wizard will guide you through setting the title, category, purpose, risk level, and adding questions with scoring options.',
+        tags: ['create', 'custom', 'template', 'wizard', 'new']
+      },
+      {
+        q: 'What are critical failure keys?',
+        a: 'Critical failure keys are questions that, if failed, automatically fail the entire audit regardless of other scores. Use these for safety-critical items like patient identification or infection control practices.',
+        tags: ['critical', 'failure', 'key', 'auto-fail', 'safety']
+      },
+      {
+        q: 'How do I duplicate a template?',
+        a: 'On the Manage Templates page, click the Copy icon on any template card. This creates a new template with "(Copy)" appended to the title and fresh version history starting at v1.0.0.',
+        tags: ['duplicate', 'copy', 'clone', 'template']
+      },
+      {
+        q: 'What does archiving a template do?',
+        a: 'Archiving removes the template from the active list but preserves it for historical reference. Archived templates can still be viewed and their past audit sessions remain accessible. You can restore archived templates at any time.',
+        tags: ['archive', 'delete', 'remove', 'restore', 'inactive']
+      },
+      {
+        q: 'How is the compliance score calculated?',
+        a: 'The compliance score is the percentage of points earned out of total possible points. Each question contributes its configured point value. N/A responses are excluded from the calculation. Critical failures override the score to 0%.',
+        tags: ['score', 'calculate', 'compliance', 'percentage', 'points']
+      }
+    ]
+  },
+  {
+    category: 'Printing & Reports',
+    icon: Printer,
+    questions: [
+      {
+        q: 'How do I print a pre-audit form for field use?',
+        a: 'Open the template you want to audit, click the Print icon, and select "Pre-Audit Form". This generates a landscape grid with 5 sample columns, perfect for clipboard use during rounds.',
+        tags: ['print', 'pre-audit', 'form', 'field', 'clipboard']
+      },
+      {
+        q: 'How do I generate a post-audit report?',
+        a: 'After completing an audit session, go to Sessions, open the completed audit, and click the Print/Report icon. This generates a detailed report showing all responses, scores, and identified issues.',
+        tags: ['report', 'post-audit', 'results', 'print']
+      },
+      {
+        q: 'Where can I find QAPI reports?',
+        a: 'Go to Reports in the sidebar. You can generate QAPI Meeting Reports, Huddle Sheets, and Monthly Summaries. These aggregate data across your audits and QA actions for committee presentations.',
+        tags: ['qapi', 'report', 'meeting', 'committee', 'summary']
+      },
+      {
+        q: 'How do I print education sign-off sheets?',
+        a: 'When viewing an education session, click the Sign-Off Sheet button. This generates a printable attendance sheet with spaces for staff names, signatures, and credentials.',
+        tags: ['sign-off', 'attendance', 'education', 'signatures']
+      }
+    ]
+  },
+  {
+    category: 'Education & Competencies',
+    icon: GraduationCap,
+    questions: [
+      {
+        q: 'How does competency recommendation work?',
+        a: 'The system uses keyword matching from the MASTERED.IT competency library. When you enter findings or action descriptions, relevant clinical competencies are suggested based on matching keywords. Click a recommendation to link it.',
+        tags: ['competency', 'recommendation', 'mastered', 'skills', 'matching']
+      },
+      {
+        q: 'How do I add topics to my library?',
+        a: 'Go to Education → Topic Library and click "Add Topic". Enter the topic title, description, F-Tag references, required evidence, and any trigger audits that should prompt this education.',
+        tags: ['topic', 'library', 'add', 'education', 'f-tag']
+      },
+      {
+        q: 'How do I track education session attendance?',
+        a: 'When creating or editing an education session, add attendees in the Attendees section. You can mark attendance status (Present, Absent, Excused) and generate sign-off sheets for documentation.',
+        tags: ['attendance', 'tracking', 'session', 'present', 'absent']
+      },
+      {
+        q: 'What are trigger audits?',
+        a: 'Trigger audits are audit templates linked to education topics. When an audit reveals issues, the system can suggest related education topics for staff training based on these links.',
+        tags: ['trigger', 'audit', 'link', 'education', 'training']
+      }
+    ]
+  },
+  {
+    category: 'QA Actions & Follow-Up',
+    icon: AlertCircle,
+    questions: [
+      {
+        q: 'How do I create a QA action from an audit?',
+        a: 'After completing an audit with findings, you\'ll be prompted to create follow-up actions. Alternatively, go to QA Actions and click "New Action", then link it to the relevant audit session.',
+        tags: ['create', 'action', 'audit', 'finding', 'qa']
+      },
+      {
+        q: 'What do the priority levels mean?',
+        a: 'Low: Minor issue, address within 30 days. Medium: Moderate concern, address within 14 days. High: Significant issue, address within 7 days. Critical: Immediate action required, address within 24-48 hours.',
+        tags: ['priority', 'low', 'medium', 'high', 'critical', 'urgent']
+      },
+      {
+        q: 'How do I close/resolve an action?',
+        a: 'Open the action, update the status to "Resolved", and add resolution notes describing what was done. The resolution date is automatically recorded. Resolved actions remain visible for historical reference.',
+        tags: ['close', 'resolve', 'complete', 'done', 'status']
+      },
+      {
+        q: 'What appears in the Follow-Up Queue?',
+        a: 'The Follow-Up Queue shows all items requiring attention: overdue QA actions, pending education sessions, orientation milestones due, and any other time-sensitive items across the system.',
+        tags: ['follow-up', 'queue', 'overdue', 'pending', 'attention']
+      }
+    ]
+  },
+  {
+    category: 'Troubleshooting',
+    icon: RefreshCw,
+    questions: [
+      {
+        q: 'The app is running slowly, what can I do?',
+        a: 'Large amounts of data can slow performance. Try: 1) Export a backup and archive old completed audits. 2) Clear old resolved QA actions. 3) Refresh the browser. 4) Try a different browser like Chrome or Edge.',
+        tags: ['slow', 'performance', 'speed', 'lag', 'freeze']
+      },
+      {
+        q: 'My data seems to have disappeared!',
+        a: 'First, check if you\'re using the same browser you normally use. Try refreshing the page. If data is still missing, check if you recently cleared browser data. If you have a backup file, you can restore from it in Settings.',
+        tags: ['missing', 'disappeared', 'lost', 'gone', 'empty']
+      },
+      {
+        q: 'Print preview doesn\'t look right',
+        a: 'Ensure you\'re using a modern browser (Chrome recommended for printing). Check print settings for correct paper size and orientation. Disable "Headers and Footers" in print settings for cleaner output.',
+        tags: ['print', 'preview', 'wrong', 'format', 'layout']
+      },
+      {
+        q: 'How do I report a bug or request a feature?',
+        a: 'Document the issue with steps to reproduce and any error messages. Feature requests and bug reports help improve the system. Contact your system administrator or IT support with detailed information.',
+        tags: ['bug', 'report', 'feature', 'request', 'issue', 'help']
+      }
+    ]
+  }
+];
 
 export function UserGuidePage() {
   const [activeTab, setActiveTab] = useState('getting-started');
+  const [faqSearch, setFaqSearch] = useState('');
+
+  // Filter FAQ based on search
+  const filteredFaq = useMemo(() => {
+    if (!faqSearch.trim()) return faqData;
+    
+    const searchLower = faqSearch.toLowerCase();
+    return faqData.map(category => ({
+      ...category,
+      questions: category.questions.filter(q => 
+        q.q.toLowerCase().includes(searchLower) ||
+        q.a.toLowerCase().includes(searchLower) ||
+        q.tags.some(tag => tag.includes(searchLower))
+      )
+    })).filter(category => category.questions.length > 0);
+  }, [faqSearch]);
+
+  const totalFaqResults = filteredFaq.reduce((acc, cat) => acc + cat.questions.length, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -47,11 +241,12 @@ export function UserGuidePage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full">
+        <TabsList className="grid grid-cols-2 md:grid-cols-6 w-full">
           <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
           <TabsTrigger value="capabilities">Capabilities</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="competencies">Competencies</TabsTrigger>
+          <TabsTrigger value="faq">FAQ</TabsTrigger>
           <TabsTrigger value="release-notes">Release Notes</TabsTrigger>
         </TabsList>
 
@@ -746,6 +941,101 @@ export function UserGuidePage() {
                   </div>
                 </div>
               </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* FAQ Tab */}
+        <TabsContent value="faq" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-primary" />
+                Frequently Asked Questions
+              </CardTitle>
+              <CardDescription>
+                Search for answers to common questions and troubleshooting tips
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search FAQs... (e.g., backup, template, print)"
+                  value={faqSearch}
+                  onChange={(e) => setFaqSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {faqSearch && (
+                <p className="text-sm text-muted-foreground">
+                  Found {totalFaqResults} result{totalFaqResults !== 1 ? 's' : ''} for "{faqSearch}"
+                </p>
+              )}
+
+              {/* FAQ Categories */}
+              {filteredFaq.length > 0 ? (
+                <div className="space-y-6">
+                  {filteredFaq.map((category, catIdx) => (
+                    <div key={catIdx} className="space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <category.icon className="w-5 h-5 text-primary" />
+                        <h3 className="font-semibold">{category.category}</h3>
+                        <Badge variant="secondary" className="ml-auto">
+                          {category.questions.length}
+                        </Badge>
+                      </div>
+                      
+                      <Accordion type="single" collapsible className="w-full">
+                        {category.questions.map((item, qIdx) => (
+                          <AccordionItem key={qIdx} value={`${catIdx}-${qIdx}`}>
+                            <AccordionTrigger className="text-left hover:no-underline">
+                              <span className="flex items-start gap-2">
+                                <HelpCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                                <span>{item.q}</span>
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="pl-6 space-y-3">
+                                <p className="text-muted-foreground leading-relaxed">
+                                  {item.a}
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {item.tags.map((tag, tagIdx) => (
+                                    <Badge 
+                                      key={tagIdx} 
+                                      variant="outline" 
+                                      className="text-xs cursor-pointer hover:bg-muted"
+                                      onClick={() => setFaqSearch(tag)}
+                                    >
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <HelpCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No results found for "{faqSearch}"</p>
+                  <p className="text-sm mt-2">Try different keywords or browse all categories</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => setFaqSearch('')}
+                  >
+                    Clear Search
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
