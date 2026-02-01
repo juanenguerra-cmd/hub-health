@@ -129,12 +129,13 @@ export function QaActionFormModal({
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId);
+    const effectiveId = templateId === 'none' ? '' : templateId;
+    const template = templates.find(t => t.id === effectiveId);
     setFormData({
       ...formData,
-      templateId,
+      templateId: effectiveId,
       templateTitle: template?.title || '',
-      reAuditTemplateId: templateId
+      reAuditTemplateId: effectiveId
     });
   };
 
@@ -192,14 +193,14 @@ export function QaActionFormModal({
             <div>
               <Label>Related Audit Tool</Label>
               <Select
-                value={formData.templateId || ''}
+                value={formData.templateId || 'none'}
                 onValueChange={handleTemplateSelect}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select audit tool..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {templates.filter(t => !t.archived).map(t => (
                     <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                   ))}
