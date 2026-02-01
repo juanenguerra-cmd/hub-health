@@ -151,12 +151,29 @@ export function SessionsPage() {
     const newSample = {
       id: `smp_${Math.random().toString(16).slice(2, 10)}`,
       answers: {} as Record<string, string>,
-      result: null
+      result: null,
+      staffAudited: ''
     };
     
     const updated = {
       ...activeSession,
       samples: [...activeSession.samples, newSample]
+    };
+    
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  // Update staff audited
+  const updateStaffAudited = (sampleId: string, value: string) => {
+    if (!activeSession) return;
+    
+    const updated = {
+      ...activeSession,
+      samples: activeSession.samples.map(smp => {
+        if (smp.id !== sampleId) return smp;
+        return { ...smp, staffAudited: value };
+      })
     };
     
     setActiveSession(updated);
@@ -267,7 +284,8 @@ export function SessionsPage() {
             ev_competencyValidated: false,
             ev_correctiveAction: false,
             ev_monitoringInPlace: false,
-            linkedEduSessionId: ''
+            linkedEduSessionId: '',
+            staffAudited: smp.staffAudited || ''
           });
         }
       }
@@ -474,6 +492,18 @@ export function SessionsPage() {
                             </>
                           )}
                         </div>
+                      </div>
+
+                      {/* Staff Being Audited Field */}
+                      <div className="mb-3 max-w-xs">
+                        <Label className="text-xs text-muted-foreground">Staff Being Audited (Optional)</Label>
+                        <Input
+                          value={sample.staffAudited || ''}
+                          onChange={(e) => updateStaffAudited(sample.id, e.target.value)}
+                          placeholder="e.g., John Smith, RN"
+                          disabled={activeSession.header.status === 'complete'}
+                          className="h-8 text-sm"
+                        />
                       </div>
                       
                       {/* Questions Grid */}
