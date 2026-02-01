@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,8 +25,26 @@ import {
   Pencil,
   Trash2,
   Play,
-  ClipboardCheck
+  ClipboardCheck,
+  GraduationCap
 } from 'lucide-react';
+
+// Helper to extract competency titles from notes
+const extractCompetenciesFromNotes = (notes: string): string[] => {
+  if (!notes) return [];
+  const competencies: string[] = [];
+  const lines = notes.split('\n');
+  
+  for (const line of lines) {
+    // Match pattern like "[CODE-123] Title Here"
+    const match = line.match(/^\[([A-Z0-9-]+)\]\s+(.+)$/);
+    if (match) {
+      competencies.push(`[${match[1]}] ${match[2]}`);
+    }
+  }
+  
+  return competencies;
+};
 
 export function QaActionsPage() {
   const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab } = useApp();
@@ -282,6 +300,28 @@ export function QaActionsPage() {
                         <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded">Re-audited</span>
                       )}
                     </div>
+
+                    {/* Competency Titles from Notes */}
+                    {(() => {
+                      const comps = extractCompetenciesFromNotes(action.notes);
+                      if (comps.length === 0) return null;
+                      return (
+                        <div className="mt-3 pt-2 border-t">
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                            <span className="text-xs font-medium text-primary">Recommended Competencies</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            {comps.slice(0, 2).map((comp, idx) => (
+                              <p key={idx} className="text-xs text-muted-foreground truncate">{comp}</p>
+                            ))}
+                            {comps.length > 2 && (
+                              <p className="text-xs text-muted-foreground">+{comps.length - 2} more</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </CardContent>
@@ -362,11 +402,30 @@ export function QaActionsPage() {
                 </div>
               </div>
               
+              {/* Competencies Section */}
+              {(() => {
+                const comps = extractCompetenciesFromNotes(selectedAction.notes);
+                if (comps.length === 0) return null;
+                return (
+                  <div>
+                    <p className="text-muted-foreground text-sm mb-2 flex items-center gap-1.5">
+                      <GraduationCap className="w-4 h-4 text-primary" />
+                      Recommended Competencies (MASTERED.IT)
+                    </p>
+                    <div className="bg-muted/30 border rounded-lg p-3 space-y-1.5 max-h-32 overflow-y-auto">
+                      {comps.map((comp, idx) => (
+                        <p key={idx} className="text-sm">{comp}</p>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              
               {/* Notes */}
               {selectedAction.notes && (
                 <div>
                   <p className="text-muted-foreground text-sm">Notes</p>
-                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded">{selectedAction.notes}</p>
+                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded whitespace-pre-wrap">{selectedAction.notes}</p>
                 </div>
               )}
               
