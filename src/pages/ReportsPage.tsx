@@ -13,6 +13,8 @@ import {
   dateAddDays
 } from '@/lib/calculations';
 import { StatusBadge } from '@/components/StatusBadge';
+import { PrintableQaActionsReport } from '@/components/reports/PrintableQaActionsReport';
+import { StaffPerformanceReport } from '@/components/reports/StaffPerformanceReport';
 import { 
   FileText, 
   Download, 
@@ -21,7 +23,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   TrendingUp,
-  Users
+  Users,
+  GraduationCap
 } from 'lucide-react';
 
 export function ReportsPage() {
@@ -36,6 +39,8 @@ export function ReportsPage() {
   const [reportRange, setReportRange] = useState('30');
   const [selectedUnit, setSelectedUnit] = useState('All');
   const [activeReport, setActiveReport] = useState('qapi-summary');
+  const [showQaActionsPrint, setShowQaActionsPrint] = useState(false);
+  const [showStaffPerformance, setShowStaffPerformance] = useState(false);
 
   const daysAgo = parseInt(reportRange, 10);
   const today = todayYMD();
@@ -137,10 +142,18 @@ export function ReportsPage() {
           </p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setShowQaActionsPrint(true)}>
+            <ClipboardList className="w-4 h-4 mr-2" />
+            Print QA Actions
+          </Button>
+          <Button variant="outline" onClick={() => setShowStaffPerformance(true)}>
+            <Users className="w-4 h-4 mr-2" />
+            Staff Performance
+          </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
-            Print
+            Print Current
           </Button>
           <Button variant="outline" onClick={exportQaActionsCsv}>
             <Download className="w-4 h-4 mr-2" />
@@ -544,6 +557,20 @@ export function ReportsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Print Modals */}
+      <PrintableQaActionsReport
+        open={showQaActionsPrint}
+        onOpenChange={setShowQaActionsPrint}
+        actions={filteredActions}
+        title={`QA Actions Report - ${rangeLabel}`}
+      />
+
+      <StaffPerformanceReport
+        open={showStaffPerformance}
+        onOpenChange={setShowStaffPerformance}
+        dateRange={fromDate ? { from: fromDate, to: today } : undefined}
+      />
     </div>
   );
 }

@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Printer, X, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Printer, X, CheckCircle2, XCircle, AlertTriangle, GraduationCap } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useState, useRef } from 'react';
 import type { AuditSession, AuditTemplate } from '@/types/nurse-educator';
+import { findMatchingCompetencies } from '@/lib/competency-library';
 
 interface PostAuditPrintModalProps {
   open: boolean;
@@ -209,6 +210,18 @@ export function PostAuditPrintModal({ open, onOpenChange, session, template }: P
                 ))}
               </tr>
 
+              {/* Staff Audited Row */}
+              <tr className="bg-blue-50">
+                <td className="border border-black p-1 text-center font-bold">-</td>
+                <td className="border border-black p-1 font-semibold">Staff Audited</td>
+                <td className="border border-black p-1 text-center">-</td>
+                {session.samples.map((sample, idx) => (
+                  <td key={idx} className="border border-black p-1 text-center text-xs">
+                    {sample.staffAudited || '-'}
+                  </td>
+                ))}
+              </tr>
+
               {template.sampleQuestions.map((q, idx) => {
                 const isCritical = template.criticalFailKeys?.includes(q.key);
                 return (
@@ -289,32 +302,59 @@ export function PostAuditPrintModal({ open, onOpenChange, session, template }: P
             </tbody>
           </table>
 
-          {/* Action Items Section */}
+          {/* Action Items Section with Competency Recommendations */}
           {session.samples.some(s => s.result?.actionNeeded && s.result.actionNeeded.length > 0) && (
             <div className="border border-black p-2 mb-4">
               <h3 className="font-bold text-sm mb-2 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4" />
-                Action Items Required
+                Action Items with Competency Recommendations
               </h3>
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-black p-1 text-left">Sample</th>
-                    <th className="border border-black p-1 text-left">Issue</th>
-                    <th className="border border-black p-1 text-left">Reason</th>
+                    <th className="border border-black p-1 text-left w-[10%]">Sample</th>
+                    <th className="border border-black p-1 text-left w-[15%]">Staff</th>
+                    <th className="border border-black p-1 text-left w-[25%]">Issue</th>
+                    <th className="border border-black p-1 text-left w-[50%]">Recommended Competencies (MASTERED.IT)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {session.samples.flatMap((sample, sIdx) => 
-                    (sample.result?.actionNeeded || []).map((action, aIdx) => (
-                      <tr key={`${sIdx}-${aIdx}`}>
-                        <td className="border border-black p-1">
-                          #{sIdx + 1} ({sample.answers.patient_code || 'N/A'})
-                        </td>
-                        <td className="border border-black p-1">{action.label}</td>
-                        <td className="border border-black p-1">{action.reason}</td>
-                      </tr>
-                    ))
+                    (sample.result?.actionNeeded || []).map((action, aIdx) => {
+                      const competencies = findMatchingCompetencies(action.label, '');
+                      return (
+                        <tr key={`${sIdx}-${aIdx}`}>
+                          <td className="border border-black p-1">
+                            #{sIdx + 1}
+                          </td>
+                          <td className="border border-black p-1">
+                            {sample.staffAudited || '-'}
+                          </td>
+                          <td className="border border-black p-1">
+                            <strong>{action.label}</strong>
+                            <br />
+                            <span className="text-gray-600">{action.reason}</span>
+                          </td>
+                          <td className="border border-black p-1">
+                            {competencies.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {competencies.slice(0, 3).map((comp, cIdx) => (
+                                  <div key={cIdx} className="flex items-start gap-1">
+                                    <GraduationCap className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                    <span>[{comp.code}] {comp.title}</span>
+                                  </div>
+                                ))}
+                                {competencies.length > 3 && (
+                                  <span className="text-gray-500">+{competencies.length - 3} more</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">No matching competencies</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

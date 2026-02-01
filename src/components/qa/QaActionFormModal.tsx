@@ -47,7 +47,8 @@ export function QaActionFormModal({
     ev_educationProvided: false,
     ev_competencyValidated: false,
     ev_correctiveAction: false,
-    ev_monitoringInPlace: false
+    ev_monitoringInPlace: false,
+    staffAudited: ''
   });
 
   // Find matching competencies based on issue and topic
@@ -120,7 +121,8 @@ export function QaActionFormModal({
       ev_competencyValidated: !!formData.ev_competencyValidated,
       ev_correctiveAction: !!formData.ev_correctiveAction,
       ev_monitoringInPlace: !!formData.ev_monitoringInPlace,
-      linkedEduSessionId: action?.linkedEduSessionId || ''
+      linkedEduSessionId: action?.linkedEduSessionId || '',
+      staffAudited: formData.staffAudited || ''
     };
 
     onSave(savedAction);
@@ -215,6 +217,16 @@ export function QaActionFormModal({
                 placeholder="e.g., 1A, 2B..."
               />
             </div>
+          </div>
+
+          {/* Staff Audited */}
+          <div>
+            <Label>Staff Being Audited (Optional)</Label>
+            <Input
+              value={formData.staffAudited || ''}
+              onChange={(e) => setFormData({ ...formData, staffAudited: e.target.value })}
+              placeholder="Staff member name..."
+            />
           </div>
 
           {/* Dates */}

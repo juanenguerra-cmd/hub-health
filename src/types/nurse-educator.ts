@@ -63,6 +63,7 @@ export interface AuditSample {
   id: string;
   answers: Record<string, string>;
   result: SampleResult;
+  staffAudited?: string; // Optional: staff member being audited for this sample
 }
 
 export interface SampleResult {
@@ -113,6 +114,8 @@ export interface QaAction {
   ev_monitoringInPlace: boolean;
   // Linked education
   linkedEduSessionId: string;
+  // Staff being audited
+  staffAudited?: string;
 }
 
 export interface EducationSession {

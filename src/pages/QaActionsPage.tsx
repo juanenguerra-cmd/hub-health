@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { QaActionFormModal } from '@/components/qa/QaActionFormModal';
+import { PrintableQaActionsReport } from '@/components/reports/PrintableQaActionsReport';
 import { toast } from '@/hooks/use-toast';
 import type { QaAction } from '@/types/nurse-educator';
 import { 
@@ -26,7 +27,8 @@ import {
   Trash2,
   Play,
   ClipboardCheck,
-  GraduationCap
+  GraduationCap,
+  Printer
 } from 'lucide-react';
 
 // Helper to extract competency titles from notes
@@ -53,6 +55,7 @@ export function QaActionsPage() {
   const [selectedAction, setSelectedAction] = useState<QaAction | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editAction, setEditAction] = useState<QaAction | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const daysAgo = parseInt(actionsFilters.range, 10);
   const today = todayYMD();
@@ -148,10 +151,16 @@ export function QaActionsPage() {
           <h1 className="text-2xl font-bold">QA Action Tracker</h1>
           <p className="text-muted-foreground">Closed-loop QAPI tracking with owners and re-audits</p>
         </div>
-        <Button className="gap-2" onClick={handleCreateAction}>
-          <Plus className="w-4 h-4" />
-          Add Action
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowPrintModal(true)}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print Report
+          </Button>
+          <Button className="gap-2" onClick={handleCreateAction}>
+            <Plus className="w-4 h-4" />
+            Add Action
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -479,6 +488,13 @@ export function QaActionsPage() {
         action={editAction}
         templates={templates}
         onSave={handleSaveAction}
+      />
+
+      <PrintableQaActionsReport
+        open={showPrintModal}
+        onOpenChange={setShowPrintModal}
+        actions={filtered}
+        title="QA Actions Report"
       />
     </div>
   );
