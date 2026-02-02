@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ClipboardCheck, GraduationCap, RefreshCw, Calendar, Play } from 'lucide-react';
-import type { AuditSession, AuditSample, QaAction, EducationSession } from '@/types/nurse-educator';
+import type { AuditSession, QaAction, EducationSession } from '@/types/nurse-educator';
 import { todayYMD } from '@/lib/calculations';
 
 interface CalendarEvent {
@@ -34,8 +33,7 @@ export function CalendarQuickActionModal({
   selectedDate,
   eventsForDate
 }: CalendarQuickActionModalProps) {
-  const navigate = useNavigate();
-  const { templates, qaActions, setQaActions, setSessions, sessions, setEduSessions, eduSessions, eduLibrary } = useApp();
+  const { templates, qaActions, setQaActions, setSessions, sessions, setEduSessions, eduSessions, eduLibrary, setActiveTab } = useApp();
   const today = todayYMD();
   
   const [activeAction, setActiveAction] = useState<'menu' | 'audit' | 'inservice' | 'reaudit'>('menu');
@@ -97,8 +95,10 @@ export function CalendarQuickActionModal({
     };
     
     setSessions([...sessions, newSession]);
+    // Use sessionStorage to pass the session to edit
+    sessionStorage.setItem('NES_EDIT_SESSION', newSession.id);
     handleClose();
-    navigate(`/sessions?edit=${newSession.id}`);
+    setActiveTab('sessions');
   };
 
   const handlePlanInservice = () => {
@@ -131,7 +131,7 @@ export function CalendarQuickActionModal({
     
     setEduSessions([...eduSessions, newEduSession]);
     handleClose();
-    navigate('/education');
+    setActiveTab('education');
   };
 
   const handleStartReaudit = () => {
@@ -166,8 +166,10 @@ export function CalendarQuickActionModal({
     
     setSessions([...sessions, newSession]);
     setQaActions(updatedActions);
+    // Use sessionStorage to pass the session to edit
+    sessionStorage.setItem('NES_EDIT_SESSION', newSession.id);
     handleClose();
-    navigate(`/sessions?edit=${newSession.id}`);
+    setActiveTab('sessions');
   };
 
   const formattedDate = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
