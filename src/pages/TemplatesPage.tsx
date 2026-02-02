@@ -8,7 +8,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ClipboardCheck, Play, Eye, Settings2, FileText, AlertTriangle, CheckCircle2, XCircle, Printer } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { 
+  ClipboardCheck, 
+  Play, 
+  Eye, 
+  Settings2, 
+  FileText, 
+  AlertTriangle, 
+  CheckCircle2, 
+  XCircle, 
+  Printer,
+  Search,
+  ChevronDown,
+  Tag
+} from 'lucide-react';
 import type { AuditTemplate } from '@/types/nurse-educator';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 import { TemplateManagementPage } from '@/pages/TemplateManagementPage';
@@ -18,6 +32,12 @@ export function TemplatesPage() {
   
   // State for management view
   const [showManagement, setShowManagement] = useState(false);
+  
+  // State for search
+  const [search, setSearch] = useState('');
+  
+  // State for expanded templates
+  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set());
   
   // State for preview dialog
   const [previewTemplate, setPreviewTemplate] = useState<AuditTemplate | null>(null);
@@ -32,6 +52,38 @@ export function TemplatesPage() {
   
   const activeTemplates = templates.filter(t => !t.archived);
 
+  // Filter templates by search
+  const filteredTemplates = activeTemplates.filter(t => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const hay = `${t.title} ${t.category} ${t.ftagTags.join(' ')} ${t.purpose.summary}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  // Group templates by category
+  const templatesByCategory = filteredTemplates.reduce((acc, template) => {
+    const category = template.category || 'Uncategorized';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(template);
+    return acc;
+  }, {} as Record<string, AuditTemplate[]>);
+
+  const categories = Object.keys(templatesByCategory).sort();
+
+  const toggleExpanded = (id: string) => {
+    setExpandedTemplates(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const handleRunAudit = (template: AuditTemplate) => {
     setRunAuditTemplate(template);
     setAuditUnit('');
@@ -41,8 +93,6 @@ export function TemplatesPage() {
   const handleStartAudit = () => {
     if (!runAuditTemplate) return;
     
-    // Navigate to sessions page with template pre-selected
-    // Store the selected template info in sessionStorage for the sessions page to pick up
     sessionStorage.setItem('NES_START_AUDIT', JSON.stringify({
       templateId: runAuditTemplate.id,
       unit: auditUnit,
@@ -64,7 +114,7 @@ export function TemplatesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Audit Templates</h1>
           <p className="text-muted-foreground">Survey-ready audit tools with CMS F-tags and NYDOH references</p>
@@ -75,67 +125,181 @@ export function TemplatesPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {activeTemplates.map((tpl) => (
-          <Card key={tpl.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <ClipboardCheck className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{tpl.title}</CardTitle>
-                    <CardDescription className="mt-1">
-                      v{tpl.version} • {tpl.category}
-                    </CardDescription>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="shrink-0">
-                  {tpl.passingThreshold}% threshold
-                </Badge>
+      {/* Search & Stats */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search templates by title, category, or F-tags..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                {tpl.purpose.summary}
-              </p>
-              
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                {tpl.ftagTags.map(tag => (
-                  <Badge key={tag} variant="outline" className="text-xs">
-                    CMS {tag}
-                  </Badge>
-                ))}
-                {tpl.nydohTags.slice(0, 1).map(tag => (
-                  <Badge key={tag} variant="outline" className="text-xs">
-                    NYDOH
-                  </Badge>
-                ))}
-                {tpl.placementTags.slice(0, 2).map(tag => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Badge variant="secondary">{activeTemplates.length} Templates</Badge>
+              <Badge variant="outline">{categories.length} Categories</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-              <div className="flex gap-2">
-                <Button size="sm" className="flex-1 gap-2" onClick={() => handleRunAudit(tpl)}>
-                  <Play className="w-4 h-4" />
-                  Run Audit
-                </Button>
-                <Button size="sm" variant="outline" className="gap-2" onClick={() => handlePreview(tpl)}>
-                  <Eye className="w-4 h-4" />
-                  Preview
-                </Button>
-                <Button size="sm" variant="outline" className="gap-2" onClick={() => setPrintPreAuditTemplate(tpl)}>
-                  <Printer className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Templates by Category */}
+      {filteredTemplates.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <ClipboardCheck className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="font-medium">No templates found</p>
+            <p className="text-sm text-muted-foreground">
+              {search ? 'Try adjusting your search' : 'No active templates available'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {categories.map(category => (
+            <Card key={category}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-primary" />
+                  {category}
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {templatesByCategory[category].length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {templatesByCategory[category].map(template => {
+                    const isExpanded = expandedTemplates.has(template.id);
+                    
+                    return (
+                      <Card key={template.id} className="border-muted">
+                        <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(template.id)}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <ClipboardCheck className="w-4 h-4 text-primary shrink-0" />
+                                  <span className="font-medium">{template.title}</span>
+                                  <Badge variant="outline" className="text-xs">v{template.version}</Badge>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {template.sampleQuestions.length} questions
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {template.passingThreshold}% threshold
+                                  </Badge>
+                                  {template.criticalFailKeys.length > 0 && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      {template.criticalFailKeys.length} critical
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button size="sm" className="gap-1" onClick={(e) => { e.stopPropagation(); handleRunAudit(template); }}>
+                                  <Play className="w-3 h-3" />
+                                  Run
+                                </Button>
+                                <CollapsibleTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </Button>
+                                </CollapsibleTrigger>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <CollapsibleContent>
+                            <div className="px-4 pb-4 border-t pt-4 bg-muted/30">
+                              {/* Purpose Summary */}
+                              <div className="space-y-3">
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground mb-1">Purpose</p>
+                                  <p className="text-sm">{template.purpose.summary}</p>
+                                </div>
+                                
+                                {/* Risk Warning */}
+                                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                                  <p className="text-sm font-medium text-destructive flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4" />
+                                    Risk if Not Compliant
+                                  </p>
+                                  <p className="text-sm text-muted-foreground mt-1">{template.purpose.risk}</p>
+                                </div>
+
+                                {/* Regulatory Tags */}
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground mb-2">Regulatory References</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {template.ftagTags.map(tag => (
+                                      <Badge key={tag} variant="outline" className="text-xs">
+                                        CMS {tag}
+                                      </Badge>
+                                    ))}
+                                    {template.nydohTags.map(tag => (
+                                      <Badge key={tag} variant="outline" className="text-xs">
+                                        NYDOH {tag}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Critical Items Preview */}
+                                {template.criticalFailKeys.length > 0 && (
+                                  <div>
+                                    <p className="text-sm font-medium text-destructive flex items-center gap-1 mb-2">
+                                      <XCircle className="w-3 h-3" />
+                                      Critical Fail Items
+                                    </p>
+                                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5">
+                                      {template.criticalFailKeys.slice(0, 3).map(key => {
+                                        const question = template.sampleQuestions.find(q => q.key === key);
+                                        return (
+                                          <li key={key} className="text-destructive text-xs">
+                                            {question?.label || key}
+                                          </li>
+                                        );
+                                      })}
+                                      {template.criticalFailKeys.length > 3 && (
+                                        <li className="text-muted-foreground text-xs">
+                                          +{template.criticalFailKeys.length - 3} more...
+                                        </li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div className="flex gap-2 pt-2">
+                                  <Button size="sm" variant="outline" className="gap-1" onClick={() => handlePreview(template)}>
+                                    <Eye className="w-3 h-3" />
+                                    Full Preview
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="gap-1" onClick={() => setPrintPreAuditTemplate(template)}>
+                                    <Printer className="w-3 h-3" />
+                                    Print Form
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Run Audit Dialog */}
       <Dialog open={!!runAuditTemplate} onOpenChange={(open) => !open && setRunAuditTemplate(null)}>
