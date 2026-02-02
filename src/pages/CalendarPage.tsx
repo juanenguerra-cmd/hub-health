@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { todayYMD } from '@/lib/calculations';
-import { ChevronLeft, ChevronRight, Calendar, GraduationCap, ClipboardCheck, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, GraduationCap, ClipboardCheck, AlertTriangle, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CalendarQuickActionModal } from '@/components/calendar/CalendarQuickActionModal';
 
 interface CalendarEvent {
   id: string;
@@ -23,6 +24,7 @@ export function CalendarPage() {
   
   const [currentMonth, setCurrentMonth] = useState(() => today.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [quickActionOpen, setQuickActionOpen] = useState(false);
 
   // Parse month for calendar grid
   const [year, month] = currentMonth.split('-').map(Number);
@@ -302,24 +304,42 @@ export function CalendarPage() {
 
         {/* Selected Day Events */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              })}
-            </CardTitle>
-            <CardDescription>
-              {selectedEvents.length} scheduled item{selectedEvents.length !== 1 ? 's' : ''}
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <div>
+              <CardTitle className="text-base">
+                {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </CardTitle>
+              <CardDescription>
+                {selectedEvents.length} scheduled item{selectedEvents.length !== 1 ? 's' : ''}
+              </CardDescription>
+            </div>
+            <Button 
+              size="sm" 
+              onClick={() => setQuickActionOpen(true)}
+              className="gap-1"
+            >
+              <Plus className="w-4 h-4" />
+              Quick Action
+            </Button>
           </CardHeader>
           <CardContent>
             {selectedEvents.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No activities scheduled</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={() => setQuickActionOpen(true)}
+                >
+                  Add Activity
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -372,6 +392,14 @@ export function CalendarPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Action Modal */}
+      <CalendarQuickActionModal
+        open={quickActionOpen}
+        onOpenChange={setQuickActionOpen}
+        selectedDate={selectedDate}
+        eventsForDate={selectedEvents}
+      />
     </div>
   );
 }
