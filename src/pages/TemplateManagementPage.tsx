@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,25 +7,30 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   ClipboardCheck, 
   Search, 
   Edit, 
   Archive, 
   RotateCcw,
-  Plus,
   History,
   ArrowLeft,
   FileText,
-  AlertTriangle,
   Copy,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  Tag,
+  Filter,
+  AlertTriangle,
+  XCircle
 } from 'lucide-react';
 import type { AuditTemplate } from '@/types/nurse-educator';
 import type { TemplateChange } from '@/types/template-history';
 import { TemplateEditorModal } from '@/components/audit/TemplateEditorModal';
 import { TemplateCreationWizard } from '@/components/audit/TemplateCreationWizard';
-import { loadTemplateHistory, addTemplateChange, bumpVersion } from '@/lib/template-history-storage';
+import { loadTemplateHistory, addTemplateChange } from '@/lib/template-history-storage';
 import { toast } from 'sonner';
 
 interface TemplateManagementPageProps {
@@ -37,20 +42,56 @@ export function TemplateManagementPage({ onBack }: TemplateManagementPageProps) 
   
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [editingTemplate, setEditingTemplate] = useState<AuditTemplate | null>(null);
   const [viewHistoryTemplate, setViewHistoryTemplate] = useState<AuditTemplate | null>(null);
   const [historyChanges, setHistoryChanges] = useState<TemplateChange[]>([]);
   const [showCreationWizard, setShowCreationWizard] = useState(false);
+  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set());
 
   const activeTemplates = templates.filter(t => !t.archived);
   const archivedTemplates = templates.filter(t => t.archived);
 
+  // Get all unique categories
+  const allCategories = useMemo(() => {
+    const currentTemplates = activeTab === 'active' ? activeTemplates : archivedTemplates;
+    const cats = new Set(currentTemplates.map(t => t.category || 'Uncategorized'));
+    return Array.from(cats).sort();
+  }, [activeTab, activeTemplates, archivedTemplates]);
+
   const filteredTemplates = (activeTab === 'active' ? activeTemplates : archivedTemplates)
     .filter(t => {
+      // Category filter
+      if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+      // Search filter
       if (!searchTerm) return true;
       const hay = `${t.title} ${t.category} ${t.ftagTags.join(' ')}`.toLowerCase();
       return hay.includes(searchTerm.toLowerCase());
     });
+
+  // Group templates by category
+  const templatesByCategory = filteredTemplates.reduce((acc, template) => {
+    const category = template.category || 'Uncategorized';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(template);
+    return acc;
+  }, {} as Record<string, AuditTemplate[]>);
+
+  const categories = Object.keys(templatesByCategory).sort();
+
+  const toggleExpanded = (id: string) => {
+    setExpandedTemplates(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const handleEditTemplate = (template: AuditTemplate) => {
     setEditingTemplate(template);
@@ -177,97 +218,210 @@ export function TemplateManagementPage({ onBack }: TemplateManagementPageProps) 
         </Button>
       </div>
 
-      {/* Search and Tabs */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search templates..."
-            className="pl-10"
-          />
-        </div>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'active' | 'archived')}>
-          <TabsList>
-            <TabsTrigger value="active">Active ({activeTemplates.length})</TabsTrigger>
-            <TabsTrigger value="archived">Archived ({archivedTemplates.length})</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {/* Template Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTemplates.map((tpl) => (
-          <Card key={tpl.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <ClipboardCheck className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base truncate">{tpl.title}</CardTitle>
-                  <CardDescription className="mt-1">
-                    v{tpl.version} • {tpl.category}
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                <Badge variant="secondary" className="text-xs">
-                  {tpl.sampleQuestions.length} questions
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  {tpl.passingThreshold}% threshold
-                </Badge>
-                {tpl.criticalFailKeys.length > 0 && (
-                  <Badge variant="destructive" className="text-xs">
-                    {tpl.criticalFailKeys.length} critical
-                  </Badge>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                {activeTab === 'active' ? (
-                  <>
-                    <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleEditTemplate(tpl)}>
-                      <Edit className="w-3 h-3" />
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDuplicateTemplate(tpl)} title="Duplicate template">
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleViewHistory(tpl)} title="View history">
-                      <History className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleArchiveTemplate(tpl)} title="Archive template">
-                      <Archive className="w-4 h-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => handleRestoreTemplate(tpl)}>
-                      <RotateCcw className="w-4 h-4" />
-                      Restore
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDuplicateTemplate(tpl)} title="Duplicate template">
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        {filteredTemplates.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No templates found</p>
+      {/* Search, Filter and Tabs */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search templates..."
+                className="pl-10"
+              />
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {allCategories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as 'active' | 'archived'); setCategoryFilter('all'); }}>
+              <TabsList>
+                <TabsTrigger value="active">Active ({activeTemplates.length})</TabsTrigger>
+                <TabsTrigger value="archived">Archived ({archivedTemplates.length})</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* Templates by Category */}
+      {filteredTemplates.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileText className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
+            <p className="font-medium">No templates found</p>
+            <p className="text-sm text-muted-foreground">
+              {searchTerm || categoryFilter !== 'all' ? 'Try adjusting your filters' : 'No templates available'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {categories.map(category => (
+            <Card key={category}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-primary" />
+                  {category}
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {templatesByCategory[category].length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {templatesByCategory[category].map(template => {
+                    const isExpanded = expandedTemplates.has(template.id);
+                    
+                    return (
+                      <Card key={template.id} className={`border-muted ${template.archived ? 'opacity-60' : ''}`}>
+                        <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(template.id)}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <ClipboardCheck className="w-4 h-4 text-primary shrink-0" />
+                                  <span className="font-medium">{template.title}</span>
+                                  <Badge variant="outline" className="text-xs">v{template.version}</Badge>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {template.sampleQuestions.length} questions
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {template.passingThreshold}% threshold
+                                  </Badge>
+                                  {template.criticalFailKeys.length > 0 && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      {template.criticalFailKeys.length} critical
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {activeTab === 'active' ? (
+                                  <>
+                                    <Button size="sm" variant="outline" className="gap-1" onClick={(e) => { e.stopPropagation(); handleEditTemplate(template); }}>
+                                      <Edit className="w-3 h-3" />
+                                      Edit
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleDuplicateTemplate(template); }} title="Duplicate">
+                                      <Copy className="w-4 h-4" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleViewHistory(template); }} title="History">
+                                      <History className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button size="sm" variant="outline" className="gap-1" onClick={(e) => { e.stopPropagation(); handleRestoreTemplate(template); }}>
+                                    <RotateCcw className="w-3 h-3" />
+                                    Restore
+                                  </Button>
+                                )}
+                                <CollapsibleTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </Button>
+                                </CollapsibleTrigger>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <CollapsibleContent>
+                            <div className="px-4 pb-4 border-t pt-4 bg-muted/30">
+                              <div className="space-y-3">
+                                {/* Purpose Summary */}
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground mb-1">Purpose</p>
+                                  <p className="text-sm">{template.purpose.summary}</p>
+                                </div>
+                                
+                                {/* Risk Warning */}
+                                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                                  <p className="text-sm font-medium text-destructive flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4" />
+                                    Risk if Not Compliant
+                                  </p>
+                                  <p className="text-sm text-muted-foreground mt-1">{template.purpose.risk}</p>
+                                </div>
+
+                                {/* Regulatory Tags */}
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground mb-2">Regulatory References</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {template.ftagTags.map(tag => (
+                                      <Badge key={tag} variant="outline" className="text-xs">
+                                        CMS {tag}
+                                      </Badge>
+                                    ))}
+                                    {template.nydohTags.map(tag => (
+                                      <Badge key={tag} variant="outline" className="text-xs">
+                                        NYDOH {tag}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Critical Items Preview */}
+                                {template.criticalFailKeys.length > 0 && (
+                                  <div>
+                                    <p className="text-sm font-medium text-destructive flex items-center gap-1 mb-2">
+                                      <XCircle className="w-3 h-3" />
+                                      Critical Fail Items
+                                    </p>
+                                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5">
+                                      {template.criticalFailKeys.slice(0, 3).map(key => {
+                                        const question = template.sampleQuestions.find(q => q.key === key);
+                                        return (
+                                          <li key={key} className="text-destructive text-xs">
+                                            {question?.label || key}
+                                          </li>
+                                        );
+                                      })}
+                                      {template.criticalFailKeys.length > 3 && (
+                                        <li className="text-muted-foreground text-xs">
+                                          +{template.criticalFailKeys.length - 3} more...
+                                        </li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                {activeTab === 'active' && (
+                                  <div className="flex gap-2 pt-2">
+                                    <Button size="sm" variant="outline" className="gap-1" onClick={() => handleArchiveTemplate(template)}>
+                                      <Archive className="w-3 h-3" />
+                                      Archive
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="gap-1" onClick={() => handleDuplicateTemplate(template)}>
+                                      <Copy className="w-3 h-3" />
+                                      Duplicate
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Template Editor Modal */}
       <TemplateEditorModal
