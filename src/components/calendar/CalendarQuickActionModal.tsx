@@ -3,10 +3,13 @@ import { useApp } from '@/contexts/AppContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ClipboardCheck, GraduationCap, RefreshCw, Calendar, Play } from 'lucide-react';
+import { ClipboardCheck, GraduationCap, RefreshCw, Calendar, Play, ChevronsUpDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { AuditSession, QaAction, EducationSession } from '@/types/nurse-educator';
 import { todayYMD } from '@/lib/calculations';
 
@@ -33,7 +36,7 @@ export function CalendarQuickActionModal({
   selectedDate,
   eventsForDate
 }: CalendarQuickActionModalProps) {
-  const { templates, qaActions, setQaActions, setSessions, sessions, setEduSessions, eduSessions, eduLibrary, setActiveTab } = useApp();
+  const { templates, qaActions, setQaActions, setSessions, sessions, setEduSessions, eduSessions, eduLibrary, setActiveTab, facilityUnits } = useApp();
   const today = todayYMD();
   
   const [activeAction, setActiveAction] = useState<'menu' | 'audit' | 'inservice' | 'reaudit'>('menu');
@@ -50,6 +53,9 @@ export function CalendarQuickActionModal({
   
   // For reaudit
   const [selectedReauditAction, setSelectedReauditAction] = useState<QaAction | null>(null);
+  
+  // Unit combobox
+  const [unitPopoverOpen, setUnitPopoverOpen] = useState(false);
   
   const activeTemplates = templates.filter(t => !t.archived);
   const activeTopics = eduLibrary.filter(t => !t.archived);
@@ -278,11 +284,48 @@ export function CalendarQuickActionModal({
             
             <div className="space-y-2">
               <Label>Unit *</Label>
-              <Input 
-                value={selectedUnit} 
-                onChange={e => setSelectedUnit(e.target.value)}
-                placeholder="Enter unit (e.g., 1A, Rehab, Memory Care)"
-              />
+              <Popover open={unitPopoverOpen} onOpenChange={setUnitPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={unitPopoverOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedUnit || "Select or type unit..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search or type new unit..." 
+                      value={selectedUnit}
+                      onValueChange={setSelectedUnit}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <span className="text-muted-foreground">Press enter to use "{selectedUnit}"</span>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {facilityUnits.map(unit => (
+                          <CommandItem
+                            key={unit}
+                            value={unit}
+                            onSelect={(value) => {
+                              setSelectedUnit(value);
+                              setUnitPopoverOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedUnit === unit ? "opacity-100" : "opacity-0")} />
+                            {unit}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="space-y-2">
@@ -353,11 +396,46 @@ export function CalendarQuickActionModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Unit</Label>
-                <Input 
-                  value={selectedUnit} 
-                  onChange={e => setSelectedUnit(e.target.value)}
-                  placeholder="e.g., 1A, All Units"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between font-normal"
+                    >
+                      {selectedUnit || "Select unit..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search or type unit..." 
+                        value={selectedUnit}
+                        onValueChange={setSelectedUnit}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <span className="text-muted-foreground">Use "{selectedUnit}"</span>
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {facilityUnits.map(unit => (
+                            <CommandItem
+                              key={unit}
+                              value={unit}
+                              onSelect={(value) => {
+                                setSelectedUnit(value);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", selectedUnit === unit ? "opacity-100" : "opacity-0")} />
+                              {unit}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               
               <div className="space-y-2">

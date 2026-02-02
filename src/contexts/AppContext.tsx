@@ -30,6 +30,8 @@ import {
   loadAdminOwners,
   loadFacilityName,
   saveFacilityName,
+  loadFacilityUnits,
+  saveFacilityUnits,
   generateDemoData
 } from '@/lib/storage';
 import { parseBackupFile, processBackupData, createBackup, type RestoreResult } from '@/lib/backup-restore';
@@ -45,6 +47,7 @@ interface AppContextType {
   staffDirectory: { rows: StaffMember[]; asOf: string };
   adminOwners: AdminOwners;
   facilityName: string;
+  facilityUnits: string[];
   
   // Navigation
   activeTab: string;
@@ -68,6 +71,7 @@ interface AppContextType {
   setEduLibrary: (library: EduTopic[]) => void;
   setOrientationRecords: (records: OrientationRecord[]) => void;
   setFacilityName: (name: string) => void;
+  setFacilityUnits: (units: string[]) => void;
   
   // Backup & Restore
   restoreFromBackup: (content: string) => RestoreResult;
@@ -98,6 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     admin: 'Administrator'
   });
   const [facilityName, setFacilityName] = useState('My Healthcare Facility');
+  const [facilityUnits, setFacilityUnits] = useState<string[]>([]);
   
   // Navigation
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -141,6 +146,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setStaffDirectory(loadStaffDirectory());
     setAdminOwners(loadAdminOwners());
     setFacilityName(loadFacilityName());
+    setFacilityUnits(loadFacilityUnits());
   }, []);
   
   // Persist data mutations
@@ -177,6 +183,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setFacilityNameData = (name: string) => {
     setFacilityName(name);
     saveFacilityName(name);
+  };
+  
+  const setFacilityUnitsData = (units: string[]) => {
+    setFacilityUnits(units);
+    saveFacilityUnits(units);
   };
   
   // Backup & Restore
@@ -264,6 +275,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       staffDirectory,
       adminOwners,
       facilityName,
+      facilityUnits,
       activeTab,
       setActiveTab,
       dashFilters,
@@ -281,6 +293,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setEduLibrary: setEduLibraryData,
       setOrientationRecords: setOrientationRecordsData,
       setFacilityName: setFacilityNameData,
+      setFacilityUnits: setFacilityUnitsData,
       restoreFromBackup,
       exportBackup,
       loadDemoData
