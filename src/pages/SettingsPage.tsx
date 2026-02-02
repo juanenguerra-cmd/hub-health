@@ -15,17 +15,23 @@ import {
   Database,
   RefreshCw,
   Bell,
-  Settings
+  Settings,
+  Plus,
+  X,
+  MapPin
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { BackupSettingsModal } from '@/components/BackupSettingsModal';
 import { loadBackupSettings, updateLastBackupTime } from '@/lib/backup-settings-storage';
 import { formatLastBackup } from '@/types/backup-settings';
+import { Badge } from '@/components/ui/badge';
 
 export function SettingsPage() {
   const { 
     facilityName, 
     setFacilityName,
+    facilityUnits,
+    setFacilityUnits,
     templates,
     sessions,
     eduSessions,
@@ -46,6 +52,7 @@ export function SettingsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [showBackupSettings, setShowBackupSettings] = useState(false);
   const [backupSettings, setBackupSettings] = useState(() => loadBackupSettings());
+  const [newUnit, setNewUnit] = useState('');
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -124,6 +131,33 @@ export function SettingsPage() {
     });
   };
 
+  const handleAddUnit = () => {
+    const trimmed = newUnit.trim();
+    if (!trimmed) return;
+    if (facilityUnits.includes(trimmed)) {
+      toast({
+        variant: 'destructive',
+        title: 'Duplicate Unit',
+        description: 'This unit already exists.',
+      });
+      return;
+    }
+    setFacilityUnits([...facilityUnits, trimmed]);
+    setNewUnit('');
+    toast({
+      title: 'Unit Added',
+      description: `"${trimmed}" has been added to your units.`,
+    });
+  };
+
+  const handleRemoveUnit = (unit: string) => {
+    setFacilityUnits(facilityUnits.filter(u => u !== unit));
+    toast({
+      title: 'Unit Removed',
+      description: `"${unit}" has been removed.`,
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -153,6 +187,56 @@ export function SettingsPage() {
               onChange={(e) => setFacilityName(e.target.value)}
               placeholder="Enter facility name"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Unit Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Unit Configuration
+          </CardTitle>
+          <CardDescription>
+            Define facility units for use across audits and education sessions
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              value={newUnit}
+              onChange={(e) => setNewUnit(e.target.value)}
+              placeholder="Enter new unit name (e.g., 1A, Rehab, Memory Care)"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddUnit()}
+            />
+            <Button onClick={handleAddUnit} disabled={!newUnit.trim()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add
+            </Button>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            {facilityUnits.map(unit => (
+              <Badge 
+                key={unit} 
+                variant="secondary" 
+                className="px-3 py-1.5 text-sm flex items-center gap-2"
+              >
+                {unit}
+                <button
+                  onClick={() => handleRemoveUnit(unit)}
+                  className="hover:text-destructive transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            {facilityUnits.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No units configured. Add units above to use them in audits and education sessions.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

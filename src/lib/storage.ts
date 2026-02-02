@@ -22,6 +22,7 @@ const LS_KEYS = {
   staffDirectory: 'NES_STAFF_DIR_V1',
   adminOwners: 'NES_ADMIN_OWNERS_V1',
   facilityName: 'NES_FACILITY_NAME_V1',
+  facilityUnits: 'NES_FACILITY_UNITS_V1',
 };
 
 // Default admin owners
@@ -209,6 +210,24 @@ export function loadFacilityName(): string {
 
 export function saveFacilityName(name: string): void {
   localStorage.setItem(LS_KEYS.facilityName, name);
+}
+
+// Facility Units
+const DEFAULT_UNITS = ['1A', '1B', '2A', '2B', '3A', '3B', 'Rehab', 'Memory Care', 'Skilled', 'All Units'];
+
+export function loadFacilityUnits(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_KEYS.facilityUnits);
+    if (!raw) return DEFAULT_UNITS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_UNITS;
+  } catch {
+    return DEFAULT_UNITS;
+  }
+}
+
+export function saveFacilityUnits(units: string[]): void {
+  localStorage.setItem(LS_KEYS.facilityUnits, JSON.stringify(units));
 }
 
 // Generate demo data for preview
