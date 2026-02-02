@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { 
   computeHeatmap, 
   computeClosedLoopStats, 
@@ -12,6 +13,7 @@ import {
   dateAddDays
 } from '@/lib/calculations';
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
+import { getAllUnitOptions, matchesUnitOrWings } from '@/types/facility-units';
 import { 
   BarChart, 
   Bar, 
@@ -28,9 +30,10 @@ import {
   Line
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { Building2, ChevronRight } from 'lucide-react';
 
 export function AnalyticsPage() {
-  const { sessions, qaActions, eduSessions, analyticsFilters, setAnalyticsFilters } = useApp();
+  const { sessions, qaActions, eduSessions, analyticsFilters, setAnalyticsFilters, facilityUnits } = useApp();
   
   const daysAgo = parseInt(analyticsFilters.range || '30', 10);
   const today = todayYMD();
@@ -38,7 +41,12 @@ export function AnalyticsPage() {
   
   // Filter data
   const filteredSessions = filterSessionsByRange(sessions, daysAgo).filter(s => {
-    if (analyticsFilters.unit !== 'All' && s.header?.unit !== analyticsFilters.unit) return false;
+    if (analyticsFilters.unit !== 'All') {
+      // Check if session unit matches the filter or is a wing of the filter unit
+      if (!matchesUnitOrWings(facilityUnits, analyticsFilters.unit, s.header?.unit || '')) {
+        return false;
+      }
+    }
     return s.header?.status === 'complete';
   });
   
@@ -49,14 +57,91 @@ export function AnalyticsPage() {
   const qaStats = computeClosedLoopStats(filteredActions);
   const heatmap = computeHeatmap(filteredSessions);
 
-  // Get unique units
+  // Get unique units from sessions for filter dropdown
   const units = useMemo(() => {
     const unitSet = new Set<string>();
     sessions.forEach(s => {
       if (s.header?.unit) unitSet.add(s.header.unit);
     });
+    // Also add configured facility units (parent units)
+    facilityUnits.forEach(u => unitSet.add(u.name));
     return ['All', ...Array.from(unitSet).sort()];
-  }, [sessions]);
+  }, [sessions, facilityUnits]);
+
+  // Compute unit compliance with drill-down for wings
+  const unitComplianceData = useMemo(() => {
+    const completeSessions = filterSessionsByRange(sessions, daysAgo).filter(s => s.header?.status === 'complete');
+    
+    // Group sessions by parent unit
+    const parentStats: Record<string, { 
+      samples: number; 
+      passing: number; 
+      criticals: number;
+      wings: Record<string, { samples: number; passing: number; criticals: number }> 
+    }> = {};
+    
+    for (const session of completeSessions) {
+      const sessionUnit = session.header?.unit || 'Unknown';
+      
+      // Find parent unit
+      let parentName = sessionUnit;
+      let wingName: string | null = null;
+      
+      for (const unit of facilityUnits) {
+        if (unit.name === sessionUnit) {
+          parentName = unit.name;
+          break;
+        }
+        if (unit.wings.includes(sessionUnit)) {
+          parentName = unit.name;
+          wingName = sessionUnit;
+          break;
+        }
+      }
+      
+      // Initialize parent if not exists
+      if (!parentStats[parentName]) {
+        parentStats[parentName] = { samples: 0, passing: 0, criticals: 0, wings: {} };
+      }
+      
+      // Count samples
+      for (const sample of session.samples) {
+        if (!sample.result) continue;
+        
+        parentStats[parentName].samples++;
+        if (sample.result.pass) parentStats[parentName].passing++;
+        if (sample.result.criticalFails.length > 0) parentStats[parentName].criticals++;
+        
+        // Track wing stats if applicable
+        if (wingName) {
+          if (!parentStats[parentName].wings[wingName]) {
+            parentStats[parentName].wings[wingName] = { samples: 0, passing: 0, criticals: 0 };
+          }
+          parentStats[parentName].wings[wingName].samples++;
+          if (sample.result.pass) parentStats[parentName].wings[wingName].passing++;
+          if (sample.result.criticalFails.length > 0) parentStats[parentName].wings[wingName].criticals++;
+        }
+      }
+    }
+    
+    return Object.entries(parentStats)
+      .map(([name, stats]) => ({
+        name,
+        samples: stats.samples,
+        passing: stats.passing,
+        criticals: stats.criticals,
+        rate: stats.samples > 0 ? Math.round((stats.passing / stats.samples) * 100) : 0,
+        wings: Object.entries(stats.wings).map(([wingName, wingStats]) => ({
+          name: wingName,
+          samples: wingStats.samples,
+          passing: wingStats.passing,
+          criticals: wingStats.criticals,
+          rate: wingStats.samples > 0 ? Math.round((wingStats.passing / wingStats.samples) * 100) : 0
+        }))
+      }))
+      .filter(u => u.samples > 0)
+      .sort((a, b) => b.samples - a.samples);
+  }, [sessions, facilityUnits, daysAgo]);
 
   // Recurring issues data
   const recurringIssues = useMemo(() => {
@@ -273,6 +358,78 @@ export function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Unit Compliance Summary with Wing Drill-Down */}
+      {unitComplianceData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Unit Compliance Summary
+            </CardTitle>
+            <CardDescription>Parent unit compliance with wing breakdown</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {unitComplianceData.map(unit => (
+                <div 
+                  key={unit.name} 
+                  className={cn(
+                    "p-4 rounded-lg border",
+                    unit.rate >= 90 ? "bg-success/5 border-success/20" :
+                    unit.rate >= 70 ? "bg-warning/5 border-warning/20" :
+                    "bg-error/5 border-error/20"
+                  )}
+                >
+                  {/* Parent Unit Header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">{unit.name}</h3>
+                    <ComplianceIndicator rate={unit.rate} size="sm" />
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground mb-3">
+                    {unit.passing}/{unit.samples} samples passing
+                    {unit.criticals > 0 && (
+                      <span className="text-error ml-2">• {unit.criticals} critical</span>
+                    )}
+                  </div>
+                  
+                  {/* Wing Breakdown */}
+                  {unit.wings.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Wing Breakdown
+                      </p>
+                      {unit.wings.map(wing => (
+                        <div 
+                          key={wing.name}
+                          className="flex items-center justify-between text-sm bg-background/50 rounded px-2 py-1.5"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                            <span>{wing.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {wing.passing}/{wing.samples}
+                            </span>
+                            <Badge 
+                              variant={wing.rate >= 90 ? "default" : wing.rate >= 70 ? "secondary" : "destructive"}
+                              className="text-xs px-1.5 py-0"
+                            >
+                              {wing.rate}%
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recurring Issues */}

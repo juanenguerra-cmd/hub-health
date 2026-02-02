@@ -7,11 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { computeSampleResult, todayYMD, nowISO } from '@/lib/calculations';
 import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/types/nurse-educator';
+import { getAllUnitOptions } from '@/types/facility-units';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 import { PostAuditPrintModal } from '@/components/audit/PostAuditPrintModal';
+import { cn } from '@/lib/utils';
 import { 
   Play, 
   FileText, 
@@ -24,11 +28,15 @@ import {
   Save,
   Trash2,
   Eye,
-  Printer
+  Printer,
+  Pencil,
+  ChevronsUpDown,
+  Check
 } from 'lucide-react';
 
 export function SessionsPage() {
-  const { templates, sessions, setSessions, qaActions, setQaActions } = useApp();
+  const { templates, sessions, setSessions, qaActions, setQaActions, facilityUnits } = useApp();
+  const allUnits = getAllUnitOptions(facilityUnits);
   
   // View state
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -37,6 +45,10 @@ export function SessionsPage() {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  
+  // Edit unit state
+  const [editingUnitSessionId, setEditingUnitSessionId] = useState<string | null>(null);
+  const [editUnitValue, setEditUnitValue] = useState('');
   
   // Print modals state
   const [printPreAuditTemplate, setPrintPreAuditTemplate] = useState<AuditTemplate | null>(null);
@@ -313,6 +325,32 @@ export function SessionsPage() {
   const openSession = (session: AuditSession) => {
     setSelectedTemplateId(session.templateId);
     setActiveSession(session);
+  };
+
+  // Update session unit
+  const handleUpdateSessionUnit = (sessionId: string) => {
+    if (!editUnitValue.trim()) return;
+    
+    const updatedSessions = sessions.map(s => 
+      s.id === sessionId 
+        ? { ...s, header: { ...s.header, unit: editUnitValue.trim() } }
+        : s
+    );
+    setSessions(updatedSessions);
+    setEditingUnitSessionId(null);
+    setEditUnitValue('');
+  };
+
+  const startEditingUnit = (session: AuditSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingUnitSessionId(session.id);
+    setEditUnitValue(session.header.unit || '');
+  };
+
+  const cancelEditUnit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingUnitSessionId(null);
+    setEditUnitValue('');
   };
 
   return (
@@ -721,28 +759,95 @@ export function SessionsPage() {
                     </div>
                     
                     {isExpanded && (
-                      <div className="border-t p-4 bg-muted/20">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm text-muted-foreground">
-                            Auditor: {session.header.auditor} • 
-                            Created: {new Date(session.createdAt).toLocaleDateString()}
-                          </p>
-                          <div className="flex gap-2">
-                            {session.header.status === 'complete' && (
-                              <Button size="sm" variant="outline" onClick={() => setPrintPostAuditSession(session)}>
-                                <Printer className="w-4 h-4 mr-1" />
-                                Print
-                              </Button>
+                      <div className="border-t p-4 bg-muted/20 space-y-3">
+                        {/* Editable Unit Row */}
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Unit:</span>
+                            {editingUnitSessionId === session.id ? (
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      role="combobox"
+                                      className="w-[180px] justify-between h-8 text-sm"
+                                    >
+                                      {editUnitValue || "Select unit..."}
+                                      <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[200px] p-0" align="start">
+                                    <Command>
+                                      <CommandInput 
+                                        placeholder="Search or type..." 
+                                        value={editUnitValue}
+                                        onValueChange={setEditUnitValue}
+                                      />
+                                      <CommandList>
+                                        <CommandEmpty>
+                                          <span className="text-muted-foreground text-xs">Use "{editUnitValue}"</span>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                          {allUnits.map(unitName => (
+                                            <CommandItem
+                                              key={unitName}
+                                              value={unitName}
+                                              onSelect={(value) => setEditUnitValue(value)}
+                                            >
+                                              <Check className={cn("mr-2 h-3 w-3", editUnitValue === unitName ? "opacity-100" : "opacity-0")} />
+                                              {unitName}
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                                <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => { e.stopPropagation(); handleUpdateSessionUnit(session.id); }}>
+                                  <Check className="h-4 w-4 text-success" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-8 px-2" onClick={cancelEditUnit}>
+                                  <XCircle className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{session.header.unit || 'N/A'}</span>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => startEditingUnit(session, e)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </div>
                             )}
-                            <Button size="sm" onClick={() => openSession(session)}>
-                              <Eye className="w-4 h-4 mr-1" />
-                              {session.header.status === 'complete' ? 'View' : 'Continue'}
-                            </Button>
                           </div>
+                          
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-sm text-muted-foreground">Auditor: {session.header.auditor}</span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-sm text-muted-foreground">Created: {new Date(session.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          {session.header.status === 'complete' && (
+                            <Button size="sm" variant="outline" onClick={() => setPrintPostAuditSession(session)}>
+                              <Printer className="w-4 h-4 mr-1" />
+                              Print
+                            </Button>
+                          )}
+                          <Button size="sm" onClick={() => openSession(session)}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            {session.header.status === 'complete' ? 'View' : 'Continue'}
+                          </Button>
                         </div>
                         
                         {session.samples.length > 0 && (
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t">
                             {session.samples.slice(0, 8).map((smp, idx) => (
                               <div 
                                 key={smp.id} 

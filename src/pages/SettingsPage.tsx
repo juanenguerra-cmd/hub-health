@@ -18,13 +18,17 @@ import {
   Settings,
   Plus,
   X,
-  MapPin
+  MapPin,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { BackupSettingsModal } from '@/components/BackupSettingsModal';
 import { loadBackupSettings, updateLastBackupTime } from '@/lib/backup-settings-storage';
 import { formatLastBackup } from '@/types/backup-settings';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import type { FacilityUnit } from '@/types/facility-units';
 
 export function SettingsPage() {
   const { 
@@ -52,7 +56,11 @@ export function SettingsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [showBackupSettings, setShowBackupSettings] = useState(false);
   const [backupSettings, setBackupSettings] = useState(() => loadBackupSettings());
-  const [newUnit, setNewUnit] = useState('');
+  
+  // Unit management state
+  const [newParentUnit, setNewParentUnit] = useState('');
+  const [newWingInputs, setNewWingInputs] = useState<Record<string, string>>({});
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -131,30 +139,92 @@ export function SettingsPage() {
     });
   };
 
-  const handleAddUnit = () => {
-    const trimmed = newUnit.trim();
+  // Unit management handlers
+  const handleAddParentUnit = () => {
+    const trimmed = newParentUnit.trim();
     if (!trimmed) return;
-    if (facilityUnits.includes(trimmed)) {
+    if (facilityUnits.some(u => u.name === trimmed)) {
       toast({
         variant: 'destructive',
         title: 'Duplicate Unit',
-        description: 'This unit already exists.',
+        description: 'This parent unit already exists.',
       });
       return;
     }
-    setFacilityUnits([...facilityUnits, trimmed]);
-    setNewUnit('');
+    
+    const newUnit: FacilityUnit = {
+      id: `unit_${Date.now()}`,
+      name: trimmed,
+      wings: []
+    };
+    
+    setFacilityUnits([...facilityUnits, newUnit]);
+    setNewParentUnit('');
+    setExpandedUnits(prev => new Set([...prev, newUnit.id]));
     toast({
       title: 'Unit Added',
-      description: `"${trimmed}" has been added to your units.`,
+      description: `"${trimmed}" has been added.`,
     });
   };
 
-  const handleRemoveUnit = (unit: string) => {
-    setFacilityUnits(facilityUnits.filter(u => u !== unit));
+  const handleRemoveParentUnit = (unitId: string) => {
+    const unit = facilityUnits.find(u => u.id === unitId);
+    setFacilityUnits(facilityUnits.filter(u => u.id !== unitId));
     toast({
       title: 'Unit Removed',
-      description: `"${unit}" has been removed.`,
+      description: `"${unit?.name}" and its wings have been removed.`,
+    });
+  };
+
+  const handleAddWing = (unitId: string) => {
+    const wingName = newWingInputs[unitId]?.trim();
+    if (!wingName) return;
+    
+    const unit = facilityUnits.find(u => u.id === unitId);
+    if (!unit) return;
+    
+    if (unit.wings.includes(wingName)) {
+      toast({
+        variant: 'destructive',
+        title: 'Duplicate Wing',
+        description: 'This wing already exists for this unit.',
+      });
+      return;
+    }
+    
+    setFacilityUnits(facilityUnits.map(u => 
+      u.id === unitId 
+        ? { ...u, wings: [...u.wings, wingName] }
+        : u
+    ));
+    setNewWingInputs(prev => ({ ...prev, [unitId]: '' }));
+    toast({
+      title: 'Wing Added',
+      description: `"${wingName}" added to ${unit.name}.`,
+    });
+  };
+
+  const handleRemoveWing = (unitId: string, wing: string) => {
+    setFacilityUnits(facilityUnits.map(u => 
+      u.id === unitId 
+        ? { ...u, wings: u.wings.filter(w => w !== wing) }
+        : u
+    ));
+    toast({
+      title: 'Wing Removed',
+      description: `"${wing}" has been removed.`,
+    });
+  };
+
+  const toggleUnitExpanded = (unitId: string) => {
+    setExpandedUnits(prev => {
+      const next = new Set(prev);
+      if (next.has(unitId)) {
+        next.delete(unitId);
+      } else {
+        next.add(unitId);
+      }
+      return next;
     });
   };
 
@@ -191,7 +261,7 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Unit Configuration */}
+      {/* Unit Configuration - Tree Structure */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -199,43 +269,113 @@ export function SettingsPage() {
             Unit Configuration
           </CardTitle>
           <CardDescription>
-            Define facility units for use across audits and education sessions
+            Define facility units with optional East/West wings for drill-down compliance reporting
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Add new parent unit */}
           <div className="flex gap-2">
             <Input
-              value={newUnit}
-              onChange={(e) => setNewUnit(e.target.value)}
-              placeholder="Enter new unit name (e.g., 1A, Rehab, Memory Care)"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddUnit()}
+              value={newParentUnit}
+              onChange={(e) => setNewParentUnit(e.target.value)}
+              placeholder="Enter new unit name (e.g., Unit 2, Rehab, Memory Care)"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddParentUnit()}
             />
-            <Button onClick={handleAddUnit} disabled={!newUnit.trim()}>
+            <Button onClick={handleAddParentUnit} disabled={!newParentUnit.trim()}>
               <Plus className="h-4 w-4 mr-2" />
-              Add
+              Add Unit
             </Button>
           </div>
           
-          <div className="flex flex-wrap gap-2">
-            {facilityUnits.map(unit => (
-              <Badge 
-                key={unit} 
-                variant="secondary" 
-                className="px-3 py-1.5 text-sm flex items-center gap-2"
-              >
-                {unit}
-                <button
-                  onClick={() => handleRemoveUnit(unit)}
-                  className="hover:text-destructive transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-            {facilityUnits.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No units configured. Add units above to use them in audits and education sessions.
+          {/* Unit tree */}
+          <div className="space-y-2">
+            {facilityUnits.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No units configured. Add units above to use them in audits and reports.
               </p>
+            ) : (
+              facilityUnits.map(unit => {
+                const isExpanded = expandedUnits.has(unit.id);
+                
+                return (
+                  <Collapsible key={unit.id} open={isExpanded} onOpenChange={() => toggleUnitExpanded(unit.id)}>
+                    <div className="border rounded-lg">
+                      <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <span className="font-medium">{unit.name}</span>
+                            {unit.wings.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {unit.wings.length} wing{unit.wings.length !== 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveParentUnit(unit.id);
+                            }}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent>
+                        <div className="border-t p-3 bg-muted/20 space-y-3">
+                          {/* Existing wings */}
+                          {unit.wings.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {unit.wings.map(wing => (
+                                <Badge 
+                                  key={wing} 
+                                  variant="outline" 
+                                  className="px-3 py-1.5 text-sm flex items-center gap-2"
+                                >
+                                  {wing}
+                                  <button
+                                    onClick={() => handleRemoveWing(unit.id, wing)}
+                                    className="hover:text-destructive transition-colors"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Add wing input */}
+                          <div className="flex gap-2">
+                            <Input
+                              value={newWingInputs[unit.id] || ''}
+                              onChange={(e) => setNewWingInputs(prev => ({ ...prev, [unit.id]: e.target.value }))}
+                              placeholder={`Add wing (e.g., East ${unit.name}, West ${unit.name})`}
+                              onKeyDown={(e) => e.key === 'Enter' && handleAddWing(unit.id)}
+                              className="flex-1"
+                            />
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleAddWing(unit.id)}
+                              disabled={!newWingInputs[unit.id]?.trim()}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                );
+              })
             )}
           </div>
         </CardContent>

@@ -212,21 +212,38 @@ export function saveFacilityName(name: string): void {
   localStorage.setItem(LS_KEYS.facilityName, name);
 }
 
-// Facility Units
-const DEFAULT_UNITS = ['1A', '1B', '2A', '2B', '3A', '3B', 'Rehab', 'Memory Care', 'Skilled', 'All Units'];
+// Facility Units - Hierarchical structure
+import type { FacilityUnit } from '@/types/facility-units';
 
-export function loadFacilityUnits(): string[] {
+const DEFAULT_UNITS: FacilityUnit[] = [
+  { id: 'unit_2', name: 'Unit 2', wings: ['East Unit 2', 'West Unit 2'] },
+  { id: 'unit_3', name: 'Unit 3', wings: ['East Unit 3', 'West Unit 3'] },
+  { id: 'unit_4', name: 'Unit 4', wings: ['East Unit 4', 'West Unit 4'] },
+  { id: 'rehab', name: 'Rehab', wings: [] },
+  { id: 'memory_care', name: 'Memory Care', wings: [] },
+];
+
+export function loadFacilityUnits(): FacilityUnit[] {
   try {
     const raw = localStorage.getItem(LS_KEYS.facilityUnits);
     if (!raw) return DEFAULT_UNITS;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_UNITS;
+    
+    // Handle legacy flat array format - migrate to new structure
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      if (typeof parsed[0] === 'string') {
+        // Legacy format: convert strings to simple units without wings
+        return DEFAULT_UNITS;
+      }
+      return parsed;
+    }
+    return DEFAULT_UNITS;
   } catch {
     return DEFAULT_UNITS;
   }
 }
 
-export function saveFacilityUnits(units: string[]): void {
+export function saveFacilityUnits(units: FacilityUnit[]): void {
   localStorage.setItem(LS_KEYS.facilityUnits, JSON.stringify(units));
 }
 
