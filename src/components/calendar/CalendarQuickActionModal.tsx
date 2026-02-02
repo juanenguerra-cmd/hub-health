@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ClipboardCheck, GraduationCap, RefreshCw, Calendar, Play, ChevronsUpDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AuditSession, QaAction, EducationSession } from '@/types/nurse-educator';
+import { getAllUnitOptions } from '@/types/facility-units';
 import { todayYMD } from '@/lib/calculations';
 
 interface CalendarEvent {
@@ -59,6 +60,7 @@ export function CalendarQuickActionModal({
   
   const activeTemplates = templates.filter(t => !t.archived);
   const activeTopics = eduLibrary.filter(t => !t.archived);
+  const allUnits = getAllUnitOptions(facilityUnits);
   
   // Get re-audit events for this date
   const reauditEvents = eventsForDate.filter(e => e.type === 'reaudit' && e.status !== 'completed');
@@ -308,17 +310,17 @@ export function CalendarQuickActionModal({
                         <span className="text-muted-foreground">Press enter to use "{selectedUnit}"</span>
                       </CommandEmpty>
                       <CommandGroup>
-                        {facilityUnits.map(unit => (
+                        {allUnits.map(unitName => (
                           <CommandItem
-                            key={unit}
-                            value={unit}
+                            key={unitName}
+                            value={unitName}
                             onSelect={(value) => {
                               setSelectedUnit(value);
                               setUnitPopoverOpen(false);
                             }}
                           >
-                            <Check className={cn("mr-2 h-4 w-4", selectedUnit === unit ? "opacity-100" : "opacity-0")} />
-                            {unit}
+                            <Check className={cn("mr-2 h-4 w-4", selectedUnit === unitName ? "opacity-100" : "opacity-0")} />
+                            {unitName}
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -419,16 +421,16 @@ export function CalendarQuickActionModal({
                           <span className="text-muted-foreground">Use "{selectedUnit}"</span>
                         </CommandEmpty>
                         <CommandGroup>
-                          {facilityUnits.map(unit => (
+                          {allUnits.map(unitName => (
                             <CommandItem
-                              key={unit}
-                              value={unit}
+                              key={unitName}
+                              value={unitName}
                               onSelect={(value) => {
                                 setSelectedUnit(value);
                               }}
                             >
-                              <Check className={cn("mr-2 h-4 w-4", selectedUnit === unit ? "opacity-100" : "opacity-0")} />
-                              {unit}
+                              <Check className={cn("mr-2 h-4 w-4", selectedUnit === unitName ? "opacity-100" : "opacity-0")} />
+                              {unitName}
                             </CommandItem>
                           ))}
                         </CommandGroup>

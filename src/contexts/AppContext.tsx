@@ -13,6 +13,7 @@ import type {
   EducationFilters,
   AnalyticsFilters
 } from '@/types/nurse-educator';
+import type { FacilityUnit } from '@/types/facility-units';
 import {
   loadTemplates,
   saveTemplates,
@@ -47,7 +48,7 @@ interface AppContextType {
   staffDirectory: { rows: StaffMember[]; asOf: string };
   adminOwners: AdminOwners;
   facilityName: string;
-  facilityUnits: string[];
+  facilityUnits: FacilityUnit[];
   
   // Navigation
   activeTab: string;
@@ -71,7 +72,7 @@ interface AppContextType {
   setEduLibrary: (library: EduTopic[]) => void;
   setOrientationRecords: (records: OrientationRecord[]) => void;
   setFacilityName: (name: string) => void;
-  setFacilityUnits: (units: string[]) => void;
+  setFacilityUnits: (units: FacilityUnit[]) => void;
   
   // Backup & Restore
   restoreFromBackup: (content: string) => RestoreResult;
@@ -102,7 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     admin: 'Administrator'
   });
   const [facilityName, setFacilityName] = useState('My Healthcare Facility');
-  const [facilityUnits, setFacilityUnits] = useState<string[]>([]);
+  const [facilityUnits, setFacilityUnits] = useState<FacilityUnit[]>([]);
   
   // Navigation
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -185,7 +186,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveFacilityName(name);
   };
   
-  const setFacilityUnitsData = (units: string[]) => {
+  const setFacilityUnitsData = (units: FacilityUnit[]) => {
     setFacilityUnits(units);
     saveFacilityUnits(units);
   };
