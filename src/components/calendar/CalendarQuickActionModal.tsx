@@ -57,7 +57,7 @@ export function CalendarQuickActionModal({
   // Get re-audit events for this date
   const reauditEvents = eventsForDate.filter(e => e.type === 'reaudit' && e.status !== 'completed');
   
-  const units = ['1A', '1B', '2A', '2B', '3A', '3B', 'Rehab', 'Memory Care', 'Skilled', 'All Units'];
+  
 
   const handleClose = () => {
     setActiveAction('menu');
@@ -278,16 +278,11 @@ export function CalendarQuickActionModal({
             
             <div className="space-y-2">
               <Label>Unit *</Label>
-              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map(u => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input 
+                value={selectedUnit} 
+                onChange={e => setSelectedUnit(e.target.value)}
+                placeholder="Enter unit (e.g., 1A, Rehab, Memory Care)"
+              />
             </div>
             
             <div className="space-y-2">
@@ -358,16 +353,11 @@ export function CalendarQuickActionModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Unit</Label>
-                <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Units" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map(u => (
-                      <SelectItem key={u} value={u}>{u}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input 
+                  value={selectedUnit} 
+                  onChange={e => setSelectedUnit(e.target.value)}
+                  placeholder="e.g., 1A, All Units"
+                />
               </div>
               
               <div className="space-y-2">
