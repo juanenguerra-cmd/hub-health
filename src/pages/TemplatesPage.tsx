@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   ClipboardCheck, 
   Play, 
@@ -21,7 +22,8 @@ import {
   Printer,
   Search,
   ChevronDown,
-  Tag
+  Tag,
+  Filter
 } from 'lucide-react';
 import type { AuditTemplate } from '@/types/nurse-educator';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
@@ -33,7 +35,8 @@ export function TemplatesPage() {
   // State for management view
   const [showManagement, setShowManagement] = useState(false);
   
-  // State for search
+  // State for search and filter
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   
   // State for expanded templates
@@ -52,8 +55,17 @@ export function TemplatesPage() {
   
   const activeTemplates = templates.filter(t => !t.archived);
 
-  // Filter templates by search
+  // Get all unique categories
+  const allCategories = useMemo(() => {
+    const cats = new Set(activeTemplates.map(t => t.category || 'Uncategorized'));
+    return Array.from(cats).sort();
+  }, [activeTemplates]);
+
+  // Filter templates by search and category
   const filteredTemplates = activeTemplates.filter(t => {
+    // Category filter
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+    // Search filter
     if (!search) return true;
     const q = search.toLowerCase();
     const hay = `${t.title} ${t.category} ${t.ftagTags.join(' ')} ${t.purpose.summary}`.toLowerCase();
@@ -125,7 +137,7 @@ export function TemplatesPage() {
         </Button>
       </div>
 
-      {/* Search & Stats */}
+      {/* Search, Filter & Stats */}
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-wrap items-center gap-4">
@@ -140,8 +152,20 @@ export function TemplatesPage() {
                 />
               </div>
             </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {allCategories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="flex items-center gap-4">
-              <Badge variant="secondary">{activeTemplates.length} Templates</Badge>
+              <Badge variant="secondary">{filteredTemplates.length} Templates</Badge>
               <Badge variant="outline">{categories.length} Categories</Badge>
             </div>
           </div>
