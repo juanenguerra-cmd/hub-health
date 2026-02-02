@@ -65,24 +65,32 @@ export function PreAuditPrintModal({ open, onOpenChange, template }: PreAuditPri
                   size: landscape;
                   margin: 0.5in;
                 }
-                body * {
-                  visibility: hidden;
+                body {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
                 }
-                .print-content, .print-content * {
-                  visibility: visible;
+                body > *:not(.print-content):not(:has(.print-content)) {
+                  display: none !important;
                 }
                 .print-content {
-                  position: absolute;
-                  left: 0;
-                  top: 0;
-                  width: 100%;
+                  display: block !important;
+                  position: static !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  overflow: visible !important;
                   background: white !important;
                   color: black !important;
                   font-size: 10pt;
+                  margin: 0;
+                  padding: 0;
+                }
+                .print-content * {
+                  visibility: visible !important;
                 }
                 .print-content table {
                   width: 100%;
                   border-collapse: collapse;
+                  page-break-inside: auto;
                 }
                 .print-content th, .print-content td {
                   border: 1px solid #000 !important;
@@ -91,11 +99,30 @@ export function PreAuditPrintModal({ open, onOpenChange, template }: PreAuditPri
                 .print-content thead {
                   display: table-header-group;
                 }
+                .print-content tbody {
+                  display: table-row-group;
+                }
                 .print-content tr {
                   page-break-inside: avoid;
+                  page-break-after: auto;
                 }
-                .no-print {
+                .no-print, [role="dialog"]:not(:has(.print-content)) {
                   display: none !important;
+                }
+                [role="dialog"]:has(.print-content) {
+                  position: static !important;
+                  width: 100% !important;
+                  max-width: none !important;
+                  max-height: none !important;
+                  overflow: visible !important;
+                  transform: none !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  background: white !important;
+                }
+                [role="dialog"]:has(.print-content) > div {
+                  max-height: none !important;
+                  overflow: visible !important;
                 }
               }
             `}
