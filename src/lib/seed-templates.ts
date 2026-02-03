@@ -715,9 +715,9 @@ export const SEED_TEMPLATES: AuditTemplate[] = [
     ftagTags: ["F880"],
     nydohTags: ["10 NYCRR 415.19"],
     purpose: {
-      summary: "Carts/sinks/storage separation; no cross-contamination.",
+      summary: "Carts/sinks/storage separation with clear signage and clean-to-dirty flow.",
       risk: "Mixed clean/dirty items visible during survey is immediate deficiency.",
-      evidenceToShow: "Rounds log + correction loop"
+      evidenceToShow: "Rounds log + correction loop + signage validation"
     },
     references: [
       { system: "CMS", code: "F880", title: "Infection Prevention and Control", whyItMatters: "Clean/dirty separation prevents contamination." },
@@ -730,9 +730,11 @@ export const SEED_TEMPLATES: AuditTemplate[] = [
     ],
     sampleQuestions: [
       { key: "area", label: "Area checked", type: "select", options: ["Med cart", "Treatment cart", "Clean utility", "Soiled utility", "Nurse station", "Storage room"], required: true, score: 0 },
-      { key: "no_mixed_items", label: "No mixed clean/dirty items?", type: "yn", required: true, score: 50, criticalFailIf: "no" },
-      { key: "proper_storage", label: "Items stored properly (covered, off floor)?", type: "yn", required: true, score: 25 },
-      { key: "corrected_same_shift", label: "Failures corrected same shift?", type: "yn", required: true, score: 25 },
+      { key: "no_mixed_items", label: "No mixed clean/dirty items?", type: "yn", required: true, score: 35, criticalFailIf: "no" },
+      { key: "workflow_signage", label: "Clear clean/dirty signage or labels in place?", type: "yn", required: true, score: 15 },
+      { key: "proper_storage", label: "Items stored properly (covered, off floor)?", type: "yn", required: true, score: 20 },
+      { key: "hh_between_tasks", label: "Hand hygiene/glove change between clean/dirty tasks?", type: "yn", required: true, score: 20 },
+      { key: "corrected_same_shift", label: "Failures corrected same shift?", type: "yn", required: true, score: 10 },
       { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
     ]
   },
@@ -1072,15 +1074,15 @@ export const SEED_EDU_TOPICS: EduTopic[] = [
   {
     id: "edu_clean_dirty",
     topic: "Clean vs Dirty Workflow (Carts/Sinks/Storage)",
-    description: "Prevent cross-contamination on carts and in soiled utility areas.",
-    purpose: "Eliminate visible survey failures",
+    description: "Prevent cross-contamination with signage, storage rules, and clean-to-dirty flow.",
+    purpose: "Eliminate visible survey failures and reinforce clean/dirty transitions",
     disciplines: "Nursing/CNAs/EVS",
     ftags: "F880",
     nysdohRegs: "10 NYCRR 415.19",
     facilityPolicy: "",
     archived: false,
     triggerAuditId: "audit_clean_dirty_v1",
-    evidenceArtifacts: ["Workflow audit results", "Cart organization photos", "Corrective actions"]
+    evidenceArtifacts: ["Workflow audit results", "Cart organization photos", "Signage/labeling checks", "Corrective actions"]
   },
   // Shared Equipment Cleaning
   {
