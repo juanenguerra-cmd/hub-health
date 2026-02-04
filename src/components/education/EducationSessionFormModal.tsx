@@ -15,6 +15,7 @@ interface EducationSessionFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session?: EducationSession | null;
+  prefill?: Partial<EducationSession> | null;
   onSave: (session: EducationSession) => void;
   eduLibrary?: EduTopic[];
 }
@@ -45,6 +46,7 @@ export function EducationSessionFormModal({
   open,
   onOpenChange,
   session,
+  prefill,
   onSave,
   eduLibrary = []
 }: EducationSessionFormModalProps) {
@@ -89,23 +91,26 @@ export function EducationSessionFormModal({
         attendees: session.attendees?.join(', ') || ''
       });
       setSelectedTopicId('');
-    } else {
-      setFormData({
-        topic: '',
-        summary: '',
-        category: '',
-        audience: '',
-        instructor: '',
-        unit: '',
-        scheduledDate: '',
-        completedDate: '',
-        notes: '',
-        status: 'planned',
-        attendees: ''
-      });
-      setSelectedTopicId('');
+      return;
     }
-  }, [session, open]);
+
+    const initial = {
+      topic: prefill?.topic || '',
+      summary: prefill?.summary || '',
+      category: prefill?.category || '',
+      audience: prefill?.audience || '',
+      instructor: prefill?.instructor || '',
+      unit: prefill?.unit || '',
+      scheduledDate: prefill?.scheduledDate || '',
+      completedDate: prefill?.completedDate || '',
+      notes: prefill?.notes || '',
+      status: (prefill?.status as 'planned' | 'completed') || 'planned',
+      attendees: Array.isArray(prefill?.attendees) ? prefill?.attendees.join(', ') : ''
+    };
+
+    setFormData(initial);
+    setSelectedTopicId('');
+  }, [session, prefill, open]);
 
   // Handle topic library selection
   const handleTopicSelect = (topicId: string) => {
