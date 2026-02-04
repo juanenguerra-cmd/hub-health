@@ -34,6 +34,7 @@ const navItems = [
   { id: 'analytics', label: 'Analytics+', icon: BarChart3 },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
+  { id: 'regulatory-references', label: 'Regulatory References', icon: BookOpen },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'user-guide', label: 'User Guide', icon: HelpCircle },
 ];
