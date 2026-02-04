@@ -105,6 +105,24 @@ export function SessionsPage() {
     }
   }, [templates]);
 
+  useEffect(() => {
+    const openSessionData = sessionStorage.getItem('NES_OPEN_SESSION');
+    if (!openSessionData) return;
+    sessionStorage.removeItem('NES_OPEN_SESSION');
+
+    try {
+      const { sessionId } = JSON.parse(openSessionData);
+      if (!sessionId) return;
+      const targetSession = sessions.find(session => session.header.sessionId === sessionId);
+      if (targetSession) {
+        setSelectedTemplateId(targetSession.templateId);
+        setActiveSession(targetSession);
+      }
+    } catch (e) {
+      console.error('Failed to parse open session data:', e);
+    }
+  }, [sessions]);
+
   // Filter sessions
   const filteredSessions = sessions.filter(s => {
     if (statusFilter !== 'All' && s.header?.status !== statusFilter) return false;
