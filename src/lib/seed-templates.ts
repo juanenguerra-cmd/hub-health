@@ -935,6 +935,57 @@ export const SEED_TEMPLATES: AuditTemplate[] = [
       { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
     ]
   },
+  // Psychotropic / GDR Audit Tool
+  {
+    id: "audit_psychotropic_gdr_v1",
+    title: "Psychotropic / GDR Audit Tool we designed — the separate tool used for manual chart review",
+    version: "1.0.0",
+    category: "Behavioral Health",
+    placementTags: ["Psychotropic", "GDR", "Survey-Ready", "Monthly Audit"],
+    ftagTags: ["F740", "F758"],
+    nydohTags: ["10 NYCRR 415.12"],
+    purpose: {
+      summary: "Mirror CMS F740/F758 and NYS DOH 415.12 surveyor checklist for psychotropic documentation readiness with a normalized 24-point scoring scale.",
+      risk: "Missing indication, care planning, GDR documentation, or oversight increases risk of psychotropic citations.",
+      evidenceToShow: "Audit score and risk level (22–24 very low, 18–21 low, 12–17 moderate, <12 high) plus documented gaps for QA/DON review."
+    },
+    references: [
+      { system: "CMS", code: "F740", title: "Unnecessary Drugs", whyItMatters: "Requires clear indication, monitoring, and risk/benefit documentation for continued psychotropic use." },
+      { system: "CMS", code: "F758", title: "Psychotropic Drugs", whyItMatters: "Requires appropriate use, GDR attempts, and monitoring for psychotropic medications." },
+      { system: "NYDOH", code: "10 NYCRR 415.12", title: "Behavioral Health Requirements", whyItMatters: "State behavioral health documentation and oversight requirements." }
+    ],
+    passingThreshold: 90,
+    criticalFailKeys: [
+      "indication_documented",
+      "diagnosis_alignment",
+      "risk_benefit_documented",
+      "care_plan_med_use",
+      "care_plan_behaviors",
+      "gdr_attempted_or_contra",
+      "gdr_response_documented"
+    ],
+    sessionQuestions: [
+      { key: "review_month", label: "Review month", type: "text", required: true, score: 0 }
+    ],
+    sampleQuestions: [
+      { key: "patient_code", label: "Resident Code", type: "patientCode", required: true, score: 0 },
+      { key: "indication_documented", label: "Section 1 — Indication & Clinical Need: Clear documented indication/target symptoms for the psych med.", type: "yn", required: true, score: 2, criticalFailIf: "no" },
+      { key: "diagnosis_alignment", label: "Section 1 — Indication & Clinical Need: Diagnosis aligns with psychotropic class.", type: "yn", required: true, score: 2, criticalFailIf: "no" },
+      { key: "risk_benefit_documented", label: "Section 1 — Indication & Clinical Need: Risk vs benefit documented for continued use.", type: "yn", required: true, score: 2, criticalFailIf: "no" },
+      { key: "care_plan_med_use", label: "Section 2 — Care Planning: Care plan includes psychotropic medication use.", type: "yn", required: true, score: 2, criticalFailIf: "no" },
+      { key: "care_plan_behaviors", label: "Section 2 — Care Planning: Care plan includes behavioral interventions.", type: "yn", required: true, score: 2, criticalFailIf: "no" },
+      { key: "gdr_attempted_or_contra", label: "Section 3 — GDR & Monitoring: GDR attempted OR contraindicated with rationale.", type: "yn", required: true, score: 2, criticalFailIf: "no" },
+      { key: "gdr_response_documented", label: "Section 3 — GDR & Monitoring: Resident response to GDR documented.", type: "yn", required: true, score: 2, criticalFailIf: "no" },
+      { key: "psych_consult_recent", label: "Section 4 — Psychiatric Oversight: Psychiatric consult within last 90 days.", type: "yn", required: true, score: 1.6 },
+      { key: "psych_consult_order", label: "Section 4 — Psychiatric Oversight: If no consult, MD order for psych consult present.", type: "yn", required: true, score: 1.6 },
+      { key: "behavior_notes_8_weeks", label: "Section 5 — Behavior Monitoring: At least 8 weeks of behavior notes.", type: "yn", required: true, score: 1.6 },
+      { key: "behavior_notes_targets", label: "Section 5 — Behavior Monitoring: Behavior notes relate to target symptoms.", type: "yn", required: true, score: 1.6 },
+      { key: "non_pharm_documented", label: "Section 6 — Non-Pharmacologic Interventions: Non-pharm approaches documented (redirection, environment, activities, etc.).", type: "yn", required: true, score: 1.6 },
+      { key: "psychotropic_consent", label: "Section 7 — Legal / Consent: Psychotropic medication consent on file.", type: "yn", required: true, score: 1 },
+      { key: "monthly_review_documented", label: "Section 8 — Ongoing Review: Monthly psychotropic medication review documented.", type: "yn", required: true, score: 1 },
+      { key: "notes", label: "Notes / findings", type: "text", required: false, score: 0 }
+    ]
+  },
   // Outbreak Packet Readiness Check
   {
     id: "audit_outbreak_readiness_v1",
