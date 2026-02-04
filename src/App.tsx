@@ -14,6 +14,7 @@ import { ReportsPage } from '@/pages/ReportsPage';
 import { FollowUpPage } from '@/pages/FollowUpPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { UserGuidePage } from '@/pages/UserGuidePage';
+import { RegulatoryReferencesPage } from '@/pages/RegulatoryReferencesPage';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { BackupReminderBanner } from '@/components/BackupReminderBanner';
@@ -52,6 +53,8 @@ function AppContent() {
         return <FollowUpPage />;
       case 'reports':
         return <ReportsPage />;
+      case 'regulatory-references':
+        return <RegulatoryReferencesPage />;
       case 'settings':
         return <SettingsPage />;
       case 'user-guide':
