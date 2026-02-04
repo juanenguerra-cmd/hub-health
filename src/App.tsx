@@ -18,9 +18,11 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { BackupReminderBanner } from '@/components/BackupReminderBanner';
 import { useBrowserCloseWarning } from '@/hooks/use-browser-close-warning';
+import { useState } from 'react';
 
 function AppContent() {
   const { activeTab, sessions, qaActions, eduSessions } = useApp();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   
   // Enable browser close warning when there's data
   const hasData = sessions.length > 0 || qaActions.length > 0 || eduSessions.length > 0;
@@ -61,9 +63,9 @@ function AppContent() {
 
   return (
     <div className="flex h-screen w-full bg-background">
-      <AppSidebar />
+      <AppSidebar mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <AppHeader />
+        <AppHeader onMenuClick={() => setMobileNavOpen(true)} />
         <main className="flex-1 overflow-auto p-4 lg:p-6">
           <BackupReminderBanner />
           {renderPage()}
