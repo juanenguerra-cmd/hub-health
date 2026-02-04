@@ -49,7 +49,7 @@ const extractCompetenciesFromNotes = (notes: string): string[] => {
 };
 
 export function QaActionsPage() {
-  const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab } = useApp();
+  const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab, sessions } = useApp();
   
   // Modal states
   const [selectedAction, setSelectedAction] = useState<QaAction | null>(null);
@@ -142,6 +142,18 @@ export function QaActionsPage() {
     setSelectedAction(null);
     setActiveTab('sessions');
     toast({ title: 'Starting Audit', description: 'Navigate to start the audit session.' });
+  };
+
+  const handleOpenAuditFile = (action: QaAction) => {
+    if (!action.sessionId) {
+      toast({ title: 'No Audit Session', description: 'This QA action does not reference an audit session.', variant: 'destructive' });
+      return;
+    }
+
+    sessionStorage.setItem('NES_OPEN_SESSION', JSON.stringify({ sessionId: action.sessionId }));
+    setSelectedAction(null);
+    setActiveTab('sessions');
+    toast({ title: 'Opening Audit File', description: 'Navigate to review the linked audit session.' });
   };
 
   return (
@@ -279,6 +291,12 @@ export function QaActionsPage() {
                         <FileText className="w-3 h-3" />
                         {action.templateTitle || 'No tool'}
                       </span>
+                      {action.sessionId && (
+                        <span className="flex items-center gap-1">
+                          <ClipboardCheck className="w-3 h-3" />
+                          Audit: {action.sessionId}
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
                         {action.owner || 'Unassigned'}
@@ -389,6 +407,26 @@ export function QaActionsPage() {
                   <div>
                     <p className="text-muted-foreground">Audit Tool</p>
                     <p className="mt-1 text-xs">{selectedAction.templateTitle}</p>
+                  </div>
+                )}
+                {selectedAction.sessionId && (
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Audit Session</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-sm">{selectedAction.sessionId}</span>
+                      {sessions.some(session => session.header.sessionId === selectedAction.sessionId) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenAuditFile(selectedAction)}
+                        >
+                          <FileText className="w-3.5 h-3.5 mr-1" />
+                          Open Audit File
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Session not found</span>
+                      )}
+                    </div>
                   </div>
                 )}
                 {selectedAction.reAuditDueDate && (
