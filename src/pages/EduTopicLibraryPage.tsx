@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from '@/hooks/use-toast';
-import type { EduTopic } from '@/types/nurse-educator';
+import { EducationSessionFormModal } from '@/components/education/EducationSessionFormModal';
+import { todayYMD } from '@/lib/calculations';
+import type { EduTopic, EducationSession } from '@/types/nurse-educator';
 import {
   Search,
   Plus,
@@ -19,6 +20,7 @@ import {
   Download,
   Upload,
   Edit2,
+  Calendar,
   Archive,
   RotateCcw,
   FileText,
@@ -30,12 +32,14 @@ import {
 } from 'lucide-react';
 
 export function EduTopicLibraryPage() {
-  const { eduLibrary, setEduLibrary, templates, setActiveTab } = useApp();
+  const { eduLibrary, setEduLibrary, templates, setActiveTab, eduSessions, setEduSessions } = useApp();
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<EduTopic | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [sessionPrefill, setSessionPrefill] = useState<Partial<EducationSession> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -155,6 +159,43 @@ export function EduTopicLibraryPage() {
       title: 'Navigate to Templates',
       description: 'Select the audit template to run a new session.'
     });
+  };
+
+  const buildNotesFromTopic = (topic: EduTopic): string => {
+    const parts: string[] = [];
+    if (topic.ftags) {
+      parts.push(`F-Tags: ${topic.ftags}`);
+    }
+    if (topic.nysdohRegs) {
+      parts.push(`NYSDOH: ${topic.nysdohRegs}`);
+    }
+    if (topic.facilityPolicy) {
+      parts.push(`Policy: ${topic.facilityPolicy}`);
+    }
+    return parts.join('\n');
+  };
+
+  const openQuickSession = (topic: EduTopic, status: 'planned' | 'completed') => {
+    const today = todayYMD();
+    setSessionPrefill({
+      topic: topic.topic,
+      summary: topic.description || topic.purpose || '',
+      audience: topic.disciplines || '',
+      notes: buildNotesFromTopic(topic),
+      status,
+      scheduledDate: status === 'planned' ? today : '',
+      completedDate: status === 'completed' ? today : ''
+    });
+    setShowSessionModal(true);
+  };
+
+  const handleSaveSession = (session: EducationSession) => {
+    const exists = eduSessions.find(s => s.id === session.id);
+    if (exists) {
+      setEduSessions(eduSessions.map(s => s.id === session.id ? session : s));
+    } else {
+      setEduSessions([session, ...eduSessions]);
+    }
   };
 
   // CSV Export
@@ -487,6 +528,26 @@ export function EduTopicLibraryPage() {
                                 </Button>
                               </CollapsibleTrigger>
                             )}
+                            {!topic.archived && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openQuickSession(topic, 'planned')}
+                                  title="Plan inservice"
+                                >
+                                  <Calendar className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openQuickSession(topic, 'completed')}
+                                  title="Log completed inservice"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
                             <Button variant="ghost" size="sm" onClick={() => openEdit(topic)}>
                               <Edit2 className="w-4 h-4" />
                             </Button>
@@ -567,6 +628,18 @@ export function EduTopicLibraryPage() {
           )}
         </CardContent>
       </Card>
+      <EducationSessionFormModal
+        open={showSessionModal}
+        onOpenChange={(open) => {
+          setShowSessionModal(open);
+          if (!open) {
+            setSessionPrefill(null);
+          }
+        }}
+        onSave={handleSaveSession}
+        eduLibrary={eduLibrary}
+        prefill={sessionPrefill}
+      />
     </div>
   );
 }
