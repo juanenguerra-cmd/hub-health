@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 type ReferenceRecord = {
   title: string;
+  publicationDate: string;
   tags: string[];
   explanation: string;
   expectation: string;
@@ -26,6 +27,7 @@ type ReferenceRecord = {
 const referenceLibrary: ReferenceRecord[] = [
   {
     title: 'CMS 42 CFR 483.80 Infection Prevention & Control Program',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'SNF', 'LTC', 'F880', 'IPCP'],
     explanation: 'Sets infection prevention standards, risk assessments, surveillance, and outbreak response for SNFs.',
     expectation: 'Maintain an IPCP, implement surveillance, and document interventions for risks and outbreaks.',
@@ -35,6 +37,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS Appendix PP (State Operations Manual) - Surveyor Guidance',
+    publicationDate: '2024-02-08',
     tags: ['CMS', 'SOM', 'Survey', 'SNF', 'LTC'],
     explanation: 'Interpretive guidance and procedures for surveyors inspecting LTC facilities.',
     expectation: 'Policies align with F-tags and staff demonstrate consistent practice.',
@@ -44,6 +47,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS 42 CFR 483.25 Quality of Care',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'Quality', 'SNF', 'LTC'],
     explanation: 'Requires appropriate care and services to meet resident needs and prevent avoidable decline.',
     expectation: 'Care plans drive services and monitoring; adverse events trigger review and changes.',
@@ -53,6 +57,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS 42 CFR 483.10 Resident Rights',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'Resident Rights', 'SNF', 'LTC'],
     explanation: 'Defines resident choice, dignity, privacy, and participation in care decisions.',
     expectation: 'Residents are informed, choices honored, and preferences documented.',
@@ -62,6 +67,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS 42 CFR 483.12 Freedom from Abuse, Neglect, and Exploitation',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'Abuse Prevention', 'SNF', 'LTC', 'F600'],
     explanation: 'Mandates prevention, reporting, and investigation of abuse or neglect.',
     expectation: 'Timely reporting, thorough investigations, and protective interventions.',
@@ -71,6 +77,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS 42 CFR 483.45 Pharmacy Services & Medication Management',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'Medication', 'SNF', 'LTC', 'F-tag'],
     explanation: 'Establishes medication storage, labeling, and pharmacological review expectations.',
     expectation: 'Medications stored and labeled correctly; GDR and pharmacist reviews documented.',
@@ -80,6 +87,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS 42 CFR 483.60 Food and Nutrition Services',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'Food Safety', 'SNF', 'LTC'],
     explanation: 'Requires safe food handling, palatable meals, and resident choice in dining.',
     expectation: 'Food temperatures and storage comply with policy; residents receive meals on time.',
@@ -89,6 +97,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS 42 CFR 483.75 QAPI Program',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'QAPI', 'SNF', 'LTC'],
     explanation: 'Requires a data-driven QAPI program with performance improvement projects.',
     expectation: 'Routine monitoring, targeted PIPs, and corrective actions tied to findings.',
@@ -98,6 +107,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'NYSDOH 10 NYCRR Part 415 - Residential Health Care Facilities',
+    publicationDate: '2023-10-25',
     tags: ['NYSDOH', 'NYSDOG', 'SNF', 'LTC', 'State'],
     explanation: 'New York State regulatory requirements for nursing homes and LTC operations.',
     expectation: 'State-specific policies, staffing oversight, and resident care documentation.',
@@ -107,6 +117,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'NYSDOH Infection Control Guidance (DAL/QSO Communications)',
+    publicationDate: '2024-01-12',
     tags: ['NYSDOH', 'NYSDOG', 'Infection Control', 'State'],
     explanation: 'State memos clarifying infection control requirements and outbreak response.',
     expectation: 'Rapid identification, reporting, and mitigation of communicable disease risks.',
@@ -116,6 +127,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CDC Enhanced Barrier Precautions (EBP) Guidance for Nursing Homes',
+    publicationDate: '2019-07-26',
     tags: ['CDC', 'EBP', 'MDRO', 'Infection Control'],
     explanation: 'Defines when to use Enhanced Barrier Precautions for residents with MDRO risk in nursing homes.',
     expectation: 'Identify residents who meet EBP criteria and apply gown/glove use during high-contact care.',
@@ -125,6 +137,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CDC Transmission-Based Precautions (Isolation) Guidance',
+    publicationDate: '2024-05-24',
     tags: ['CDC', 'Isolation', 'Transmission-Based Precautions', 'Infection Control'],
     explanation: 'Outlines isolation requirements for contact, droplet, and airborne precautions.',
     expectation: 'Initiate isolation promptly, use correct PPE, and document discontinuation criteria.',
@@ -134,6 +147,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS Emergency Preparedness Rule (EP)',
+    publicationDate: '2016-09-16',
     tags: ['CMS', 'Emergency Preparedness', 'SNF', 'LTC'],
     explanation: 'Requires risk assessments, emergency plans, training, and exercises.',
     expectation: 'Up-to-date EP plan, staff training, and documented drills.',
@@ -143,6 +157,7 @@ const referenceLibrary: ReferenceRecord[] = [
   },
   {
     title: 'CMS 42 CFR 483.70 Physical Environment (Life Safety)',
+    publicationDate: '2016-10-04',
     tags: ['CMS', 'Life Safety', 'SNF', 'LTC'],
     explanation: 'Sets requirements for safe physical environment, equipment upkeep, and infection-safe spaces.',
     expectation: 'Environment hazards mitigated, equipment cleaned, and spaces ready for care.',
@@ -165,6 +180,7 @@ export function RegulatoryReferencesPage() {
     return referenceLibrary.filter((item) => {
       const haystack = [
         item.title,
+        item.publicationDate,
         item.explanation,
         item.expectation,
         item.lookingFor,
@@ -229,6 +245,7 @@ export function RegulatoryReferencesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[240px]">Title</TableHead>
+                <TableHead className="min-w-[140px]">Publication Date</TableHead>
                 <TableHead className="min-w-[180px]">Tags</TableHead>
                 <TableHead className="min-w-[260px]">Explanation</TableHead>
                 <TableHead className="min-w-[260px]">Expectation</TableHead>
@@ -240,7 +257,7 @@ export function RegulatoryReferencesPage() {
             <TableBody>
               {pagedReferences.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
                     No references match your search.
                   </TableCell>
                 </TableRow>
@@ -248,6 +265,7 @@ export function RegulatoryReferencesPage() {
                 pagedReferences.map((item) => (
                   <TableRow key={item.title}>
                     <TableCell className="font-medium">{item.title}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{item.publicationDate}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-2">
                         {item.tags.map((tag) => (
