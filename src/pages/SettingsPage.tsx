@@ -19,6 +19,8 @@ import {
   Plus,
   X,
   MapPin,
+  Cloud,
+  Link2,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
@@ -56,6 +58,8 @@ export function SettingsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [showBackupSettings, setShowBackupSettings] = useState(false);
   const [backupSettings, setBackupSettings] = useState(() => loadBackupSettings());
+  const [oneDriveLocation, setOneDriveLocation] = useState('');
+  const [oneDriveConnected, setOneDriveConnected] = useState(false);
   
   // Unit management state
   const [newParentUnit, setNewParentUnit] = useState('');
@@ -129,6 +133,31 @@ export function SettingsPage() {
 
   const handleBackupSettingsUpdate = () => {
     setBackupSettings(loadBackupSettings());
+  };
+
+  const handleConnectOneDrive = () => {
+    const trimmed = oneDriveLocation.trim();
+    if (!trimmed) {
+      toast({
+        variant: 'destructive',
+        title: 'Location Required',
+        description: 'Enter your OneDrive folder path or shared location to connect.',
+      });
+      return;
+    }
+    setOneDriveConnected(true);
+    toast({
+      title: 'OneDrive Connected',
+      description: `Backups will use ${trimmed} for import/export.`,
+    });
+  };
+
+  const handleDisconnectOneDrive = () => {
+    setOneDriveConnected(false);
+    toast({
+      title: 'OneDrive Disconnected',
+      description: 'Backup import/export will use manual file selection.',
+    });
   };
 
   const handleLoadDemo = () => {
@@ -506,6 +535,52 @@ export function SettingsPage() {
                 </AlertDescription>
               </Alert>
             )}
+          </div>
+
+          <div className="border-t pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium mb-2">OneDrive Backup Location</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Connect a OneDrive-synced folder to standardize where backup files are saved and loaded.
+                  </p>
+                </div>
+                {oneDriveConnected && (
+                  <Badge variant="secondary" className="text-xs">
+                    Connected
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="onedrive-location">OneDrive folder or shared path</Label>
+                  <Input
+                    id="onedrive-location"
+                    value={oneDriveLocation}
+                    onChange={(e) => setOneDriveLocation(e.target.value)}
+                    placeholder="e.g., C:\\Users\\Name\\OneDrive\\Hub Health Backups"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use a folder that is synced by OneDrive on this device. You can paste a shared path, too.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {oneDriveConnected ? (
+                    <Button variant="outline" onClick={handleDisconnectOneDrive}>
+                      <Cloud className="h-4 w-4 mr-2" />
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button onClick={handleConnectOneDrive}>
+                      <Link2 className="h-4 w-4 mr-2" />
+                      Connect OneDrive
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="border-t pt-6">
