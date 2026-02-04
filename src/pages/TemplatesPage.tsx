@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,9 @@ export function TemplatesPage() {
   
   // State for expanded templates
   const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set());
+
+  // State for expanded categories
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
   // State for preview dialog
   const [previewTemplate, setPreviewTemplate] = useState<AuditTemplate | null>(null);
@@ -84,6 +87,17 @@ export function TemplatesPage() {
 
   const categories = Object.keys(templatesByCategory).sort();
 
+  useEffect(() => {
+    setExpandedCategories(prev => {
+      if (prev.size === 0) {
+        return new Set(categories);
+      }
+      const next = new Set(prev);
+      categories.forEach(category => next.add(category));
+      return next;
+    });
+  }, [categories]);
+
   const toggleExpanded = (id: string) => {
     setExpandedTemplates(prev => {
       const next = new Set(prev);
@@ -91,6 +105,18 @@ export function TemplatesPage() {
         next.delete(id);
       } else {
         next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
       }
       return next;
     });
@@ -185,143 +211,164 @@ export function TemplatesPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {categories.map(category => (
-            <Card key={category}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-primary" />
-                  {category}
-                  <Badge variant="secondary" className="ml-2 text-xs">
-                    {templatesByCategory[category].length}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {templatesByCategory[category].map(template => {
-                    const isExpanded = expandedTemplates.has(template.id);
-                    
-                    return (
-                      <Card key={template.id} className="border-muted">
-                        <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(template.id)}>
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <ClipboardCheck className="w-4 h-4 text-primary shrink-0" />
-                                  <span className="font-medium">{template.title}</span>
-                                  <Badge variant="outline" className="text-xs">v{template.version}</Badge>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {template.sampleQuestions.length} questions
-                                  </Badge>
-                                  <Badge variant="outline" className="text-xs">
-                                    {template.passingThreshold}% threshold
-                                  </Badge>
-                                  {template.criticalFailKeys.length > 0 && (
-                                    <Badge variant="destructive" className="text-xs">
-                                      {template.criticalFailKeys.length} critical
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <Button size="sm" className="gap-1" onClick={(e) => { e.stopPropagation(); handleRunAudit(template); }}>
-                                  <Play className="w-3 h-3" />
-                                  Run
-                                </Button>
-                                <CollapsibleTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                  </Button>
-                                </CollapsibleTrigger>
-                              </div>
-                            </div>
-                          </div>
+          {categories.map(category => {
+            const isCategoryExpanded = expandedCategories.has(category);
+
+            return (
+              <Card key={category}>
+                <Collapsible
+                  open={isCategoryExpanded}
+                  onOpenChange={() => toggleCategory(category)}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-primary" />
+                        {category}
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {templatesByCategory[category].length}
+                        </Badge>
+                      </CardTitle>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            {isCategoryExpanded ? 'Collapse' : 'Expand'}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${isCategoryExpanded ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                    </div>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2">
+                        {templatesByCategory[category].map(template => {
+                          const isExpanded = expandedTemplates.has(template.id);
                           
-                          <CollapsibleContent>
-                            <div className="px-4 pb-4 border-t pt-4 bg-muted/30">
-                              {/* Purpose Summary */}
-                              <div className="space-y-3">
-                                <div>
-                                  <p className="text-sm font-medium text-muted-foreground mb-1">Purpose</p>
-                                  <p className="text-sm">{template.purpose.summary}</p>
+                          return (
+                            <Card key={template.id} className="border-muted">
+                              <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(template.id)}>
+                                <div className="p-4">
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <ClipboardCheck className="w-4 h-4 text-primary shrink-0" />
+                                        <span className="font-medium">{template.title}</span>
+                                        <Badge variant="outline" className="text-xs">v{template.version}</Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                        <Badge variant="secondary" className="text-xs">
+                                          {template.sampleQuestions.length} questions
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs">
+                                          {template.passingThreshold}% threshold
+                                        </Badge>
+                                        {template.criticalFailKeys.length > 0 && (
+                                          <Badge variant="destructive" className="text-xs">
+                                            {template.criticalFailKeys.length} critical
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <Button size="sm" className="gap-1" onClick={(e) => { e.stopPropagation(); handleRunAudit(template); }}>
+                                        <Play className="w-3 h-3" />
+                                        Run
+                                      </Button>
+                                      <CollapsibleTrigger asChild>
+                                        <Button variant="ghost" size="sm">
+                                          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </Button>
+                                      </CollapsibleTrigger>
+                                    </div>
+                                  </div>
                                 </div>
                                 
-                                {/* Risk Warning */}
-                                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
-                                  <p className="text-sm font-medium text-destructive flex items-center gap-2">
-                                    <AlertTriangle className="w-4 h-4" />
-                                    Risk if Not Compliant
-                                  </p>
-                                  <p className="text-sm text-muted-foreground mt-1">{template.purpose.risk}</p>
-                                </div>
+                                <CollapsibleContent>
+                                  <div className="px-4 pb-4 border-t pt-4 bg-muted/30">
+                                    {/* Purpose Summary */}
+                                    <div className="space-y-3">
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground mb-1">Purpose</p>
+                                        <p className="text-sm">{template.purpose.summary}</p>
+                                      </div>
+                                      
+                                      {/* Risk Warning */}
+                                      <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                                        <p className="text-sm font-medium text-destructive flex items-center gap-2">
+                                          <AlertTriangle className="w-4 h-4" />
+                                          Risk if Not Compliant
+                                        </p>
+                                        <p className="text-sm text-muted-foreground mt-1">{template.purpose.risk}</p>
+                                      </div>
 
-                                {/* Regulatory Tags */}
-                                <div>
-                                  <p className="text-sm font-medium text-muted-foreground mb-2">Regulatory References</p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {template.ftagTags.map(tag => (
-                                      <Badge key={tag} variant="outline" className="text-xs">
-                                        CMS {tag}
-                                      </Badge>
-                                    ))}
-                                    {template.nydohTags.map(tag => (
-                                      <Badge key={tag} variant="outline" className="text-xs">
-                                        NYDOH {tag}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
+                                      {/* Regulatory Tags */}
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground mb-2">Regulatory References</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {template.ftagTags.map(tag => (
+                                            <Badge key={tag} variant="outline" className="text-xs">
+                                              CMS {tag}
+                                            </Badge>
+                                          ))}
+                                          {template.nydohTags.map(tag => (
+                                            <Badge key={tag} variant="outline" className="text-xs">
+                                              NYDOH {tag}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      </div>
 
-                                {/* Critical Items Preview */}
-                                {template.criticalFailKeys.length > 0 && (
-                                  <div>
-                                    <p className="text-sm font-medium text-destructive flex items-center gap-1 mb-2">
-                                      <XCircle className="w-3 h-3" />
-                                      Critical Fail Items
-                                    </p>
-                                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5">
-                                      {template.criticalFailKeys.slice(0, 3).map(key => {
-                                        const question = template.sampleQuestions.find(q => q.key === key);
-                                        return (
-                                          <li key={key} className="text-destructive text-xs">
-                                            {question?.label || key}
-                                          </li>
-                                        );
-                                      })}
-                                      {template.criticalFailKeys.length > 3 && (
-                                        <li className="text-muted-foreground text-xs">
-                                          +{template.criticalFailKeys.length - 3} more...
-                                        </li>
+                                      {/* Critical Items Preview */}
+                                      {template.criticalFailKeys.length > 0 && (
+                                        <div>
+                                          <p className="text-sm font-medium text-destructive flex items-center gap-1 mb-2">
+                                            <XCircle className="w-3 h-3" />
+                                            Critical Fail Items
+                                          </p>
+                                          <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5">
+                                            {template.criticalFailKeys.slice(0, 3).map(key => {
+                                              const question = template.sampleQuestions.find(q => q.key === key);
+                                              return (
+                                                <li key={key} className="text-destructive text-xs">
+                                                  {question?.label || key}
+                                                </li>
+                                              );
+                                            })}
+                                            {template.criticalFailKeys.length > 3 && (
+                                              <li className="text-muted-foreground text-xs">
+                                                +{template.criticalFailKeys.length - 3} more...
+                                              </li>
+                                            )}
+                                          </ul>
+                                        </div>
                                       )}
-                                    </ul>
-                                  </div>
-                                )}
 
-                                {/* Action Buttons */}
-                                <div className="flex gap-2 pt-2">
-                                  <Button size="sm" variant="outline" className="gap-1" onClick={() => handlePreview(template)}>
-                                    <Eye className="w-3 h-3" />
-                                    Full Preview
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="gap-1" onClick={() => setPrintPreAuditTemplate(template)}>
-                                    <Printer className="w-3 h-3" />
-                                    Print Form
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                                      {/* Action Buttons */}
+                                      <div className="flex gap-2 pt-2">
+                                        <Button size="sm" variant="outline" className="gap-1" onClick={() => handlePreview(template)}>
+                                          <Eye className="w-3 h-3" />
+                                          Full Preview
+                                        </Button>
+                                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setPrintPreAuditTemplate(template)}>
+                                          <Printer className="w-3 h-3" />
+                                          Print Form
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })}
         </div>
       )}
 
