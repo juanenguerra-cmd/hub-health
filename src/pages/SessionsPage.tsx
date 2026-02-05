@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 
 export function SessionsPage() {
-  const { templates, sessions, setSessions, qaActions, setQaActions, facilityUnits } = useApp();
+  const { templates, sessions, setSessions, qaActions, setQaActions, facilityUnits, setActiveTab } = useApp();
   const allUnits = getAllUnitOptions(facilityUnits);
   
   // View state
@@ -324,6 +324,7 @@ export function SessionsPage() {
     setSessions(sessions.map(s => s.id === completed.id ? completed : s));
     if (newActions.length > 0) {
       setQaActions([...newActions, ...qaActions]);
+      setActiveTab('recommendations');
     }
     setActiveSession(null);
   };

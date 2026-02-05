@@ -42,7 +42,7 @@ const MONTHS = [
 ];
 
 export function EducationPage() {
-  const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName, eduLibrary } = useApp();
+  const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName, eduLibrary, setActiveTab } = useApp();
   
   // Modal states
   const [selectedSession, setSelectedSession] = useState<EducationSession | null>(null);
@@ -130,6 +130,7 @@ export function EducationPage() {
     } else {
       // Add new
       setEduSessions([session, ...eduSessions]);
+      setActiveTab('recommendations');
     }
   };
 
