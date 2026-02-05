@@ -14,7 +14,8 @@ import {
   FileSpreadsheet,
   Inbox,
   BookOpen,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const navItems = [
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
   { id: 'regulatory-references', label: 'Regulatory References', icon: BookOpen },
+  { id: 'recommendations', label: 'Recommendation Center', icon: Sparkles },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'user-guide', label: 'User Guide', icon: HelpCircle },
 ];
