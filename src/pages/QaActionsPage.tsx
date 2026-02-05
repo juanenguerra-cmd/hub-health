@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { filterActionsByRange, computeClosedLoopStats, todayYMD } from '@/lib/calculations';
+import { recommendationRules } from '@/lib/recommendation-rules';
 import { KpiCard, KpiGrid } from '@/components/KpiCard';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -86,6 +87,31 @@ export function QaActionsPage() {
 
   const stats = computeClosedLoopStats(filtered);
   const tools = ['All', ...Array.from(new Set(qaActions.map(a => a.templateTitle).filter(Boolean))).sort()];
+  const recommendationMatches = useMemo(() => {
+    if (filtered.length === 0) return [];
+    const actionText = filtered
+      .map(action => [
+        action.issue,
+        action.topic,
+        action.summary,
+        action.reason,
+        action.notes,
+        action.templateTitle,
+        action.unit
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase())
+      .join(' | ');
+
+    return recommendationRules.filter(rule => {
+      const triggerMatch = rule.trigger.toLowerCase();
+      if (actionText.includes(triggerMatch)) {
+        return true;
+      }
+      return rule.searchTags.some(tag => actionText.includes(tag.toLowerCase()));
+    });
+  }, [filtered]);
 
   const getStatusBadge = (action: typeof qaActions[0]) => {
     const due = (action.dueDate || '').slice(0, 10);
@@ -260,6 +286,48 @@ export function QaActionsPage() {
 
       {/* Actions List */}
       <div className="space-y-3">
+        {recommendationMatches.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Recommendation Matches</CardTitle>
+              <CardDescription>
+                Based on current QA action findings. Review the full recommendation center for details.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {recommendationMatches.map(rule => (
+                <div key={rule.id} className="rounded-lg border border-border p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-sm font-semibold">{rule.trigger}</p>
+                    <Button size="sm" variant="outline" onClick={() => setActiveTab('recommendations')}>
+                      View Recommendation Center
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Competencies</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {rule.competencyDomains.map(item => (
+                          <Badge key={item} variant="secondary">
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">In-service</p>
+                      <p className="text-sm mt-2">{rule.inserviceTitle}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Follow-up</p>
+                      <p className="text-sm mt-2">{rule.followUp}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
         {filtered.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
