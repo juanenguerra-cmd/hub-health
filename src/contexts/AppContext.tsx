@@ -28,7 +28,9 @@ import {
   loadEduLibrary,
   saveEduLibrary,
   loadStaffDirectory,
+  saveStaffDirectory,
   loadAdminOwners,
+  saveAdminOwners,
   loadFacilityName,
   saveFacilityName,
   loadFacilityUnits,
@@ -230,6 +232,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setQaActionsState(processed.qaActions);
       saveQaActions(processed.qaActions);
     }
+
+    if (processed.orientationRecords) {
+      setOrientationRecords(processed.orientationRecords);
+      saveOrientationRecords(processed.orientationRecords);
+    }
+
+    if (processed.staffDirectory) {
+      setStaffDirectory(processed.staffDirectory);
+      saveStaffDirectory(processed.staffDirectory);
+    }
+
+    if (processed.adminOwners) {
+      setAdminOwners(processed.adminOwners);
+      saveAdminOwners(processed.adminOwners);
+    }
+
+    if (processed.facilityName) {
+      setFacilityName(processed.facilityName);
+      saveFacilityName(processed.facilityName);
+    }
+
+    if (processed.facilityUnits) {
+      setFacilityUnits(processed.facilityUnits);
+      saveFacilityUnits(processed.facilityUnits);
+    }
     
     return {
       success: true,
@@ -253,7 +280,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       qaActions,
       orientationRecords,
       adminOwners,
-      facilityName
+      facilityName,
+      staffDirectory,
+      facilityUnits
     });
   };
   

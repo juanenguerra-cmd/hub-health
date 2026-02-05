@@ -8,8 +8,10 @@ import type {
   EducationSession,
   EduTopic,
   OrientationRecord,
-  AdminOwners
+  AdminOwners,
+  StaffMember
 } from '@/types/nurse-educator';
+import type { FacilityUnit } from '@/types/facility-units';
 
 export interface BackupData {
   v?: number;
@@ -23,6 +25,8 @@ export interface BackupData {
   orientationRecords?: OrientationRecord[];
   adminOwners?: AdminOwners;
   facilityName?: string;
+  staffDirectory?: { rows: StaffMember[]; asOf: string };
+  facilityUnits?: FacilityUnit[];
 }
 
 // Legacy session format from old tool
@@ -220,12 +224,24 @@ export function processBackupData(backup: BackupData): {
   eduSessions: EducationSession[];
   eduLibrary: EduTopic[];
   qaActions: QaAction[];
+  orientationRecords?: OrientationRecord[];
+  adminOwners?: AdminOwners;
+  facilityName?: string;
+  staffDirectory?: { rows: StaffMember[]; asOf: string };
+  facilityUnits?: FacilityUnit[];
 } {
   const templates: AuditTemplate[] = [];
   const sessions: AuditSession[] = [];
   const eduSessions: EducationSession[] = [];
   const eduLibrary: EduTopic[] = [];
   const qaActions: QaAction[] = [];
+  const orientationRecords = Array.isArray(backup.orientationRecords) ? backup.orientationRecords : undefined;
+  const adminOwners = backup.adminOwners;
+  const facilityName = backup.facilityName;
+  const staffDirectory = Array.isArray(backup.staffDirectory?.rows)
+    ? { rows: backup.staffDirectory?.rows ?? [], asOf: backup.staffDirectory?.asOf ?? '' }
+    : undefined;
+  const facilityUnits = Array.isArray(backup.facilityUnits) ? backup.facilityUnits : undefined;
 
   // Process templates (filter out archived)
   if (backup.templates) {
@@ -264,7 +280,18 @@ export function processBackupData(backup: BackupData): {
     qaActions.push(...backup.qaActions);
   }
 
-  return { templates, sessions, eduSessions, eduLibrary, qaActions };
+  return {
+    templates,
+    sessions,
+    eduSessions,
+    eduLibrary,
+    qaActions,
+    orientationRecords,
+    adminOwners,
+    facilityName,
+    staffDirectory,
+    facilityUnits
+  };
 }
 
 /**
@@ -279,6 +306,8 @@ export function createBackup(data: {
   orientationRecords: OrientationRecord[];
   adminOwners: AdminOwners;
   facilityName: string;
+  staffDirectory: { rows: StaffMember[]; asOf: string };
+  facilityUnits: FacilityUnit[];
 }): string {
   const backup = {
     v: 1,
