@@ -28,9 +28,11 @@ import {
 import type { AuditTemplate } from '@/types/nurse-educator';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 import { TemplateManagementPage } from '@/pages/TemplateManagementPage';
+import { useAuditNavigation } from '@/hooks/use-audit-navigation';
 
 export function TemplatesPage() {
-  const { templates, setActiveTab } = useApp();
+  const { templates } = useApp();
+  const { startAudit } = useAuditNavigation();
   
   // State for management view
   const [showManagement, setShowManagement] = useState(false);
@@ -131,14 +133,13 @@ export function TemplatesPage() {
   const handleStartAudit = () => {
     if (!runAuditTemplate) return;
     
-    sessionStorage.setItem('NES_START_AUDIT', JSON.stringify({
+    startAudit({
       templateId: runAuditTemplate.id,
+      from: 'templates',
       unit: auditUnit,
       auditor: auditAuditor
-    }));
-    
+    });
     setRunAuditTemplate(null);
-    setActiveTab('sessions');
   };
 
   const handlePreview = (template: AuditTemplate) => {

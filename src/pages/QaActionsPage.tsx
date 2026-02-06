@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { QaActionFormModal } from '@/components/qa/QaActionFormModal';
 import { PrintableQaActionsReport } from '@/components/reports/PrintableQaActionsReport';
 import { toast } from '@/hooks/use-toast';
+import { useAuditNavigation } from '@/hooks/use-audit-navigation';
 import type { QaAction } from '@/types/nurse-educator';
 import { 
   Search, 
@@ -51,6 +52,7 @@ const extractCompetenciesFromNotes = (notes: string): string[] => {
 
 export function QaActionsPage() {
   const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab, sessions } = useApp();
+  const { startAudit, openAuditSession } = useAuditNavigation();
   
   // Modal states
   const [selectedAction, setSelectedAction] = useState<QaAction | null>(null);
@@ -158,28 +160,13 @@ export function QaActionsPage() {
   };
 
   const handleStartAudit = (templateId: string) => {
-    if (!templateId) {
-      toast({ title: 'No Audit Tool', description: 'This action is not linked to an audit tool.', variant: 'destructive' });
-      return;
-    }
-    
-    // Store the template to start in sessionStorage
-    sessionStorage.setItem('NES_START_AUDIT', JSON.stringify({ templateId, from: 'qa-action', actionId: selectedAction?.id }));
+    startAudit({ templateId, from: 'qa-action', actionId: selectedAction?.id });
     setSelectedAction(null);
-    setActiveTab('sessions');
-    toast({ title: 'Starting Audit', description: 'Navigate to start the audit session.' });
   };
 
   const handleOpenAuditFile = (action: QaAction) => {
-    if (!action.sessionId) {
-      toast({ title: 'No Audit Session', description: 'This QA action does not reference an audit session.', variant: 'destructive' });
-      return;
-    }
-
-    sessionStorage.setItem('NES_OPEN_SESSION', JSON.stringify({ sessionId: action.sessionId }));
+    openAuditSession({ sessionId: action.sessionId, from: 'qa-action' });
     setSelectedAction(null);
-    setActiveTab('sessions');
-    toast({ title: 'Opening Audit File', description: 'Navigate to review the linked audit session.' });
   };
 
   return (

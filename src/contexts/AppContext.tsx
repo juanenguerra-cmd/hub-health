@@ -82,9 +82,29 @@ interface AppContextType {
   
   // Demo mode
   loadDemoData: () => void;
+
+  // Navigation requests
+  startAuditRequest: StartAuditRequest | null;
+  setStartAuditRequest: (request: StartAuditRequest | null) => void;
+  openSessionRequest: OpenSessionRequest | null;
+  setOpenSessionRequest: (request: OpenSessionRequest | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+
+type StartAuditRequest = {
+  templateId: string;
+  from: string;
+  actionId?: string;
+  unit?: string;
+  auditor?: string;
+  autoStart?: boolean;
+};
+
+type OpenSessionRequest = {
+  sessionId: string;
+  from: string;
+};
 
 export function AppProvider({ children }: { children: ReactNode }) {
   // Core data state
@@ -137,6 +157,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     unit: 'All',
     range: '30'
   });
+
+  const [startAuditRequest, setStartAuditRequest] = useState<StartAuditRequest | null>(null);
+  const [openSessionRequest, setOpenSessionRequest] = useState<OpenSessionRequest | null>(null);
   
   // Load data on mount
   useEffect(() => {
@@ -326,7 +349,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setFacilityUnits: setFacilityUnitsData,
       restoreFromBackup,
       exportBackup,
-      loadDemoData
+      loadDemoData,
+      startAuditRequest,
+      setStartAuditRequest,
+      openSessionRequest,
+      setOpenSessionRequest
     }}>
       {children}
     </AppContext.Provider>
