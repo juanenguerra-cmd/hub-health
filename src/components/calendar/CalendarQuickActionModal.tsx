@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import type { AuditSession, QaAction, EducationSession } from '@/types/nurse-educator';
 import { getAllUnitOptions } from '@/types/facility-units';
 import { todayYMD } from '@/lib/calculations';
+import { useAuditNavigation } from '@/hooks/use-audit-navigation';
 
 interface CalendarEvent {
   id: string;
@@ -38,6 +39,7 @@ export function CalendarQuickActionModal({
   eventsForDate
 }: CalendarQuickActionModalProps) {
   const { templates, qaActions, setQaActions, setSessions, sessions, setEduSessions, eduSessions, eduLibrary, setActiveTab, facilityUnits } = useApp();
+  const { openAuditSession } = useAuditNavigation();
   const today = todayYMD();
   
   const [activeAction, setActiveAction] = useState<'menu' | 'audit' | 'inservice' | 'reaudit'>('menu');
@@ -93,7 +95,7 @@ export function CalendarQuickActionModal({
       templateTitle: template.title,
       createdAt: new Date().toISOString(),
       header: {
-        status: 'draft',
+        status: 'in_progress',
         sessionId: `S${Date.now().toString().slice(-6)}`,
         auditDate: selectedDate,
         auditor: auditorName,
@@ -103,10 +105,8 @@ export function CalendarQuickActionModal({
     };
     
     setSessions([...sessions, newSession]);
-    // Use sessionStorage to pass the session to edit
-    sessionStorage.setItem('NES_EDIT_SESSION', newSession.id);
+    openAuditSession({ sessionId: newSession.header.sessionId, from: 'calendar' });
     handleClose();
-    setActiveTab('sessions');
   };
 
   const handlePlanInservice = () => {
@@ -156,7 +156,7 @@ export function CalendarQuickActionModal({
       templateTitle: template.title,
       createdAt: new Date().toISOString(),
       header: {
-        status: 'draft',
+        status: 'in_progress',
         sessionId: `RS${Date.now().toString().slice(-6)}`,
         auditDate: today,
         auditor: auditorName || 'Auditor',
@@ -174,10 +174,8 @@ export function CalendarQuickActionModal({
     
     setSessions([...sessions, newSession]);
     setQaActions(updatedActions);
-    // Use sessionStorage to pass the session to edit
-    sessionStorage.setItem('NES_EDIT_SESSION', newSession.id);
+    openAuditSession({ sessionId: newSession.header.sessionId, from: 'calendar' });
     handleClose();
-    setActiveTab('sessions');
   };
 
   const formattedDate = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {

@@ -9,8 +9,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { EducationSessionFormModal } from '@/components/education/EducationSessionFormModal';
-import { todayYMD, daysBetween } from '@/lib/calculations';
+import { todayYMD } from '@/lib/calculations';
+import { getDueStatus } from '@/lib/due-status';
 import { toast } from '@/hooks/use-toast';
+import { useAuditNavigation } from '@/hooks/use-audit-navigation';
 import type { QaAction, EducationSession, EduTopic } from '@/types/nurse-educator';
 import { 
   AlertTriangle, 
@@ -44,7 +46,8 @@ interface FollowUpItem {
 }
 
 export function FollowUpPage() {
-  const { qaActions, setQaActions, eduSessions, setEduSessions, eduLibrary, templates, setActiveTab } = useApp();
+  const { qaActions, setQaActions, eduSessions, setEduSessions, eduLibrary } = useApp();
+  const { startAudit } = useAuditNavigation();
   const today = todayYMD();
   
   const [activeQueue, setActiveQueue] = useState('overdue');
@@ -66,9 +69,7 @@ export function FollowUpPage() {
       if (qa.status === 'complete') continue;
       if (!qa.dueDate) continue;
       
-      const daysUntil = daysBetween(today, qa.dueDate);
-      const isOverdue = qa.dueDate < today;
-      const isDueSoon = !isOverdue && daysUntil <= 7;
+      const { status, daysUntil, isOverdue } = getDueStatus(today, qa.dueDate);
       
       items.push({
         id: `qa_${qa.id}`,
@@ -78,8 +79,8 @@ export function FollowUpPage() {
         unit: qa.unit || '',
         owner: qa.owner || 'Unassigned',
         dueDate: qa.dueDate,
-        status: isOverdue ? 'overdue' : isDueSoon ? 'due-soon' : 'upcoming',
-        daysUntilDue: isOverdue ? -daysBetween(qa.dueDate, today) : daysUntil,
+        status,
+        daysUntilDue: daysUntil,
         linkedId: qa.id,
         templateId: qa.templateId,
         templateTitle: qa.templateTitle,
@@ -88,9 +89,7 @@ export function FollowUpPage() {
       
       // Re-audit due dates
       if (qa.reAuditDueDate && !qa.reAuditCompletedAt) {
-        const reDaysUntil = daysBetween(today, qa.reAuditDueDate);
-        const reIsOverdue = qa.reAuditDueDate < today;
-        const reIsDueSoon = !reIsOverdue && reDaysUntil <= 7;
+        const { status: reStatus, daysUntil: reDaysUntil, isOverdue: reIsOverdue } = getDueStatus(today, qa.reAuditDueDate);
         
         items.push({
           id: `reaudit_${qa.id}`,
@@ -100,8 +99,8 @@ export function FollowUpPage() {
           unit: qa.unit || '',
           owner: qa.owner || 'Unassigned',
           dueDate: qa.reAuditDueDate,
-          status: reIsOverdue ? 'overdue' : reIsDueSoon ? 'due-soon' : 'upcoming',
-          daysUntilDue: reIsOverdue ? -daysBetween(qa.reAuditDueDate, today) : reDaysUntil,
+          status: reStatus,
+          daysUntilDue: reDaysUntil,
           linkedId: qa.id,
           templateId: qa.reAuditTemplateId || qa.templateId,
           templateTitle: qa.templateTitle,
@@ -115,9 +114,7 @@ export function FollowUpPage() {
       if (edu.status === 'completed') continue;
       if (!edu.scheduledDate) continue;
       
-      const daysUntil = daysBetween(today, edu.scheduledDate);
-      const isOverdue = edu.scheduledDate < today;
-      const isDueSoon = !isOverdue && daysUntil <= 7;
+      const { status, daysUntil } = getDueStatus(today, edu.scheduledDate);
       
       items.push({
         id: `edu_${edu.id}`,
@@ -127,8 +124,8 @@ export function FollowUpPage() {
         unit: edu.unit || '',
         owner: edu.instructor || 'Unassigned',
         dueDate: edu.scheduledDate,
-        status: isOverdue ? 'overdue' : isDueSoon ? 'due-soon' : 'upcoming',
-        daysUntilDue: isOverdue ? -daysBetween(edu.scheduledDate, today) : daysUntil,
+        status,
+        daysUntilDue: daysUntil,
         linkedId: edu.id,
         templateId: edu.templateId,
         templateTitle: edu.templateTitle,
@@ -192,27 +189,8 @@ export function FollowUpPage() {
 
   // Start audit directly
   const handleStartAudit = (templateId: string, actionId?: string) => {
-    if (!templateId) {
-      toast({ title: 'No Audit Tool', description: 'This item is not linked to an audit tool.', variant: 'destructive' });
-      return;
-    }
-    
-    const template = templates.find(t => t.id === templateId);
-    if (!template) {
-      toast({ title: 'Template Not Found', description: 'The linked audit tool was not found.', variant: 'destructive' });
-      return;
-    }
-    
-    // Store the template to start in sessionStorage
-    sessionStorage.setItem('NES_START_AUDIT', JSON.stringify({ 
-      templateId, 
-      from: 'follow-up', 
-      actionId,
-      autoStart: true 
-    }));
+    startAudit({ templateId, from: 'follow-up', actionId, autoStart: true });
     setSelectedItem(null);
-    setActiveTab('sessions');
-    toast({ title: 'Starting Audit', description: `Launching ${template.title}...` });
   };
 
   // Plan education from QA action

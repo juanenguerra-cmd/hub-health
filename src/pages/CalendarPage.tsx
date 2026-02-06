@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { todayYMD } from '@/lib/calculations';
+import { getDueStatus } from '@/lib/due-status';
 import { ChevronLeft, ChevronRight, Calendar, GraduationCap, ClipboardCheck, AlertTriangle, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CalendarQuickActionModal } from '@/components/calendar/CalendarQuickActionModal';
@@ -44,7 +45,7 @@ export function CalendarPage() {
         : (edu.scheduledDate || '');
       if (!date) continue;
       
-      const isOverdue = edu.status !== 'completed' && date < today;
+      const { isOverdue } = getDueStatus(today, date);
       
       evts.push({
         id: edu.id,
@@ -75,7 +76,7 @@ export function CalendarPage() {
     for (const qa of qaActions) {
       if (qa.reAuditDueDate) {
         const isComplete = !!qa.reAuditCompletedAt;
-        const isOverdue = !isComplete && qa.reAuditDueDate < today;
+        const { isOverdue } = getDueStatus(today, qa.reAuditDueDate);
         
         evts.push({
           id: `reaudit_${qa.id}`,
@@ -90,7 +91,7 @@ export function CalendarPage() {
       
       // Due dates as follow-ups
       if (qa.dueDate && qa.status !== 'complete') {
-        const isOverdue = qa.dueDate < today;
+        const { isOverdue } = getDueStatus(today, qa.dueDate);
         
         evts.push({
           id: `followup_${qa.id}`,

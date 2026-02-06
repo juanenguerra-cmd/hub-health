@@ -35,7 +35,19 @@ import {
 } from 'lucide-react';
 
 export function SessionsPage() {
-  const { templates, sessions, setSessions, qaActions, setQaActions, facilityUnits, setActiveTab } = useApp();
+  const {
+    templates,
+    sessions,
+    setSessions,
+    qaActions,
+    setQaActions,
+    facilityUnits,
+    setActiveTab,
+    startAuditRequest,
+    setStartAuditRequest,
+    openSessionRequest,
+    setOpenSessionRequest
+  } = useApp();
   const allUnits = getAllUnitOptions(facilityUnits);
   
   // View state
@@ -64,64 +76,51 @@ export function SessionsPage() {
 
   // Check for pre-selected template from TemplatesPage
   useEffect(() => {
-    const startAuditData = sessionStorage.getItem('NES_START_AUDIT');
-    if (startAuditData) {
-      try {
-        const { templateId, unit, auditor } = JSON.parse(startAuditData);
-        sessionStorage.removeItem('NES_START_AUDIT');
-        
-        // Pre-fill and auto-start the session
-        const template = templates.find(t => t.id === templateId);
-        if (template) {
-          setSelectedTemplateId(templateId);
-          setNewSessionUnit(unit || '');
-          setNewSessionAuditor(auditor || '');
-          
-          // Auto-start the session
-          const today = todayYMD();
-          const sessionId = `${template.id.slice(0, 4).toUpperCase()}-${today.replace(/-/g, '')}-${unit || 'GEN'}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
-          
-          const newSession: AuditSession = {
-            id: `sess_${Math.random().toString(16).slice(2, 10)}`,
-            templateId: template.id,
-            templateTitle: template.title,
-            createdAt: nowISO(),
-            header: {
-              status: 'in_progress',
-              sessionId,
-              auditDate: today,
-              auditor: auditor || 'Auditor',
-              unit: unit || ''
-            },
-            samples: []
-          };
-          
-          setSessions([newSession, ...sessions]);
-          setActiveSession(newSession);
-        }
-      } catch (e) {
-        console.error('Failed to parse start audit data:', e);
-      }
+    if (!startAuditRequest) return;
+    const { templateId, unit, auditor } = startAuditRequest;
+    setStartAuditRequest(null);
+    
+    // Pre-fill and auto-start the session
+    const template = templates.find(t => t.id === templateId);
+    if (template) {
+      setSelectedTemplateId(templateId);
+      setNewSessionUnit(unit || '');
+      setNewSessionAuditor(auditor || '');
+      
+      // Auto-start the session
+      const today = todayYMD();
+      const sessionId = `${template.id.slice(0, 4).toUpperCase()}-${today.replace(/-/g, '')}-${unit || 'GEN'}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
+      
+      const newSession: AuditSession = {
+        id: `sess_${Math.random().toString(16).slice(2, 10)}`,
+        templateId: template.id,
+        templateTitle: template.title,
+        createdAt: nowISO(),
+        header: {
+          status: 'in_progress',
+          sessionId,
+          auditDate: today,
+          auditor: auditor || 'Auditor',
+          unit: unit || ''
+        },
+        samples: []
+      };
+      
+      setSessions([newSession, ...sessions]);
+      setActiveSession(newSession);
     }
-  }, [templates]);
+  }, [startAuditRequest, setStartAuditRequest, templates, setSessions, sessions]);
 
   useEffect(() => {
-    const openSessionData = sessionStorage.getItem('NES_OPEN_SESSION');
-    if (!openSessionData) return;
-    sessionStorage.removeItem('NES_OPEN_SESSION');
+    if (!openSessionRequest?.sessionId) return;
+    setOpenSessionRequest(null);
 
-    try {
-      const { sessionId } = JSON.parse(openSessionData);
-      if (!sessionId) return;
-      const targetSession = sessions.find(session => session.header.sessionId === sessionId);
-      if (targetSession) {
-        setSelectedTemplateId(targetSession.templateId);
-        setActiveSession(targetSession);
-      }
-    } catch (e) {
-      console.error('Failed to parse open session data:', e);
+    const targetSession = sessions.find(session => session.header.sessionId === openSessionRequest.sessionId);
+    if (targetSession) {
+      setSelectedTemplateId(targetSession.templateId);
+      setActiveSession(targetSession);
     }
-  }, [sessions]);
+  }, [openSessionRequest, setOpenSessionRequest, sessions]);
 
   // Filter sessions
   const filteredSessions = sessions.filter(s => {
