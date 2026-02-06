@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { 
-  computeHeatmap, 
   computeClosedLoopStats, 
   summarizeSessions,
   filterSessionsByRange,
@@ -13,7 +14,7 @@ import {
   dateAddDays
 } from '@/lib/calculations';
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
-import { getAllUnitOptions, matchesUnitOrWings } from '@/types/facility-units';
+import { getAllUnitOptions, getParentUnit, getWingsForUnit, matchesUnitOrWings } from '@/types/facility-units';
 import { 
   BarChart, 
   Bar, 
@@ -34,6 +35,7 @@ import { Building2, ChevronRight } from 'lucide-react';
 
 export function AnalyticsPage() {
   const { sessions, qaActions, eduSessions, analyticsFilters, setAnalyticsFilters, facilityUnits } = useApp();
+  const [selectedMainUnit, setSelectedMainUnit] = useState<string | null>(null);
   
   const daysAgo = parseInt(analyticsFilters.range || '30', 10);
   const today = todayYMD();
@@ -55,7 +57,103 @@ export function AnalyticsPage() {
   // Compute analytics
   const summary = summarizeSessions(filteredSessions);
   const qaStats = computeClosedLoopStats(filteredActions);
-  const heatmap = computeHeatmap(filteredSessions);
+  const mainUnits = useMemo(() => ['Unit 2', 'Unit 3', 'Unit 4'], []);
+
+  const mainUnitHeatmap = useMemo(() => {
+    const tools = new Set<string>();
+    const units = new Set<string>();
+    const data: Record<string, Record<string, { total: number; passing: number; rate: number; critical: number }>> = {};
+
+    for (const sess of filteredSessions) {
+      if (sess.header?.status !== 'complete') continue;
+      const tool = sess.templateTitle || 'Unknown';
+      const sessionUnit = sess.header?.unit || 'Unknown';
+      const parentUnit = getParentUnit(facilityUnits, sessionUnit) || sessionUnit;
+
+      if (!mainUnits.includes(parentUnit)) continue;
+
+      tools.add(tool);
+      units.add(parentUnit);
+
+      if (!data[tool]) data[tool] = {};
+      if (!data[tool][parentUnit]) {
+        data[tool][parentUnit] = { total: 0, passing: 0, rate: 0, critical: 0 };
+      }
+
+      for (const smp of sess.samples || []) {
+        data[tool][parentUnit].total++;
+        if (smp.result?.pass) data[tool][parentUnit].passing++;
+        data[tool][parentUnit].critical += (smp.result?.criticalFails?.length || 0);
+      }
+    }
+
+    for (const tool of Object.keys(data)) {
+      for (const unit of Object.keys(data[tool])) {
+        const d = data[tool][unit];
+        d.rate = d.total ? Math.round((d.passing / d.total) * 100) : 0;
+      }
+    }
+
+    return {
+      tools: Array.from(tools).sort(),
+      units: mainUnits.filter(unit => units.has(unit)),
+      data
+    };
+  }, [facilityUnits, filteredSessions, mainUnits]);
+
+  const drilldownHeatmap = useMemo(() => {
+    if (!selectedMainUnit) return null;
+
+    const wings = getWingsForUnit(facilityUnits, selectedMainUnit);
+    const units = [...wings];
+    const unassignedLabel = wings.length ? `${selectedMainUnit} (Unassigned)` : null;
+    if (unassignedLabel) units.push(unassignedLabel);
+
+    const tools = new Set<string>();
+    const data: Record<string, Record<string, { total: number; passing: number; rate: number; critical: number }>> = {};
+
+    for (const sess of filteredSessions) {
+      if (sess.header?.status !== 'complete') continue;
+      const tool = sess.templateTitle || 'Unknown';
+      const sessionUnit = sess.header?.unit || 'Unknown';
+      const parentUnit = getParentUnit(facilityUnits, sessionUnit) || sessionUnit;
+      if (parentUnit !== selectedMainUnit) continue;
+
+      let targetUnit: string | null = null;
+      if (wings.includes(sessionUnit)) {
+        targetUnit = sessionUnit;
+      } else if (sessionUnit === selectedMainUnit && unassignedLabel) {
+        targetUnit = unassignedLabel;
+      }
+
+      if (!targetUnit) continue;
+
+      tools.add(tool);
+      if (!data[tool]) data[tool] = {};
+      if (!data[tool][targetUnit]) {
+        data[tool][targetUnit] = { total: 0, passing: 0, rate: 0, critical: 0 };
+      }
+
+      for (const smp of sess.samples || []) {
+        data[tool][targetUnit].total++;
+        if (smp.result?.pass) data[tool][targetUnit].passing++;
+        data[tool][targetUnit].critical += (smp.result?.criticalFails?.length || 0);
+      }
+    }
+
+    for (const tool of Object.keys(data)) {
+      for (const unit of Object.keys(data[tool])) {
+        const d = data[tool][unit];
+        d.rate = d.total ? Math.round((d.passing / d.total) * 100) : 0;
+      }
+    }
+
+    return {
+      tools: Array.from(tools).sort(),
+      units,
+      data
+    };
+  }, [facilityUnits, filteredSessions, selectedMainUnit]);
 
   // Get unique units from sessions for filter dropdown
   const units = useMemo(() => {
@@ -306,7 +404,7 @@ export function AnalyticsPage() {
           <CardDescription>Tool × Unit compliance rates (click to drill down)</CardDescription>
         </CardHeader>
         <CardContent>
-          {heatmap.tools.length === 0 ? (
+          {mainUnitHeatmap.tools.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No audit data available for heatmap
             </div>
@@ -316,17 +414,25 @@ export function AnalyticsPage() {
                 <thead>
                   <tr>
                     <th className="text-left p-2 font-medium">Tool</th>
-                    {heatmap.units.map(unit => (
-                      <th key={unit} className="text-center p-2 font-medium">{unit}</th>
+                    {mainUnitHeatmap.units.map(unit => (
+                      <th key={unit} className="text-center p-2 font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMainUnit(unit)}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {unit}
+                        </button>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {heatmap.tools.map(tool => (
+                  {mainUnitHeatmap.tools.map(tool => (
                     <tr key={tool}>
                       <td className="p-2 font-medium truncate max-w-[200px]" title={tool}>{tool}</td>
-                      {heatmap.units.map(unit => {
-                        const cell = heatmap.data[tool]?.[unit];
+                      {mainUnitHeatmap.units.map(unit => {
+                        const cell = mainUnitHeatmap.data[tool]?.[unit];
                         if (!cell) {
                           return <td key={unit} className="text-center p-2 text-muted-foreground">—</td>;
                         }
@@ -342,6 +448,7 @@ export function AnalyticsPage() {
                             key={unit} 
                             className={cn("text-center p-2 cursor-pointer hover:opacity-80", bgColor)}
                             title={`${cell.passing}/${cell.total} passing • ${cell.critical} critical`}
+                            onClick={() => setSelectedMainUnit(unit)}
                           >
                             <span className="font-medium">{cell.rate}%</span>
                             <span className="text-xs text-muted-foreground block">
@@ -590,6 +697,98 @@ export function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={Boolean(selectedMainUnit)} onOpenChange={(open) => !open && setSelectedMainUnit(null)}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader className="no-print">
+            <DialogTitle className="flex flex-col gap-1">
+              <span>{selectedMainUnit} Compliance Heatmap</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                Subunits from unit configuration (click Print or Export PDF to share)
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="no-print flex flex-wrap items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => window.print()}>
+              Print
+            </Button>
+            <Button onClick={() => window.print()}>
+              Export PDF
+            </Button>
+          </div>
+          <div className="print-content">
+            {!drilldownHeatmap || drilldownHeatmap.tools.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No audit data available for this unit.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left p-2 font-medium">Tool</th>
+                      {drilldownHeatmap.units.map(unit => (
+                        <th key={unit} className="text-center p-2 font-medium">{unit}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {drilldownHeatmap.tools.map(tool => (
+                      <tr key={tool}>
+                        <td className="p-2 font-medium truncate max-w-[200px]" title={tool}>{tool}</td>
+                        {drilldownHeatmap.units.map(unit => {
+                          const cell = drilldownHeatmap.data[tool]?.[unit];
+                          if (!cell) {
+                            return <td key={unit} className="text-center p-2 text-muted-foreground">—</td>;
+                          }
+
+                          const bgColor = cell.rate >= 90 
+                            ? 'bg-success/20' 
+                            : cell.rate >= 70 
+                              ? 'bg-warning/20' 
+                              : 'bg-error/20';
+
+                          return (
+                            <td 
+                              key={unit} 
+                              className={cn("text-center p-2", bgColor)}
+                              title={`${cell.passing}/${cell.total} passing • ${cell.critical} critical`}
+                            >
+                              <span className="font-medium">{cell.rate}%</span>
+                              <span className="text-xs text-muted-foreground block">
+                                {cell.total} samples
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <style>{`
+            @media print {
+              body * {
+                visibility: hidden;
+              }
+              .print-content, .print-content * {
+                visibility: visible;
+              }
+              .print-content {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+          `}</style>
+        </DialogContent>
+      </Dialog>
 
       {/* Education Categories */}
       {eduByCategory.length > 0 && (
