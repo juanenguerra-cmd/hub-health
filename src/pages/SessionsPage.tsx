@@ -164,7 +164,11 @@ export function SessionsPage() {
         sessionId,
         auditDate,
         auditor: newSessionAuditor || 'Auditor',
-        unit: newSessionUnit || ''
+        unit: newSessionUnit || '',
+        immediateAction: '',
+        immediateActionDate: '',
+        followUpAction: '',
+        followUpActionDate: ''
       },
       samples: []
     };
@@ -196,11 +200,7 @@ export function SessionsPage() {
       id: `smp_${Math.random().toString(16).slice(2, 10)}`,
       answers: {} as Record<string, string>,
       result: null,
-      staffAudited: '',
-      immediateAction: '',
-      immediateActionDate: '',
-      followUpAction: '',
-      followUpActionDate: ''
+      staffAudited: ''
     };
     
     const updated = {
@@ -244,8 +244,7 @@ export function SessionsPage() {
     setSessions(sessions.map(s => s.id === updated.id ? updated : s));
   };
 
-  const updateSampleCorrectiveField = (
-    sampleId: string,
+  const updateSessionCorrectiveField = (
     field: 'immediateAction' | 'immediateActionDate' | 'followUpAction' | 'followUpActionDate',
     value: string
   ) => {
@@ -253,10 +252,10 @@ export function SessionsPage() {
 
     const updated = {
       ...activeSession,
-      samples: activeSession.samples.map(smp => {
-        if (smp.id !== sampleId) return smp;
-        return { ...smp, [field]: value };
-      })
+      header: {
+        ...activeSession.header,
+        [field]: value
+      }
     };
 
     setActiveSession(updated);
@@ -587,10 +586,6 @@ export function SessionsPage() {
                                   {q.required && <span className="text-destructive ml-1">*</span>}
                                 </th>
                               ))}
-                              <th className="px-2 py-2 font-semibold min-w-[200px]">Immediate Action</th>
-                              <th className="px-2 py-2 font-semibold min-w-[140px]">Action Date</th>
-                              <th className="px-2 py-2 font-semibold min-w-[200px]">Follow-Up Action</th>
-                              <th className="px-2 py-2 font-semibold min-w-[140px]">Follow-Up Date</th>
                               <th className="px-2 py-2 font-semibold min-w-[140px]">Result</th>
                               <th className="px-2 py-2 font-semibold min-w-[120px] text-right">Actions</th>
                             </tr>
@@ -666,40 +661,6 @@ export function SessionsPage() {
                                     )}
                                   </td>
                                 ))}
-                                <td className="px-2 py-2 align-top">
-                                  <Textarea
-                                    value={sample.immediateAction || ''}
-                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateAction', e.target.value)}
-                                    placeholder="Document immediate action..."
-                                    rows={2}
-                                    className="min-h-[56px] text-xs"
-                                  />
-                                </td>
-                                <td className="px-2 py-2 align-top">
-                                  <Input
-                                    type="date"
-                                    value={sample.immediateActionDate || ''}
-                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateActionDate', e.target.value)}
-                                    className="h-8 text-xs"
-                                  />
-                                </td>
-                                <td className="px-2 py-2 align-top">
-                                  <Textarea
-                                    value={sample.followUpAction || ''}
-                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpAction', e.target.value)}
-                                    placeholder="Document follow-up action..."
-                                    rows={2}
-                                    className="min-h-[56px] text-xs"
-                                  />
-                                </td>
-                                <td className="px-2 py-2 align-top">
-                                  <Input
-                                    type="date"
-                                    value={sample.followUpActionDate || ''}
-                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpActionDate', e.target.value)}
-                                    className="h-8 text-xs"
-                                  />
-                                </td>
                                 <td className="px-2 py-2 align-top">
                                   {sample.result ? (
                                     <div className="flex items-center gap-2">
@@ -886,42 +847,6 @@ export function SessionsPage() {
                               </div>
                             )}
 
-                            <div className="grid gap-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Immediate Action</Label>
-                                <Textarea
-                                  value={sample.immediateAction || ''}
-                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateAction', e.target.value)}
-                                  placeholder="Document immediate action..."
-                                  rows={2}
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Immediate Action Date</Label>
-                                <Input
-                                  type="date"
-                                  value={sample.immediateActionDate || ''}
-                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateActionDate', e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Follow-Up Action</Label>
-                                <Textarea
-                                  value={sample.followUpAction || ''}
-                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpAction', e.target.value)}
-                                  placeholder="Document follow-up action..."
-                                  rows={2}
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Follow-Up Action Date</Label>
-                                <Input
-                                  type="date"
-                                  value={sample.followUpActionDate || ''}
-                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpActionDate', e.target.value)}
-                                />
-                              </div>
-                            </div>
                           </div>
                         )}
                       </div>
@@ -929,6 +854,50 @@ export function SessionsPage() {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-lg border p-4 space-y-3">
+                <h4 className="text-sm font-semibold">Corrective Actions (Session Summary)</h4>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Immediate Action</Label>
+                    <Textarea
+                      value={activeSession.header.immediateAction || ''}
+                      onChange={(e) => updateSessionCorrectiveField('immediateAction', e.target.value)}
+                      placeholder="Document immediate action..."
+                      rows={2}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Immediate Action Date</Label>
+                    <Input
+                      type="date"
+                      value={activeSession.header.immediateActionDate || ''}
+                      onChange={(e) => updateSessionCorrectiveField('immediateActionDate', e.target.value)}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Follow-Up Action</Label>
+                    <Textarea
+                      value={activeSession.header.followUpAction || ''}
+                      onChange={(e) => updateSessionCorrectiveField('followUpAction', e.target.value)}
+                      placeholder="Document follow-up action..."
+                      rows={2}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Follow-Up Action Date</Label>
+                    <Input
+                      type="date"
+                      value={activeSession.header.followUpActionDate || ''}
+                      onChange={(e) => updateSessionCorrectiveField('followUpActionDate', e.target.value)}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+              </div>
               
               {/* Session Actions */}
               {activeSession.header.status !== 'complete' && activeSession.samples.length > 0 && (

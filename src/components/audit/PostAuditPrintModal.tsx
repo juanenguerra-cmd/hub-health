@@ -411,6 +411,37 @@ export function PostAuditPrintModal({ open, onOpenChange, session, template }: P
             </div>
           )}
 
+          {/* Corrective Actions Summary */}
+          <div className="border border-black p-2 mb-4">
+            <h3 className="font-bold text-sm mb-2">Corrective Actions (Session Summary)</h3>
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-black p-1 text-left">Immediate Action</th>
+                  <th className="border border-black p-1 text-left w-28">Action Date</th>
+                  <th className="border border-black p-1 text-left">Follow-Up Action</th>
+                  <th className="border border-black p-1 text-left w-28">Follow-Up Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-black p-1">
+                    {session.header.immediateAction || '-'}
+                  </td>
+                  <td className="border border-black p-1 text-center">
+                    {session.header.immediateActionDate || '-'}
+                  </td>
+                  <td className="border border-black p-1">
+                    {session.header.followUpAction || '-'}
+                  </td>
+                  <td className="border border-black p-1 text-center">
+                    {session.header.followUpActionDate || '-'}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           {/* Signatures */}
           <div className="grid grid-cols-2 gap-8 mt-6">
             <div>
