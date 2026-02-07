@@ -252,11 +252,19 @@ export function saveAdminOwners(owners: AdminOwners): void {
 
 // Facility Name
 export function loadFacilityName(): string {
-  return localStorage.getItem(LS_KEYS.facilityName) || 'My Healthcare Facility';
+  try {
+    return localStorage.getItem(LS_KEYS.facilityName) || 'My Healthcare Facility';
+  } catch {
+    return 'My Healthcare Facility';
+  }
 }
 
 export function saveFacilityName(name: string): void {
-  localStorage.setItem(LS_KEYS.facilityName, name);
+  try {
+    localStorage.setItem(LS_KEYS.facilityName, name);
+  } catch {
+    // Ignore storage errors (e.g., blocked storage) to prevent runtime crashes.
+  }
 }
 
 // Facility Units - Hierarchical structure
