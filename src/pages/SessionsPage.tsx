@@ -3,6 +3,7 @@ import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -195,7 +196,11 @@ export function SessionsPage() {
       id: `smp_${Math.random().toString(16).slice(2, 10)}`,
       answers: {} as Record<string, string>,
       result: null,
-      staffAudited: ''
+      staffAudited: '',
+      immediateAction: '',
+      immediateActionDate: '',
+      followUpAction: '',
+      followUpActionDate: ''
     };
     
     const updated = {
@@ -239,6 +244,25 @@ export function SessionsPage() {
     setSessions(sessions.map(s => s.id === updated.id ? updated : s));
   };
 
+  const updateSampleCorrectiveField = (
+    sampleId: string,
+    field: 'immediateAction' | 'immediateActionDate' | 'followUpAction' | 'followUpActionDate',
+    value: string
+  ) => {
+    if (!activeSession) return;
+
+    const updated = {
+      ...activeSession,
+      samples: activeSession.samples.map(smp => {
+        if (smp.id !== sampleId) return smp;
+        return { ...smp, [field]: value };
+      })
+    };
+
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
   // Score a sample
   const scoreSample = (sampleId: string) => {
     if (!activeSession) return;
@@ -269,6 +293,22 @@ export function SessionsPage() {
     
     setActiveSession(updated);
     setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  const deleteSession = (sessionId: string) => {
+    const target = sessions.find(session => session.id === sessionId);
+    if (!target) return;
+    const confirmed = window.confirm(`Delete audit session ${target.header.sessionId}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    const updatedSessions = sessions.filter(session => session.id !== sessionId);
+    setSessions(updatedSessions);
+    if (activeSession?.id === sessionId) {
+      setActiveSession(null);
+    }
+    if (detailSession?.id === sessionId) {
+      setDetailSession(null);
+    }
   };
 
   // Complete session and generate QA actions
@@ -371,6 +411,8 @@ export function SessionsPage() {
     setEditingUnitSessionId(null);
     setEditUnitValue('');
   };
+
+  const isReadOnly = activeSession?.header.status === 'complete';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -497,6 +539,15 @@ export function SessionsPage() {
                 </CardDescription>
               </div>
               <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1 text-destructive hover:text-destructive"
+                  onClick={() => deleteSession(activeSession.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </Button>
                 <StatusBadge status={activeSession.header.status === 'complete' ? 'success' : 'warning'}>
                   {activeSession.header.status === 'complete' ? 'Complete' : 'In Progress'}
                 </StatusBadge>
@@ -521,156 +572,361 @@ export function SessionsPage() {
                   <p>No samples yet. Click "Add Sample" to begin.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {activeSession.samples.map((sample, idx) => (
-                    <div key={sample.id} className="border rounded-lg p-4 bg-muted/20">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium">Sample #{idx + 1}</h4>
-                        <div className="flex items-center gap-2">
-                          {sample.result && (
-                            <ComplianceIndicator rate={sample.result.pct} size="sm" showLabel={false} />
-                          )}
-                          {activeSession.header.status !== 'complete' && (
-                            <>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => scoreSample(sample.id)}
-                              >
-                                Score
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                onClick={() => deleteSample(sample.id)}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Staff Being Audited Field */}
-                      <div className="mb-3 max-w-xs">
-                        <Label className="text-xs text-muted-foreground">Staff Being Audited (Optional)</Label>
-                        <Input
-                          value={sample.staffAudited || ''}
-                          onChange={(e) => updateStaffAudited(sample.id, e.target.value)}
-                          placeholder="e.g., John Smith, RN"
-                          disabled={activeSession.header.status === 'complete'}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      
-                      {/* Questions Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {selectedTemplate.sampleQuestions.map(q => (
-                          <div key={q.key} className="space-y-1">
-                            <Label className="text-xs">
-                              {q.label}
-                              {q.required && <span className="text-destructive ml-1">*</span>}
-                            </Label>
-                            
-                            {q.type === 'patientCode' && (
-                              <Input
-                                value={sample.answers[q.key] || ''}
-                                onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
-                                placeholder="e.g., P123"
-                                disabled={activeSession.header.status === 'complete'}
-                              />
-                            )}
-                            
-                            {q.type === 'yn' && (
-                              <RadioGroup
-                                value={sample.answers[q.key] || ''}
-                                onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
-                                className="flex gap-4"
-                                disabled={activeSession.header.status === 'complete'}
-                              >
-                                <div className="flex items-center space-x-1">
-                                  <RadioGroupItem value="yes" id={`${sample.id}-${q.key}-yes`} />
-                                  <Label htmlFor={`${sample.id}-${q.key}-yes`} className="text-xs">Yes</Label>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <RadioGroupItem value="no" id={`${sample.id}-${q.key}-no`} />
-                                  <Label htmlFor={`${sample.id}-${q.key}-no`} className="text-xs">No</Label>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
-                                  <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-xs">N/A</Label>
-                                </div>
-                              </RadioGroup>
-                            )}
-                            
-                            {q.type === 'select' && q.options && (
-                              <Select
-                                value={sample.answers[q.key] || ''}
-                                onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
-                                disabled={activeSession.header.status === 'complete'}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {q.options.map(opt => (
-                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                            
-                            {q.type === 'text' && (
-                              <Input
-                                value={sample.answers[q.key] || ''}
-                                onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
-                                disabled={activeSession.header.status === 'complete'}
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Result display */}
-                      {sample.result && (
-                        <div className="mt-4 pt-3 border-t">
-                          <div className="flex items-center gap-4 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              {sample.result.pass ? (
-                                <CheckCircle2 className="w-5 h-5 text-success" />
-                              ) : (
-                                <XCircle className="w-5 h-5 text-error" />
-                              )}
-                              <span className="font-medium">
-                                {sample.result.pass ? 'PASS' : 'FAIL'} — {sample.result.pct}%
-                              </span>
-                            </div>
-                            
-                            {sample.result.criticalFails.length > 0 && (
-                              <StatusBadge status="error">
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                {sample.result.criticalFails.length} Critical
-                              </StatusBadge>
-                            )}
-                          </div>
-                          
-                          {sample.result.actionNeeded.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-xs text-muted-foreground mb-1">Action Needed:</p>
-                              <ul className="text-sm space-y-1">
-                                {sample.result.actionNeeded.map((a, i) => (
-                                  <li key={i} className="flex items-start gap-2">
-                                    <span className="text-error">•</span>
-                                    <span>{a.label} ({a.reason})</span>
-                                  </li>
+                <div className="space-y-6">
+                  <div className="hidden md:block">
+                    <div className="overflow-hidden rounded-lg border">
+                      <div className="max-h-[520px] overflow-auto">
+                        <table className="min-w-full text-sm">
+                          <thead className="sticky top-0 z-10 bg-muted">
+                            <tr className="text-left">
+                              <th className="px-2 py-2 font-semibold min-w-[80px]">Sample</th>
+                              <th className="px-2 py-2 font-semibold min-w-[180px]">Staff Audited</th>
+                              {selectedTemplate.sampleQuestions.map(q => (
+                                <th key={q.key} className="px-2 py-2 font-semibold min-w-[180px]">
+                                  {q.label}
+                                  {q.required && <span className="text-destructive ml-1">*</span>}
+                                </th>
+                              ))}
+                              <th className="px-2 py-2 font-semibold min-w-[200px]">Immediate Action</th>
+                              <th className="px-2 py-2 font-semibold min-w-[140px]">Action Date</th>
+                              <th className="px-2 py-2 font-semibold min-w-[200px]">Follow-Up Action</th>
+                              <th className="px-2 py-2 font-semibold min-w-[140px]">Follow-Up Date</th>
+                              <th className="px-2 py-2 font-semibold min-w-[140px]">Result</th>
+                              <th className="px-2 py-2 font-semibold min-w-[120px] text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activeSession.samples.map((sample, idx) => (
+                              <tr key={sample.id} className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                                <td className="px-2 py-2 font-medium">#{idx + 1}</td>
+                                <td className="px-2 py-2">
+                                  <Input
+                                    value={sample.staffAudited || ''}
+                                    onChange={(e) => updateStaffAudited(sample.id, e.target.value)}
+                                    placeholder="e.g., John Smith, RN"
+                                    disabled={isReadOnly}
+                                    className="h-8 text-xs"
+                                  />
+                                </td>
+                                {selectedTemplate.sampleQuestions.map(q => (
+                                  <td key={q.key} className="px-2 py-2 align-top">
+                                    {q.type === 'patientCode' && (
+                                      <Input
+                                        value={sample.answers[q.key] || ''}
+                                        onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
+                                        placeholder="e.g., P123"
+                                        disabled={isReadOnly}
+                                        className="h-8 text-xs"
+                                      />
+                                    )}
+                                    {q.type === 'yn' && (
+                                      <RadioGroup
+                                        value={sample.answers[q.key] || ''}
+                                        onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
+                                        className="flex gap-2"
+                                        disabled={isReadOnly}
+                                      >
+                                        <div className="flex items-center space-x-1">
+                                          <RadioGroupItem value="yes" id={`${sample.id}-${q.key}-yes`} />
+                                          <Label htmlFor={`${sample.id}-${q.key}-yes`} className="text-[11px]">Yes</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-1">
+                                          <RadioGroupItem value="no" id={`${sample.id}-${q.key}-no`} />
+                                          <Label htmlFor={`${sample.id}-${q.key}-no`} className="text-[11px]">No</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-1">
+                                          <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
+                                          <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-[11px]">N/A</Label>
+                                        </div>
+                                      </RadioGroup>
+                                    )}
+                                    {q.type === 'select' && q.options && (
+                                      <Select
+                                        value={sample.answers[q.key] || ''}
+                                        onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
+                                        disabled={isReadOnly}
+                                      >
+                                        <SelectTrigger className="h-8 text-xs">
+                                          <SelectValue placeholder="Select..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {q.options.map(opt => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                    {q.type === 'text' && (
+                                      <Input
+                                        value={sample.answers[q.key] || ''}
+                                        onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
+                                        disabled={isReadOnly}
+                                        className="h-8 text-xs"
+                                      />
+                                    )}
+                                  </td>
                                 ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                                <td className="px-2 py-2 align-top">
+                                  <Textarea
+                                    value={sample.immediateAction || ''}
+                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateAction', e.target.value)}
+                                    placeholder="Document immediate action..."
+                                    rows={2}
+                                    className="min-h-[56px] text-xs"
+                                  />
+                                </td>
+                                <td className="px-2 py-2 align-top">
+                                  <Input
+                                    type="date"
+                                    value={sample.immediateActionDate || ''}
+                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateActionDate', e.target.value)}
+                                    className="h-8 text-xs"
+                                  />
+                                </td>
+                                <td className="px-2 py-2 align-top">
+                                  <Textarea
+                                    value={sample.followUpAction || ''}
+                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpAction', e.target.value)}
+                                    placeholder="Document follow-up action..."
+                                    rows={2}
+                                    className="min-h-[56px] text-xs"
+                                  />
+                                </td>
+                                <td className="px-2 py-2 align-top">
+                                  <Input
+                                    type="date"
+                                    value={sample.followUpActionDate || ''}
+                                    onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpActionDate', e.target.value)}
+                                    className="h-8 text-xs"
+                                  />
+                                </td>
+                                <td className="px-2 py-2 align-top">
+                                  {sample.result ? (
+                                    <div className="flex items-center gap-2">
+                                      <ComplianceIndicator rate={sample.result.pct} size="sm" showLabel={false} />
+                                      <span className={`text-xs ${sample.result.pass ? 'text-success' : 'text-error'}`}>
+                                        {sample.result.pass ? 'Pass' : 'Fail'} {sample.result.pct}%
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">Not scored</span>
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 align-top text-right">
+                                  {!isReadOnly && (
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => scoreSample(sample.id)}
+                                      >
+                                        Score
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => deleteSample(sample.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                  <div className="block md:hidden space-y-4">
+                    {activeSession.samples.map((sample, idx) => (
+                      <div key={sample.id} className="border rounded-lg p-4 bg-muted/20">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium">Sample #{idx + 1}</h4>
+                          <div className="flex items-center gap-2">
+                            {sample.result && (
+                              <ComplianceIndicator rate={sample.result.pct} size="sm" showLabel={false} />
+                            )}
+                            {!isReadOnly && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => scoreSample(sample.id)}
+                                >
+                                  Score
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={() => deleteSample(sample.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Staff Being Audited Field */}
+                        <div className="mb-3 max-w-xs">
+                          <Label className="text-xs text-muted-foreground">Staff Being Audited (Optional)</Label>
+                          <Input
+                            value={sample.staffAudited || ''}
+                            onChange={(e) => updateStaffAudited(sample.id, e.target.value)}
+                            placeholder="e.g., John Smith, RN"
+                            disabled={isReadOnly}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        
+                        {/* Questions Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {selectedTemplate.sampleQuestions.map(q => (
+                            <div key={q.key} className="space-y-1">
+                              <Label className="text-xs">
+                                {q.label}
+                                {q.required && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              
+                              {q.type === 'patientCode' && (
+                                <Input
+                                  value={sample.answers[q.key] || ''}
+                                  onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
+                                  placeholder="e.g., P123"
+                                  disabled={isReadOnly}
+                                />
+                              )}
+                              
+                              {q.type === 'yn' && (
+                                <RadioGroup
+                                  value={sample.answers[q.key] || ''}
+                                  onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
+                                  className="flex gap-4"
+                                  disabled={isReadOnly}
+                                >
+                                  <div className="flex items-center space-x-1">
+                                    <RadioGroupItem value="yes" id={`${sample.id}-${q.key}-yes`} />
+                                    <Label htmlFor={`${sample.id}-${q.key}-yes`} className="text-xs">Yes</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <RadioGroupItem value="no" id={`${sample.id}-${q.key}-no`} />
+                                    <Label htmlFor={`${sample.id}-${q.key}-no`} className="text-xs">No</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
+                                    <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-xs">N/A</Label>
+                                  </div>
+                                </RadioGroup>
+                              )}
+                              
+                              {q.type === 'select' && q.options && (
+                                <Select
+                                  value={sample.answers[q.key] || ''}
+                                  onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
+                                  disabled={isReadOnly}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {q.options.map(opt => (
+                                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              
+                              {q.type === 'text' && (
+                                <Input
+                                  value={sample.answers[q.key] || ''}
+                                  onChange={(e) => updateSampleAnswer(sample.id, q.key, e.target.value)}
+                                  disabled={isReadOnly}
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Result display */}
+                        {sample.result && (
+                          <div className="mt-4 pt-3 border-t space-y-3">
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                {sample.result.pass ? (
+                                  <CheckCircle2 className="w-5 h-5 text-success" />
+                                ) : (
+                                  <XCircle className="w-5 h-5 text-error" />
+                                )}
+                                <span className="font-medium">
+                                  {sample.result.pass ? 'PASS' : 'FAIL'} — {sample.result.pct}%
+                                </span>
+                              </div>
+                              
+                              {sample.result.criticalFails.length > 0 && (
+                                <StatusBadge status="error">
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  {sample.result.criticalFails.length} Critical
+                                </StatusBadge>
+                              )}
+                            </div>
+                            
+                            {sample.result.actionNeeded.length > 0 && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Action Needed:</p>
+                                <ul className="text-sm space-y-1">
+                                  {sample.result.actionNeeded.map((a, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <span className="text-error">•</span>
+                                      <span>{a.label} ({a.reason})</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            <div className="grid gap-3">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Immediate Action</Label>
+                                <Textarea
+                                  value={sample.immediateAction || ''}
+                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateAction', e.target.value)}
+                                  placeholder="Document immediate action..."
+                                  rows={2}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Immediate Action Date</Label>
+                                <Input
+                                  type="date"
+                                  value={sample.immediateActionDate || ''}
+                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'immediateActionDate', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Follow-Up Action</Label>
+                                <Textarea
+                                  value={sample.followUpAction || ''}
+                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpAction', e.target.value)}
+                                  placeholder="Document follow-up action..."
+                                  rows={2}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Follow-Up Action Date</Label>
+                                <Input
+                                  type="date"
+                                  value={sample.followUpActionDate || ''}
+                                  onChange={(e) => updateSampleCorrectiveField(sample.id, 'followUpActionDate', e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               
@@ -893,6 +1149,14 @@ export function SessionsPage() {
                     Print
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => deleteSession(detailSession.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
                 <Button
                   size="sm"
                   onClick={() => {

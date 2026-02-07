@@ -139,7 +139,11 @@ function convertSession(legacy: LegacySession): AuditSession {
       actionNeeded: s.result.actionNeeded || [],
       max: s.result.max,
       got: s.result.got
-    }
+    },
+    immediateAction: '',
+    immediateActionDate: '',
+    followUpAction: '',
+    followUpActionDate: ''
   }));
 
   return {
