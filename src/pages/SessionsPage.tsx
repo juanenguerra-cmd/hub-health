@@ -18,6 +18,7 @@ import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/type
 import { getAllUnitOptions } from '@/types/facility-units';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 import { PostAuditPrintModal } from '@/components/audit/PostAuditPrintModal';
+import { findMatchingCompetencies } from '@/lib/competency-library';
 import { cn } from '@/lib/utils';
 import { 
   Play, 
@@ -25,6 +26,7 @@ import {
   CheckCircle2, 
   XCircle,
   AlertTriangle,
+  GraduationCap,
   Plus,
   Trash2,
   Eye,
@@ -412,6 +414,16 @@ export function SessionsPage() {
   };
 
   const isReadOnly = activeSession?.header.status === 'complete';
+  const actionItemsWithRecommendations = activeSession
+    ? activeSession.samples.flatMap((sample, sampleIndex) =>
+        (sample.result?.actionNeeded || []).map(action => ({
+          action,
+          sample,
+          sampleIndex,
+          competencies: findMatchingCompetencies(action.label, action.reason)
+        }))
+      )
+    : [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -854,6 +866,58 @@ export function SessionsPage() {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-warning" />
+                  <h4 className="text-sm font-semibold">Action Items with Competency Recommendations</h4>
+                </div>
+                {actionItemsWithRecommendations.length > 0 ? (
+                  <div className="space-y-3">
+                    {actionItemsWithRecommendations.map((item, idx) => (
+                      <div key={`${item.sample.id}-${item.action.key}-${idx}`} className="rounded-md border bg-muted/20 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span>Sample #{item.sampleIndex + 1}</span>
+                          <span>{item.sample.staffAudited ? `Staff: ${item.sample.staffAudited}` : 'Staff: N/A'}</span>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-sm font-medium">{item.action.label}</p>
+                          <p className="text-xs text-muted-foreground">{item.action.reason}</p>
+                        </div>
+                        <div className="mt-3">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                            <GraduationCap className="h-4 w-4 text-primary" />
+                            Recommended Competencies (MASTERED.IT)
+                          </div>
+                          {item.competencies.length > 0 ? (
+                            <div className="mt-2 space-y-1 text-xs">
+                              {item.competencies.slice(0, 3).map((comp, compIndex) => (
+                                <div key={`${comp.id}-${compIndex}`} className="flex items-start gap-2">
+                                  <span className="text-primary">•</span>
+                                  <span>
+                                    [{comp.code}] {comp.title}
+                                  </span>
+                                </div>
+                              ))}
+                              {item.competencies.length > 3 && (
+                                <p className="text-muted-foreground">
+                                  +{item.competencies.length - 3} more matching competencies
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs text-muted-foreground">No matching competencies yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No action items yet. Score samples to see recommendations in real time.
+                  </p>
+                )}
+              </div>
 
               <div className="rounded-lg border p-4 space-y-3">
                 <h4 className="text-sm font-semibold">Corrective Actions (Session Summary)</h4>
