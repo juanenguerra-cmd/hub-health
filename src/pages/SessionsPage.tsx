@@ -19,7 +19,7 @@ import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/type
 import { getAllUnitOptions } from '@/types/facility-units';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 import { PostAuditPrintModal } from '@/components/audit/PostAuditPrintModal';
-import { getCompetencyRecommendations } from '@/lib/competency-library';
+import { findMatchingCompetencies, getCompetencyRecommendations } from '@/lib/competency-library';
 import { cn } from '@/lib/utils';
 import { 
   Play, 
