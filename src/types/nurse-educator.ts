@@ -64,6 +64,10 @@ export interface AuditSample {
   answers: Record<string, string>;
   result: SampleResult;
   staffAudited?: string; // Optional: staff member being audited for this sample
+  immediateAction?: string;
+  immediateActionDate?: string;
+  followUpAction?: string;
+  followUpActionDate?: string;
 }
 
 export interface SampleResult {
