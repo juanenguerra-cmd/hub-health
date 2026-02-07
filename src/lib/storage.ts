@@ -36,33 +36,80 @@ const DEFAULT_OWNERS: AdminOwners = {
   admin: 'Administrator'
 };
 
+const DEFAULT_TEMPLATE: Omit<AuditTemplate, 'id' | 'title'> = {
+  version: '1.0.0',
+  category: 'Uncategorized',
+  placementTags: [],
+  ftagTags: [],
+  nydohTags: [],
+  purpose: {
+    summary: '',
+    risk: '',
+    evidenceToShow: ''
+  },
+  references: [],
+  passingThreshold: 100,
+  criticalFailKeys: [],
+  sessionQuestions: [],
+  sampleQuestions: [],
+  archived: false,
+  archivedAt: '',
+  archivedBy: '',
+  replacedByTemplateId: ''
+};
+
+const normalizeTemplate = (template: Partial<AuditTemplate>, index: number): AuditTemplate => {
+  return {
+    ...DEFAULT_TEMPLATE,
+    ...template,
+    id: template.id || `legacy_template_${index + 1}`,
+    title: template.title || 'Untitled Audit Template',
+    purpose: {
+      ...DEFAULT_TEMPLATE.purpose,
+      ...template.purpose
+    },
+    placementTags: Array.isArray(template.placementTags) ? template.placementTags : [],
+    ftagTags: Array.isArray(template.ftagTags) ? template.ftagTags : [],
+    nydohTags: Array.isArray(template.nydohTags) ? template.nydohTags : [],
+    references: Array.isArray(template.references) ? template.references : [],
+    criticalFailKeys: Array.isArray(template.criticalFailKeys) ? template.criticalFailKeys : [],
+    sessionQuestions: Array.isArray(template.sessionQuestions) ? template.sessionQuestions : [],
+    sampleQuestions: Array.isArray(template.sampleQuestions) ? template.sampleQuestions : []
+  };
+};
+
 // Templates - merge seed templates with user data to ensure new templates are available
 export function loadTemplates(): AuditTemplate[] {
   try {
     const raw = localStorage.getItem(LS_KEYS.templates);
     if (!raw) {
-      saveTemplates(SEED_TEMPLATES);
-      return SEED_TEMPLATES;
+      const seeded = SEED_TEMPLATES.map((template, index) => normalizeTemplate(template, index));
+      saveTemplates(seeded);
+      return seeded;
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      saveTemplates(SEED_TEMPLATES);
-      return SEED_TEMPLATES;
+      const seeded = SEED_TEMPLATES.map((template, index) => normalizeTemplate(template, index));
+      saveTemplates(seeded);
+      return seeded;
     }
+
+    const normalizedParsed = parsed.map((template, index) => normalizeTemplate(template, index));
     
     // Merge: keep user's existing templates, add any new seed templates they don't have
-    const existingIds = new Set(parsed.map((t: AuditTemplate) => t.id));
-    const newSeedTemplates = SEED_TEMPLATES.filter(t => !existingIds.has(t.id));
+    const existingIds = new Set(normalizedParsed.map((t: AuditTemplate) => t.id));
+    const newSeedTemplates = SEED_TEMPLATES.filter(t => !existingIds.has(t.id))
+      .map((template, index) => normalizeTemplate(template, normalizedParsed.length + index));
     
     if (newSeedTemplates.length > 0) {
-      const merged = [...parsed, ...newSeedTemplates];
+      const merged = [...normalizedParsed, ...newSeedTemplates];
       saveTemplates(merged);
       return merged;
     }
     
-    return parsed;
+    return normalizedParsed;
   } catch {
-    return SEED_TEMPLATES;
+    return SEED_TEMPLATES.map((template, index) => normalizeTemplate(template, index));
   }
 }
 
