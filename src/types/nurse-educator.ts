@@ -56,6 +56,10 @@ export interface SessionHeader {
   auditDate: string;
   auditor: string;
   unit: string;
+  immediateAction?: string;
+  immediateActionDate?: string;
+  followUpAction?: string;
+  followUpActionDate?: string;
   [key: string]: string;
 }
 
