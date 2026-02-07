@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Printer, X, CheckCircle2, XCircle, AlertTriangle, GraduationCap } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import type { AuditSession, AuditTemplate } from '@/types/nurse-educator';
-import { findMatchingCompetencies } from '@/lib/competency-library';
+import { getCompetencyRecommendations } from '@/lib/competency-library';
 
 interface PrintableAuditReportProps {
   open: boolean;
@@ -32,18 +32,25 @@ export function PrintableAuditReport({ open, onOpenChange, session, template }: 
     (sum, s) => sum + (s.result?.criticalFails?.length || 0), 
     0
   );
+  const actionItemSelections = new Map<string, string[]>(
+    (session.actionItemsWithRecommendations || [])
+      .filter(item => !item.deleted)
+      .map(item => [`${item.sampleId}-${item.actionKey}`, item.recommendedCompetencyIds ?? []])
+  );
 
   // Collect all action items with their competency recommendations
   const actionItemsWithCompetencies = session.samples.flatMap((sample, sIdx) => 
     (sample.result?.actionNeeded || []).map(action => {
-      const competencies = findMatchingCompetencies(action.label, '');
+      const selectedIds = actionItemSelections.get(`${sample.id}-${action.key}`);
+      const { matches, selected } = getCompetencyRecommendations(action.label, action.reason, selectedIds);
       return {
         sampleNum: sIdx + 1,
         patientCode: sample.answers.patient_code || 'N/A',
         staffAudited: sample.staffAudited || '',
         issue: action.label,
         reason: action.reason,
-        competencies: competencies.slice(0, 3)
+        competencies: selected,
+        hasMatches: matches.length > 0
       };
     })
   );
@@ -275,6 +282,8 @@ export function PrintableAuditReport({ open, onOpenChange, session, template }: 
                               </li>
                             ))}
                           </ul>
+                        ) : item.hasMatches ? (
+                          <span className="text-gray-500">No competencies selected</span>
                         ) : (
                           <span className="text-gray-500">No matching competencies</span>
                         )}

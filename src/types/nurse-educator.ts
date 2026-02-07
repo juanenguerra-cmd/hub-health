@@ -98,6 +98,7 @@ export interface EditableActionItem {
   label: string;
   reason: string;
   staffAudited?: string;
+  recommendedCompetencyIds?: string[];
   deleted?: boolean;
 }
 

@@ -293,6 +293,25 @@ export function findMatchingCompetencies(issueText: string, topicText: string = 
     .map(s => s.comp);
 }
 
+export function getCompetencyRecommendations(
+  issueText: string,
+  topicText: string = '',
+  selectedIds?: string[],
+  fallbackLimit: number = 3
+): { matches: CompetencySkill[]; selected: CompetencySkill[] } {
+  const matches = findMatchingCompetencies(issueText, topicText);
+  if (selectedIds !== undefined) {
+    return {
+      matches,
+      selected: matches.filter(comp => selectedIds.includes(comp.id))
+    };
+  }
+  return {
+    matches,
+    selected: matches.slice(0, fallbackLimit)
+  };
+}
+
 /**
  * Format competencies for notes field
  */
