@@ -7,7 +7,7 @@ import { Printer, X, CheckCircle2, XCircle, AlertTriangle, GraduationCap } from 
 import { useApp } from '@/contexts/AppContext';
 import { useState, useRef } from 'react';
 import type { AuditSession, AuditTemplate } from '@/types/nurse-educator';
-import { findMatchingCompetencies } from '@/lib/competency-library';
+import { getCompetencyRecommendations } from '@/lib/competency-library';
 
 interface PostAuditPrintModalProps {
   open: boolean;
@@ -35,6 +35,11 @@ export function PostAuditPrintModal({ open, onOpenChange, session, template }: P
   const criticalFailCount = session.samples.reduce(
     (sum, s) => sum + (s.result?.criticalFails?.length || 0), 
     0
+  );
+  const actionItemSelections = new Map<string, string[]>(
+    (session.actionItemsWithRecommendations || [])
+      .filter(item => !item.deleted)
+      .map(item => [`${item.sampleId}-${item.actionKey}`, item.recommendedCompetencyIds ?? []])
   );
 
   return (
@@ -349,7 +354,8 @@ export function PostAuditPrintModal({ open, onOpenChange, session, template }: P
                 <tbody>
                   {session.samples.flatMap((sample, sIdx) => 
                     (sample.result?.actionNeeded || []).map((action, aIdx) => {
-                      const competencies = findMatchingCompetencies(action.label, '');
+                      const selectedIds = actionItemSelections.get(`${sample.id}-${action.key}`);
+                      const { matches, selected } = getCompetencyRecommendations(action.label, action.reason, selectedIds);
                       return (
                         <tr key={`${sIdx}-${aIdx}`}>
                           <td className="border border-black p-1">
@@ -364,18 +370,17 @@ export function PostAuditPrintModal({ open, onOpenChange, session, template }: P
                             <span className="text-gray-600">{action.reason}</span>
                           </td>
                           <td className="border border-black p-1">
-                            {competencies.length > 0 ? (
+                            {selected.length > 0 ? (
                               <div className="space-y-0.5">
-                                {competencies.slice(0, 3).map((comp, cIdx) => (
+                                {selected.map((comp, cIdx) => (
                                   <div key={cIdx} className="flex items-start gap-1">
                                     <GraduationCap className="w-3 h-3 mt-0.5 flex-shrink-0" />
                                     <span>[{comp.code}] {comp.title}</span>
                                   </div>
                                 ))}
-                                {competencies.length > 3 && (
-                                  <span className="text-gray-500">+{competencies.length - 3} more</span>
-                                )}
                               </div>
+                            ) : matches.length > 0 ? (
+                              <span className="text-gray-500">No competencies selected</span>
                             ) : (
                               <span className="text-gray-400">No matching competencies</span>
                             )}

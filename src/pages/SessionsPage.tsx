@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -18,7 +19,7 @@ import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/type
 import { getAllUnitOptions } from '@/types/facility-units';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 import { PostAuditPrintModal } from '@/components/audit/PostAuditPrintModal';
-import { findMatchingCompetencies } from '@/lib/competency-library';
+import { getCompetencyRecommendations } from '@/lib/competency-library';
 import { cn } from '@/lib/utils';
 import { 
   Play, 
@@ -474,6 +475,22 @@ export function SessionsPage() {
     setSessions(sessions.map(s => s.id === updated.id ? updated : s));
   };
 
+  const toggleRecommendationCompetency = (id: string, competencyId: string) => {
+    if (!activeSession?.actionItemsWithRecommendations) return;
+    const updatedItems = activeSession.actionItemsWithRecommendations.map(item => {
+      if (item.id !== id) return item;
+      const { selected } = getCompetencyRecommendations(item.label, item.reason, item.recommendedCompetencyIds);
+      const selectedIds = selected.map(comp => comp.id);
+      const nextSelectedIds = selectedIds.includes(competencyId)
+        ? selectedIds.filter(currentId => currentId !== competencyId)
+        : [...selectedIds, competencyId];
+      return { ...item, recommendedCompetencyIds: nextSelectedIds };
+    });
+    const updated = { ...activeSession, actionItemsWithRecommendations: updatedItems };
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
   const deleteRecommendationItem = (id: string) => {
     if (!activeSession?.actionItemsWithRecommendations) return;
     const updatedItems = activeSession.actionItemsWithRecommendations.map(item =>
@@ -502,7 +519,8 @@ export function SessionsPage() {
   const renderRecommendationItems = (session: AuditSession) => {
     const items = getEditableRecommendationItems(session);
     return items.map((item, idx) => {
-      const competencies = findMatchingCompetencies(item.label, item.reason);
+      const { matches, selected } = getCompetencyRecommendations(item.label, item.reason, item.recommendedCompetencyIds);
+      const selectedIds = selected.map(comp => comp.id);
       return (
         <div key={`${item.sampleId}-${item.actionKey}-${idx}`} className="rounded-md border bg-muted/20 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -536,20 +554,26 @@ export function SessionsPage() {
                 <GraduationCap className="h-4 w-4 text-primary" />
                 Recommended Competencies (MASTERED.IT)
               </div>
-              {competencies.length > 0 ? (
-                <div className="mt-2 space-y-1 text-xs">
-                  {competencies.slice(0, 3).map((comp, compIndex) => (
-                    <div key={`${comp.id}-${compIndex}`} className="flex items-start gap-2">
-                      <span className="text-primary">•</span>
-                      <span>
-                        [{comp.code}] {comp.title}
-                      </span>
-                    </div>
-                  ))}
-                  {competencies.length > 3 && (
-                    <p className="text-muted-foreground">
-                      +{competencies.length - 3} more matching competencies
-                    </p>
+              {matches.length > 0 ? (
+                <div className="mt-2 space-y-2 text-xs">
+                  <p className="text-muted-foreground">Select the competencies that apply.</p>
+                  <div className="space-y-1">
+                    {matches.map((comp) => (
+                      <label key={comp.id} className="flex items-start gap-2">
+                        <Checkbox
+                          checked={selectedIds.includes(comp.id)}
+                          onCheckedChange={() => toggleRecommendationCompetency(item.id, comp.id)}
+                          disabled={isReadOnly}
+                          aria-label={`Select competency ${comp.title}`}
+                        />
+                        <span className={cn("leading-5", selectedIds.includes(comp.id) ? "text-foreground" : "text-muted-foreground")}>
+                          [{comp.code}] {comp.title}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedIds.length === 0 && (
+                    <p className="text-muted-foreground">No competencies selected.</p>
                   )}
                 </div>
               ) : (
