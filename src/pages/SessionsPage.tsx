@@ -278,18 +278,23 @@ export function SessionsPage() {
         return { ...smp, result };
       })
     };
-    
-    setActiveSession(updated);
-    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+    const next = ensureEditableActionItems(updated, getActionItemsForSession(updated));
+
+    setActiveSession(next);
+    setSessions(sessions.map(s => s.id === next.id ? next : s));
   };
 
   // Delete a sample
   const deleteSample = (sampleId: string) => {
     if (!activeSession) return;
     
+    const updatedSamples = activeSession.samples.filter(smp => smp.id !== sampleId);
     const updated = {
       ...activeSession,
-      samples: activeSession.samples.filter(smp => smp.id !== sampleId)
+      samples: updatedSamples,
+      actionItemsWithRecommendations: activeSession.actionItemsWithRecommendations?.filter(
+        item => item.sampleId !== sampleId
+      )
     };
     
     setActiveSession(updated);
@@ -414,16 +419,159 @@ export function SessionsPage() {
   };
 
   const isReadOnly = activeSession?.header.status === 'complete';
-  const actionItemsWithRecommendations = activeSession
-    ? activeSession.samples.flatMap((sample, sampleIndex) =>
-        (sample.result?.actionNeeded || []).map(action => ({
-          action,
-          sample,
-          sampleIndex,
-          competencies: findMatchingCompetencies(action.label, action.reason)
-        }))
-      )
-    : [];
+  const getActionItemsForSession = (session: AuditSession | null) => (
+    session
+      ? session.samples.flatMap((sample, sampleIndex) =>
+          (sample.result?.actionNeeded || []).map(action => ({
+            action,
+            sample,
+            sampleIndex,
+            competencies: findMatchingCompetencies(action.label, action.reason)
+          }))
+        )
+      : []
+  );
+
+  const actionItemsWithRecommendations = getActionItemsForSession(activeSession);
+
+  const ensureEditableActionItems = (session: AuditSession, items = actionItemsWithRecommendations) => {
+    if (items.length === 0) return session;
+    const existing = session.actionItemsWithRecommendations || [];
+    const existingKeys = new Set(existing.map(item => `${item.sampleId}-${item.actionKey}`));
+    const additions = items
+      .filter(item => !existingKeys.has(`${item.sample.id}-${item.action.key}`))
+      .map(item => ({
+        id: `act_${Math.random().toString(16).slice(2, 10)}`,
+        sampleId: item.sample.id,
+        sampleIndex: item.sampleIndex,
+        actionKey: item.action.key,
+        label: item.action.label,
+        reason: item.action.reason,
+        staffAudited: item.sample.staffAudited || ''
+      }));
+    if (additions.length === 0 && existing.length > 0) return session;
+    return {
+      ...session,
+      actionItemsWithRecommendations: [...existing, ...additions]
+    };
+  };
+
+  useEffect(() => {
+    if (!activeSession) return;
+    if (actionItemsWithRecommendations.length === 0) return;
+    const updated = ensureEditableActionItems(activeSession);
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  }, [activeSession, actionItemsWithRecommendations.length, sessions, setSessions]);
+
+  const updateRecommendationItem = (id: string, field: 'label' | 'reason', value: string) => {
+    if (!activeSession?.actionItemsWithRecommendations) return;
+    const updatedItems = activeSession.actionItemsWithRecommendations.map(item =>
+      item.id === id ? { ...item, [field]: value } : item
+    );
+    const updated = { ...activeSession, actionItemsWithRecommendations: updatedItems };
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  const deleteRecommendationItem = (id: string) => {
+    if (!activeSession?.actionItemsWithRecommendations) return;
+    const updatedItems = activeSession.actionItemsWithRecommendations.map(item =>
+      item.id === id ? { ...item, deleted: true } : item
+    );
+    const updated = { ...activeSession, actionItemsWithRecommendations: updatedItems };
+    setActiveSession(updated);
+    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+  };
+
+  const getEditableRecommendationItems = (session: AuditSession, items = actionItemsWithRecommendations) => {
+    if (session.actionItemsWithRecommendations?.length) {
+      return session.actionItemsWithRecommendations.filter(item => !item.deleted);
+    }
+    return items.map(item => ({
+      id: `tmp_${item.sample.id}_${item.action.key}`,
+      sampleId: item.sample.id,
+      sampleIndex: item.sampleIndex,
+      actionKey: item.action.key,
+      label: item.action.label,
+      reason: item.action.reason,
+      staffAudited: item.sample.staffAudited || ''
+    }));
+  };
+
+  const renderRecommendationItems = (session: AuditSession) => {
+    const items = getEditableRecommendationItems(session);
+    return items.map((item, idx) => {
+      const competencies = findMatchingCompetencies(item.label, item.reason);
+      return (
+        <div key={`${item.sampleId}-${item.actionKey}-${idx}`} className="rounded-md border bg-muted/20 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>Sample #{item.sampleIndex + 1}</span>
+            <span>{item.staffAudited ? `Staff: ${item.staffAudited}` : 'Staff: N/A'}</span>
+          </div>
+          <div className="mt-3 space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Action Item</Label>
+              <Input
+                value={item.label}
+                onChange={(event) => updateRecommendationItem(item.id, 'label', event.target.value)}
+                placeholder="Action item"
+                disabled={isReadOnly}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Reason</Label>
+              <Textarea
+                value={item.reason}
+                onChange={(event) => updateRecommendationItem(item.id, 'reason', event.target.value)}
+                placeholder="Reason"
+                rows={2}
+                disabled={isReadOnly}
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <GraduationCap className="h-4 w-4 text-primary" />
+                Recommended Competencies (MASTERED.IT)
+              </div>
+              {competencies.length > 0 ? (
+                <div className="mt-2 space-y-1 text-xs">
+                  {competencies.slice(0, 3).map((comp, compIndex) => (
+                    <div key={`${comp.id}-${compIndex}`} className="flex items-start gap-2">
+                      <span className="text-primary">•</span>
+                      <span>
+                        [{comp.code}] {comp.title}
+                      </span>
+                    </div>
+                  ))}
+                  {competencies.length > 3 && (
+                    <p className="text-muted-foreground">
+                      +{competencies.length - 3} more matching competencies
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">No matching competencies yet.</p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => deleteRecommendationItem(item.id)}
+              disabled={isReadOnly}
+            >
+              <Trash2 className="mr-1 h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -872,45 +1020,9 @@ export function SessionsPage() {
                   <AlertTriangle className="w-4 h-4 text-warning" />
                   <h4 className="text-sm font-semibold">Action Items with Competency Recommendations</h4>
                 </div>
-                {actionItemsWithRecommendations.length > 0 ? (
+                {activeSession && getEditableRecommendationItems(activeSession).length > 0 ? (
                   <div className="space-y-3">
-                    {actionItemsWithRecommendations.map((item, idx) => (
-                      <div key={`${item.sample.id}-${item.action.key}-${idx}`} className="rounded-md border bg-muted/20 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                          <span>Sample #{item.sampleIndex + 1}</span>
-                          <span>{item.sample.staffAudited ? `Staff: ${item.sample.staffAudited}` : 'Staff: N/A'}</span>
-                        </div>
-                        <div className="mt-2">
-                          <p className="text-sm font-medium">{item.action.label}</p>
-                          <p className="text-xs text-muted-foreground">{item.action.reason}</p>
-                        </div>
-                        <div className="mt-3">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                            <GraduationCap className="h-4 w-4 text-primary" />
-                            Recommended Competencies (MASTERED.IT)
-                          </div>
-                          {item.competencies.length > 0 ? (
-                            <div className="mt-2 space-y-1 text-xs">
-                              {item.competencies.slice(0, 3).map((comp, compIndex) => (
-                                <div key={`${comp.id}-${compIndex}`} className="flex items-start gap-2">
-                                  <span className="text-primary">•</span>
-                                  <span>
-                                    [{comp.code}] {comp.title}
-                                  </span>
-                                </div>
-                              ))}
-                              {item.competencies.length > 3 && (
-                                <p className="text-muted-foreground">
-                                  +{item.competencies.length - 3} more matching competencies
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="mt-2 text-xs text-muted-foreground">No matching competencies yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                    {activeSession && renderRecommendationItems(activeSession)}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">

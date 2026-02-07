@@ -48,6 +48,7 @@ export interface AuditSession {
   createdAt: string;
   header: SessionHeader;
   samples: AuditSample[];
+  actionItemsWithRecommendations?: EditableActionItem[];
 }
 
 export interface SessionHeader {
@@ -87,6 +88,17 @@ export interface ActionItem {
   key: string;
   label: string;
   reason: string;
+}
+
+export interface EditableActionItem {
+  id: string;
+  sampleId: string;
+  sampleIndex: number;
+  actionKey: string;
+  label: string;
+  reason: string;
+  staffAudited?: string;
+  deleted?: boolean;
 }
 
 export interface QaAction {
