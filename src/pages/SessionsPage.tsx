@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
+import { AuditTable } from '@/components/audit/AuditTable';
+import { AuditCards } from '@/components/audit/AuditCards';
 import { computeSampleResult, todayYMD, nowISO } from '@/lib/calculations';
 import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/types/nurse-educator';
 import { getAllUnitOptions } from '@/types/facility-units';
@@ -22,10 +24,7 @@ import {
   CheckCircle2, 
   XCircle,
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   Plus,
-  Save,
   Trash2,
   Eye,
   Printer,
@@ -54,7 +53,7 @@ export function SessionsPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [activeSession, setActiveSession] = useState<AuditSession | null>(null);
   const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
-  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [detailSession, setDetailSession] = useState<AuditSession | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   
@@ -131,6 +130,21 @@ export function SessionsPage() {
     }
     return true;
   }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const sessionSummaries = filteredSessions.map(session => {
+    const scoredSamples = session.samples.filter(smp => smp.result);
+    const passingCount = scoredSamples.filter(smp => smp.result?.pass).length;
+    const totalSamples = scoredSamples.length;
+    const complianceRate = totalSamples > 0 ? Math.round((passingCount / totalSamples) * 100) : 0;
+    const isPass = session.header.status === 'complete' && totalSamples > 0 && passingCount === totalSamples;
+    return { session, complianceRate, isPass, totalSamples };
+  });
+  const totalAudits = filteredSessions.length;
+  const avgScore = sessionSummaries.length
+    ? Math.round(sessionSummaries.reduce((acc, item) => acc + item.complianceRate, 0) / sessionSummaries.length)
+    : 0;
+  const passCount = sessionSummaries.filter(item => item.isPass).length;
+  const needsReviewCount = totalAudits - passCount;
 
   // Start a new session
   const startNewSession = () => {
@@ -328,17 +342,6 @@ export function SessionsPage() {
     setActiveSession(null);
   };
 
-  // Toggle session expansion
-  const toggleSession = (id: string) => {
-    const newSet = new Set(expandedSessions);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setExpandedSessions(newSet);
-  };
-
   // Open session for viewing/editing
   const openSession = (session: AuditSession) => {
     setSelectedTemplateId(session.templateId);
@@ -359,14 +362,12 @@ export function SessionsPage() {
     setEditUnitValue('');
   };
 
-  const startEditingUnit = (session: AuditSession, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const startEditingUnit = (session: AuditSession) => {
     setEditingUnitSessionId(session.id);
     setEditUnitValue(session.header.unit || '');
   };
 
-  const cancelEditUnit = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const cancelEditUnit = () => {
     setEditingUnitSessionId(null);
     setEditUnitValue('');
   };
@@ -729,6 +730,21 @@ export function SessionsPage() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
+            <span>
+              Total: <strong className="text-foreground">{totalAudits}</strong>
+            </span>
+            <span>
+              Avg: <strong className="text-foreground">{avgScore}%</strong>
+            </span>
+            <span>
+              Pass: <strong className="text-foreground">{passCount}</strong>
+            </span>
+            <span>
+              Needs Review: <strong className="text-foreground">{needsReviewCount}</strong>
+            </span>
+          </div>
           
           {/* Session List */}
           {filteredSessions.length === 0 ? (
@@ -737,160 +753,161 @@ export function SessionsPage() {
               <p>No audit sessions found</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredSessions.slice(0, 20).map(session => {
-                const isExpanded = expandedSessions.has(session.id);
-                const passingCount = session.samples.filter(s => s.result?.pass).length;
-                const totalSamples = session.samples.length;
-                const complianceRate = totalSamples > 0 ? Math.round((passingCount / totalSamples) * 100) : 0;
-                
-                return (
-                  <div key={session.id} className="border rounded-lg overflow-hidden">
-                    <div 
-                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/50"
-                      onClick={() => toggleSession(session.id)}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{session.templateTitle}</span>
-                          <StatusBadge 
-                            status={session.header.status === 'complete' ? 'success' : 'warning'}
-                          >
-                            {session.header.status === 'complete' ? 'Complete' : 'In Progress'}
-                          </StatusBadge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {session.header.sessionId} • Unit: {session.header.unit || 'N/A'} • 
-                          {session.header.auditDate}
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{totalSamples} samples</p>
-                          {totalSamples > 0 && (
-                            <ComplianceIndicator rate={complianceRate} size="sm" showLabel={false} />
-                          )}
-                        </div>
-                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </div>
-                    </div>
-                    
-                    {isExpanded && (
-                      <div className="border-t p-4 bg-muted/20 space-y-3">
-                        {/* Editable Unit Row */}
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Unit:</span>
-                            {editingUnitSessionId === session.id ? (
-                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      className="w-[180px] justify-between h-8 text-sm"
-                                    >
-                                      {editUnitValue || "Select unit..."}
-                                      <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-[200px] p-0" align="start">
-                                    <Command>
-                                      <CommandInput 
-                                        placeholder="Search or type..." 
-                                        value={editUnitValue}
-                                        onValueChange={setEditUnitValue}
-                                      />
-                                      <CommandList>
-                                        <CommandEmpty>
-                                          <span className="text-muted-foreground text-xs">Use "{editUnitValue}"</span>
-                                        </CommandEmpty>
-                                        <CommandGroup>
-                                          {allUnits.map(unitName => (
-                                            <CommandItem
-                                              key={unitName}
-                                              value={unitName}
-                                              onSelect={(value) => setEditUnitValue(value)}
-                                            >
-                                              <Check className={cn("mr-2 h-3 w-3", editUnitValue === unitName ? "opacity-100" : "opacity-0")} />
-                                              {unitName}
-                                            </CommandItem>
-                                          ))}
-                                        </CommandGroup>
-                                      </CommandList>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
-                                <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => { e.stopPropagation(); handleUpdateSessionUnit(session.id); }}>
-                                  <Check className="h-4 w-4 text-success" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-8 px-2" onClick={cancelEditUnit}>
-                                  <XCircle className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">{session.header.unit || 'N/A'}</span>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => startEditingUnit(session, e)}
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-sm text-muted-foreground">Auditor: {session.header.auditor}</span>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-sm text-muted-foreground">Created: {new Date(session.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          {session.header.status === 'complete' && (
-                            <Button size="sm" variant="outline" onClick={() => setPrintPostAuditSession(session)}>
-                              <Printer className="w-4 h-4 mr-1" />
-                              Print
-                            </Button>
-                          )}
-                          <Button size="sm" onClick={() => openSession(session)}>
-                            <Eye className="w-4 h-4 mr-1" />
-                            {session.header.status === 'complete' ? 'View' : 'Continue'}
-                          </Button>
-                        </div>
-                        
-                        {session.samples.length > 0 && (
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t">
-                            {session.samples.slice(0, 8).map((smp, idx) => (
-                              <div 
-                                key={smp.id} 
-                                className={`text-xs p-2 rounded border ${
-                                  smp.result?.pass 
-                                    ? 'bg-success/10 border-success/30' 
-                                    : smp.result 
-                                      ? 'bg-error/10 border-error/30' 
-                                      : 'bg-muted'
-                                }`}
-                              >
-                                Sample #{idx + 1}: {smp.result ? `${smp.result.pct}%` : 'Not scored'}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div>
+              <div className="hidden md:block">
+                <AuditTable
+                  audits={filteredSessions.slice(0, 20)}
+                  onView={(session) => setDetailSession(session)}
+                />
+              </div>
+              <div className="block md:hidden">
+                <AuditCards
+                  audits={filteredSessions.slice(0, 20)}
+                  onView={(session) => setDetailSession(session)}
+                />
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!detailSession} onOpenChange={(open) => !open && setDetailSession(null)}>
+        <DialogContent className="max-w-3xl">
+          {detailSession && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {detailSession.templateTitle}
+                  <StatusBadge status={detailSession.header.status === 'complete' ? 'success' : 'warning'}>
+                    {detailSession.header.status === 'complete' ? 'Complete' : 'In Progress'}
+                  </StatusBadge>
+                </DialogTitle>
+                <DialogDescription>
+                  Session {detailSession.header.sessionId} • {detailSession.header.auditDate}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
+                <div>
+                  <span className="text-xs uppercase tracking-wide">Unit</span>
+                  <div className="mt-1 flex items-center gap-2">
+                    {editingUnitSessionId === detailSession.id ? (
+                      <div className="flex items-center gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-[180px] justify-between h-8 text-sm"
+                            >
+                              {editUnitValue || "Select unit..."}
+                              <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[200px] p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Search or type..."
+                                value={editUnitValue}
+                                onValueChange={setEditUnitValue}
+                              />
+                              <CommandList>
+                                <CommandEmpty>
+                                  <span className="text-muted-foreground text-xs">Use "{editUnitValue}"</span>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {allUnits.map(unitName => (
+                                    <CommandItem
+                                      key={unitName}
+                                      value={unitName}
+                                      onSelect={(value) => setEditUnitValue(value)}
+                                    >
+                                      <Check className={cn("mr-2 h-3 w-3", editUnitValue === unitName ? "opacity-100" : "opacity-0")} />
+                                      {unitName}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => handleUpdateSessionUnit(detailSession.id)}>
+                          <Check className="h-4 w-4 text-success" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={cancelEditUnit}>
+                          <XCircle className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">{detailSession.header.unit || 'N/A'}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() => startEditingUnit(detailSession)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs uppercase tracking-wide">Auditor</span>
+                  <p className="mt-1 text-foreground">{detailSession.header.auditor}</p>
+                </div>
+                <div>
+                  <span className="text-xs uppercase tracking-wide">Created</span>
+                  <p className="mt-1 text-foreground">{new Date(detailSession.createdAt).toLocaleString()}</p>
+                </div>
+                <div>
+                  <span className="text-xs uppercase tracking-wide">Samples</span>
+                  <p className="mt-1 text-foreground">{detailSession.samples.length}</p>
+                </div>
+              </div>
+
+              {detailSession.samples.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {detailSession.samples.slice(0, 8).map((smp, idx) => (
+                    <div
+                      key={smp.id}
+                      className={`text-xs p-2 rounded border ${
+                        smp.result?.pass
+                          ? 'bg-success/10 border-success/30'
+                          : smp.result
+                            ? 'bg-error/10 border-error/30'
+                            : 'bg-muted'
+                      }`}
+                    >
+                      Sample #{idx + 1}: {smp.result ? `${smp.result.pct}%` : 'Not scored'}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {detailSession.header.status === 'complete' && (
+                  <Button size="sm" variant="outline" onClick={() => setPrintPostAuditSession(detailSession)}>
+                    <Printer className="w-4 h-4 mr-1" />
+                    Print
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    openSession(detailSession);
+                    setDetailSession(null);
+                  }}
+                >
+                  <Eye className="w-4 h-4 mr-1" />
+                  {detailSession.header.status === 'complete' ? 'View' : 'Continue'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Print Pre-Audit Modal */}
       {printPreAuditTemplate && (
