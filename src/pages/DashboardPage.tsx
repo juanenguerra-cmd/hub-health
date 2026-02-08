@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   TrendingDown
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 export function DashboardPage() {
@@ -65,6 +66,44 @@ export function DashboardPage() {
   // Get unique units and tools for filters
   const units = ['All', ...Array.from(new Set(sessions.map(s => s.header?.unit).filter(Boolean))).sort()];
   const tools = ['All', ...Array.from(new Set(templates.map(t => t.title))).sort()];
+
+  const infographicSteps = useMemo(() => ([
+    {
+      id: 'assess',
+      title: 'Assess',
+      description: 'Capture real-time audits',
+      stat: `${summary.sessions}`,
+      statLabel: 'sessions completed',
+      icon: ClipboardCheck,
+      tone: 'primary',
+      recommendation: 'Expand rounding coverage to high-risk shifts and focus on repeat findings.',
+      insight: 'Audit volume drives clearer trends and faster escalation.',
+    },
+    {
+      id: 'act',
+      title: 'Act',
+      description: 'Close the loop on QA',
+      stat: `${qaStats.done}`,
+      statLabel: 'actions closed',
+      icon: ShieldCheck,
+      tone: 'success',
+      recommendation: 'Prioritize actions tied to critical fails and assign owners with due dates.',
+      insight: 'Timely closures reduce recurrence and keep compliance stable.',
+    },
+    {
+      id: 'improve',
+      title: 'Improve',
+      description: 'Lift compliance results',
+      stat: `${summary.compliance}%`,
+      statLabel: 'current compliance',
+      icon: TrendingDown,
+      tone: 'warning',
+      recommendation: 'Target in-services for the bottom two topics this month.',
+      insight: 'Training lifts sustained compliance and lowers critical failures.',
+    },
+  ]), [qaStats.done, summary.compliance, summary.sessions]);
+  const [activeInfographicStep, setActiveInfographicStep] = useState(infographicSteps[0]?.id ?? 'assess');
+  const activeStep = infographicSteps.find(step => step.id === activeInfographicStep) ?? infographicSteps[0];
 
   // Check if we have data
   const hasData = sessions.length > 0;
@@ -194,50 +233,69 @@ export function DashboardPage() {
           <CardDescription>How audits translate into safer outcomes</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="relative rounded-lg border border-border/60 bg-background/70 p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <ClipboardCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">Assess</p>
-                  <p className="text-xs text-muted-foreground">Capture real-time audits</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-2xl font-semibold">{summary.sessions}</span>
-                <span className="text-xs text-muted-foreground">sessions completed</span>
-              </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="grid gap-6 md:grid-cols-3">
+              {infographicSteps.map(step => {
+                const Icon = step.icon;
+                const isActive = step.id === activeStep?.id;
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setActiveInfographicStep(step.id)}
+                    className={`relative w-full rounded-lg border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                      isActive ? 'border-primary/60 bg-primary/10' : 'border-border/60 bg-background/70'
+                    }`}
+                    aria-pressed={isActive}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                          step.tone === 'primary'
+                            ? 'bg-primary/10 text-primary'
+                            : step.tone === 'success'
+                            ? 'bg-success/10 text-success'
+                            : 'bg-warning/10 text-warning'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{step.title}</p>
+                        <p className="text-xs text-muted-foreground">{step.description}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold">{step.stat}</span>
+                      <span className="text-xs text-muted-foreground">{step.statLabel}</span>
+                    </div>
+                    {isActive && (
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        {step.insight}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-            <div className="relative rounded-lg border border-border/60 bg-background/70 p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">Act</p>
-                  <p className="text-xs text-muted-foreground">Close the loop on QA</p>
-                </div>
+            <div className="rounded-lg border border-border/60 bg-background/80 p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recommendation</p>
+              <h3 className="mt-2 text-sm font-semibold">{activeStep?.title} focus</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{activeStep?.recommendation}</p>
+              <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                <strong className="text-foreground">Why it matters:</strong> {activeStep?.insight}
               </div>
-              <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-2xl font-semibold">{qaStats.done}</span>
-                <span className="text-xs text-muted-foreground">actions closed</span>
-              </div>
-            </div>
-            <div className="relative rounded-lg border border-border/60 bg-background/70 p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">
-                  <TrendingDown className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">Improve</p>
-                  <p className="text-xs text-muted-foreground">Lift compliance results</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-2xl font-semibold">{summary.compliance}%</span>
-                <span className="text-xs text-muted-foreground">current compliance</span>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {infographicSteps.map(step => (
+                  <Button
+                    key={`${step.id}-pill`}
+                    size="sm"
+                    variant={step.id === activeStep?.id ? 'default' : 'outline'}
+                    onClick={() => setActiveInfographicStep(step.id)}
+                  >
+                    {step.title}
+                  </Button>
+                ))}
               </div>
             </div>
           </div>
