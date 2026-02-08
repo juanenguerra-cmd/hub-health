@@ -1,5 +1,13 @@
 /// <reference types="@cloudflare/workers-types" />
 
+import {
+  getMigrationStatus,
+  getSqliteVersion,
+  listTables,
+  resolveEnvTag,
+  runD1HardCheck
+} from './lib/d1-health';
+
 type Env = {
   DB: D1Database;
 };
@@ -15,6 +23,7 @@ const jsonResponse = (data: unknown, init?: ResponseInit) =>
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const envTag = resolveEnvTag(env as Record<string, string | undefined>);
 
     if (url.pathname === "/api/health") {
       const errors: Array<{ step: string; type: string; message: string }> = [];
@@ -122,6 +131,50 @@ export default {
         read,
         errors,
       });
+    }
+
+    if (url.pathname === "/api/health/d1" && request.method === "GET") {
+      const result = await runD1HardCheck(env.DB, envTag);
+      const sqlite = env.DB ? await getSqliteVersion(env.DB) : { version: null };
+      const tables = env.DB ? await listTables(env.DB) : [];
+
+      return jsonResponse(
+        {
+          ok: result.ok,
+          envTag: result.envTag,
+          insertedId: result.insertedId,
+          readBackId: result.readBackId,
+          error: result.error,
+          sqlite_version: sqlite.version,
+          tables
+        },
+        { status: result.ok ? 200 : 500 }
+      );
+    }
+
+    if (url.pathname === "/api/health/d1/schema" && request.method === "GET") {
+      if (!env.DB) {
+        return jsonResponse(
+          {
+            ok: false,
+            envTag,
+            message: "missing DB binding"
+          },
+          { status: 200 }
+        );
+      }
+
+      const status = await getMigrationStatus(env.DB);
+
+      return jsonResponse(
+        {
+          ok: status.ok,
+          envTag,
+          message: status.message,
+          migrations: status.migrations ?? []
+        },
+        { status: 200 }
+      );
     }
 
     if (url.pathname === "/api/notes" && request.method === "GET") {
