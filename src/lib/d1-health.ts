@@ -16,6 +16,14 @@ type TableRow = {
   name: string;
 };
 
+type D1LivenessResult = {
+  ok: boolean;
+  tablesFound: string[];
+  writeOk: boolean;
+  readOk: boolean;
+  error?: string;
+};
+
 const getProcessEnv = (): Record<string, string | undefined> | undefined => {
   if (typeof process !== 'undefined' && process?.env) {
     return process.env as Record<string, string | undefined>;
@@ -92,6 +100,79 @@ export const runD1HardCheck = async (
     return {
       ok: false,
       envTag,
+      error: message
+    };
+  }
+};
+
+export const runD1LivenessCheck = async (
+  db: D1Database | undefined,
+  envTag: string,
+  expectedTables: string[]
+): Promise<D1LivenessResult> => {
+  if (!db) {
+    return {
+      ok: false,
+      tablesFound: [],
+      writeOk: false,
+      readOk: false,
+      error: 'missing DB binding'
+    };
+  }
+
+  try {
+    const placeholders = expectedTables.map((_, index) => `?${index + 1}`).join(', ');
+    const { results } = await db
+      .prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+      )
+      .bind(...expectedTables)
+      .all<TableRow>();
+
+    const tablesFound = (results ?? []).map((row) => row.name);
+    const schemaOk = tablesFound.length === expectedTables.length;
+
+    const insert = await db
+      .prepare('INSERT INTO __sync_probe (env) VALUES (?1)')
+      .bind(envTag)
+      .run();
+
+    const insertedId =
+      typeof insert.meta?.last_row_id === 'number' ? insert.meta.last_row_id : undefined;
+
+    const writeOk = Boolean(insertedId);
+    let readOk = false;
+
+    if (insertedId) {
+      const row = await db
+        .prepare('SELECT id, env FROM __sync_probe WHERE id = ?1')
+        .bind(insertedId)
+        .first<{ id: number; env: string }>();
+      readOk = Boolean(row && row.id === insertedId && row.env === envTag);
+    }
+
+    const ok = schemaOk && writeOk && readOk;
+
+    return {
+      ok,
+      tablesFound,
+      writeOk,
+      readOk,
+      error: ok
+        ? undefined
+        : !schemaOk
+          ? `missing tables: ${expectedTables.filter((table) => !tablesFound.includes(table)).join(', ')}`
+          : !writeOk
+            ? 'write failed'
+            : 'read failed'
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      tablesFound: [],
+      writeOk: false,
+      readOk: false,
       error: message
     };
   }
