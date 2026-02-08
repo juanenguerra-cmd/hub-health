@@ -79,6 +79,28 @@ Copy the `database_id` into `wrangler.toml`.
 npm run d1:migrate:local
 ```
 
+### 2b) Sync remote D1 database
+
+After verifying locally, apply migrations to the remote D1 database:
+
+```sh
+npm run d1:migrate:remote
+```
+
+This script runs `wrangler d1 migrations apply hub-health --remote` and then
+executes a verification query to confirm the `__sync_probe` table exists. The
+verification query is also available as a standalone command:
+
+```sh
+npm run d1:verify:remote
+```
+
+### 2c) GitHub Actions workflow (optional)
+
+You can also trigger the `D1 Remote Migrations` workflow in GitHub Actions. It
+expects `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets to be set
+with access to the `hub-health` D1 database.
+
 ### 3) Run the D1 sync health check (local)
 
 ```sh
