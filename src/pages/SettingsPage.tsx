@@ -1,15 +1,17 @@
-import { useState, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useApp } from '@/contexts/AppContext';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Upload, 
-  Download, 
-  FileJson, 
-  CheckCircle2, 
+// src/pages/SettingsPage.tsx
+import { useEffect, useRef, useState } from "react";
+import { isBackendAlive } from "@/lib/backend-health";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useApp } from "@/contexts/AppContext";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Upload,
+  Download,
+  FileJson,
+  CheckCircle2,
   AlertCircle,
   Building2,
   Database,
@@ -22,19 +24,19 @@ import {
   Cloud,
   Link2,
   ChevronDown,
-  ChevronRight
-} from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { BackupSettingsModal } from '@/components/BackupSettingsModal';
-import { loadBackupSettings, updateLastBackupTime } from '@/lib/backup-settings-storage';
-import { formatLastBackup } from '@/types/backup-settings';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import type { FacilityUnit } from '@/types/facility-units';
+  ChevronRight,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BackupSettingsModal } from "@/components/BackupSettingsModal";
+import { loadBackupSettings, updateLastBackupTime } from "@/lib/backup-settings-storage";
+import { formatLastBackup } from "@/types/backup-settings";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { FacilityUnit } from "@/types/facility-units";
 
 export function SettingsPage() {
-  const { 
-    facilityName, 
+  const {
+    facilityName,
     setFacilityName,
     facilityUnits,
     setFacilityUnits,
@@ -45,89 +47,130 @@ export function SettingsPage() {
     eduLibrary,
     restoreFromBackup,
     exportBackup,
-    loadDemoData
+    loadDemoData,
   } = useApp();
-  
+
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [restoreResult, setRestoreResult] = useState<{
     success: boolean;
     message: string;
     counts?: Record<string, number>;
   } | null>(null);
+
   const [isRestoring, setIsRestoring] = useState(false);
   const [showBackupSettings, setShowBackupSettings] = useState(false);
   const [backupSettings, setBackupSettings] = useState(() => loadBackupSettings());
-  const [oneDriveLocation, setOneDriveLocation] = useState('');
+
+  const [oneDriveLocation, setOneDriveLocation] = useState("");
   const [oneDriveConnected, setOneDriveConnected] = useState(false);
-  
+
+  // Sync status (Cloudflare backend / D1)
+  const [synced, setSynced] = useState<boolean | null>(null);
+  const [syncCheckedAt, setSyncCheckedAt] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   // Unit management state
-  const [newParentUnit, setNewParentUnit] = useState('');
+  const [newParentUnit, setNewParentUnit] = useState("");
   const [newWingInputs, setNewWingInputs] = useState<Record<string, string>>({});
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
+
+  const runSyncCheck = async () => {
+    setSynced(null);
+    setSyncError(null);
+
+    try {
+      const ok = await isBackendAlive();
+      setSynced(ok);
+      setSyncCheckedAt(new Date().toLocaleString());
+      if (!ok) setSyncError("Backend check returned not-ok. Verify /api route + D1 binding in production.");
+    } catch (e: any) {
+      setSynced(false);
+      setSyncCheckedAt(new Date().toLocaleString());
+      setSyncError(e?.message ?? "Sync check failed.");
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const ok = await isBackendAlive();
+        if (!mounted) return;
+        setSynced(ok);
+        setSyncCheckedAt(new Date().toLocaleString());
+      } catch (e: any) {
+        if (!mounted) return;
+        setSynced(false);
+        setSyncCheckedAt(new Date().toLocaleString());
+        setSyncError(e?.message ?? "Sync check failed.");
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setIsRestoring(true);
     setRestoreResult(null);
-    
+
     try {
       const content = await file.text();
       const result = restoreFromBackup(content);
-      
+
       setRestoreResult({
         success: result.success,
         message: result.message,
-        counts: result.counts
+        counts: result.counts,
       });
-      
+
       if (result.success) {
         toast({
-          title: 'Restore Complete',
+          title: "Restore Complete",
           description: `Imported ${result.counts.templates} templates, ${result.counts.sessions} sessions, ${result.counts.eduSessions} education sessions.`,
         });
       } else {
         toast({
-          variant: 'destructive',
-          title: 'Restore Failed',
+          variant: "destructive",
+          title: "Restore Failed",
           description: result.message,
         });
       }
     } catch (err) {
       setRestoreResult({
         success: false,
-        message: 'Error reading file. Please try again.'
+        message: "Error reading file. Please try again.",
       });
     } finally {
       setIsRestoring(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const handleExport = () => {
     const content = exportBackup();
-    const blob = new Blob([content], { type: 'application/json' });
+    const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `hub-health-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    // Update backup time
+
     updateLastBackupTime();
     setBackupSettings(loadBackupSettings());
-    
+
     toast({
-      title: 'Backup Created',
-      description: 'Your data has been exported successfully.',
+      title: "Backup Created",
+      description: "Your data has been exported successfully.",
     });
   };
 
@@ -139,15 +182,15 @@ export function SettingsPage() {
     const trimmed = oneDriveLocation.trim();
     if (!trimmed) {
       toast({
-        variant: 'destructive',
-        title: 'Location Required',
-        description: 'Enter your OneDrive folder path or shared location to connect.',
+        variant: "destructive",
+        title: "Location Required",
+        description: "Enter your OneDrive folder path or shared location to connect.",
       });
       return;
     }
     setOneDriveConnected(true);
     toast({
-      title: 'OneDrive Connected',
+      title: "OneDrive Connected",
       description: `Backups will use ${trimmed} for import/export.`,
     });
   };
@@ -155,16 +198,16 @@ export function SettingsPage() {
   const handleDisconnectOneDrive = () => {
     setOneDriveConnected(false);
     toast({
-      title: 'OneDrive Disconnected',
-      description: 'Backup import/export will use manual file selection.',
+      title: "OneDrive Disconnected",
+      description: "Backup import/export will use manual file selection.",
     });
   };
 
   const handleLoadDemo = () => {
     loadDemoData();
     toast({
-      title: 'Demo Data Loaded',
-      description: 'Sample data has been generated for testing.',
+      title: "Demo Data Loaded",
+      description: "Sample data has been generated for testing.",
     });
   };
 
@@ -172,35 +215,35 @@ export function SettingsPage() {
   const handleAddParentUnit = () => {
     const trimmed = newParentUnit.trim();
     if (!trimmed) return;
-    if (facilityUnits.some(u => u.name === trimmed)) {
+    if (facilityUnits.some((u) => u.name === trimmed)) {
       toast({
-        variant: 'destructive',
-        title: 'Duplicate Unit',
-        description: 'This parent unit already exists.',
+        variant: "destructive",
+        title: "Duplicate Unit",
+        description: "This parent unit already exists.",
       });
       return;
     }
-    
+
     const newUnit: FacilityUnit = {
       id: `unit_${Date.now()}`,
       name: trimmed,
-      wings: []
+      wings: [],
     };
-    
+
     setFacilityUnits([...facilityUnits, newUnit]);
-    setNewParentUnit('');
-    setExpandedUnits(prev => new Set([...prev, newUnit.id]));
+    setNewParentUnit("");
+    setExpandedUnits((prev) => new Set([...prev, newUnit.id]));
     toast({
-      title: 'Unit Added',
+      title: "Unit Added",
       description: `"${trimmed}" has been added.`,
     });
   };
 
   const handleRemoveParentUnit = (unitId: string) => {
-    const unit = facilityUnits.find(u => u.id === unitId);
-    setFacilityUnits(facilityUnits.filter(u => u.id !== unitId));
+    const unit = facilityUnits.find((u) => u.id === unitId);
+    setFacilityUnits(facilityUnits.filter((u) => u.id !== unitId));
     toast({
-      title: 'Unit Removed',
+      title: "Unit Removed",
       description: `"${unit?.name}" and its wings have been removed.`,
     });
   };
@@ -208,62 +251,63 @@ export function SettingsPage() {
   const handleAddWing = (unitId: string) => {
     const wingName = newWingInputs[unitId]?.trim();
     if (!wingName) return;
-    
-    const unit = facilityUnits.find(u => u.id === unitId);
+
+    const unit = facilityUnits.find((u) => u.id === unitId);
     if (!unit) return;
-    
+
     if (unit.wings.includes(wingName)) {
       toast({
-        variant: 'destructive',
-        title: 'Duplicate Wing',
-        description: 'This wing already exists for this unit.',
+        variant: "destructive",
+        title: "Duplicate Wing",
+        description: "This wing already exists for this unit.",
       });
       return;
     }
-    
-    setFacilityUnits(facilityUnits.map(u => 
-      u.id === unitId 
-        ? { ...u, wings: [...u.wings, wingName] }
-        : u
-    ));
-    setNewWingInputs(prev => ({ ...prev, [unitId]: '' }));
+
+    setFacilityUnits(
+      facilityUnits.map((u) => (u.id === unitId ? { ...u, wings: [...u.wings, wingName] } : u))
+    );
+    setNewWingInputs((prev) => ({ ...prev, [unitId]: "" }));
     toast({
-      title: 'Wing Added',
+      title: "Wing Added",
       description: `"${wingName}" added to ${unit.name}.`,
     });
   };
 
   const handleRemoveWing = (unitId: string, wing: string) => {
-    setFacilityUnits(facilityUnits.map(u => 
-      u.id === unitId 
-        ? { ...u, wings: u.wings.filter(w => w !== wing) }
-        : u
-    ));
+    setFacilityUnits(
+      facilityUnits.map((u) => (u.id === unitId ? { ...u, wings: u.wings.filter((w) => w !== wing) } : u))
+    );
     toast({
-      title: 'Wing Removed',
+      title: "Wing Removed",
       description: `"${wing}" has been removed.`,
     });
   };
 
   const toggleUnitExpanded = (unitId: string) => {
-    setExpandedUnits(prev => {
+    setExpandedUnits((prev) => {
       const next = new Set(prev);
-      if (next.has(unitId)) {
-        next.delete(unitId);
-      } else {
-        next.add(unitId);
-      }
+      if (next.has(unitId)) next.delete(unitId);
+      else next.add(unitId);
       return next;
     });
   };
+
+  const syncBadgeClass =
+    synced === null
+      ? "border-slate-200 bg-slate-50 text-slate-700"
+      : synced
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : "border-amber-200 bg-amber-50 text-amber-700";
+
+  const syncBadgeText =
+    synced === null ? "Checking sync…" : synced ? "Cloud backend reachable • Connected" : "Local storage only • Not synced";
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Configure facility info, backup & restore data
-        </p>
+        <p className="text-muted-foreground">Configure facility info, backup & restore data</p>
       </div>
 
       {/* Facility Info */}
@@ -273,9 +317,7 @@ export function SettingsPage() {
             <Building2 className="h-5 w-5" />
             Facility Information
           </CardTitle>
-          <CardDescription>
-            Configure your facility details
-          </CardDescription>
+          <CardDescription>Configure your facility details</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -302,30 +344,28 @@ export function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Add new parent unit */}
           <div className="flex gap-2">
             <Input
               value={newParentUnit}
               onChange={(e) => setNewParentUnit(e.target.value)}
               placeholder="Enter new unit name (e.g., Unit 2, Rehab, Memory Care)"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddParentUnit()}
+              onKeyDown={(e) => e.key === "Enter" && handleAddParentUnit()}
             />
             <Button onClick={handleAddParentUnit} disabled={!newParentUnit.trim()}>
               <Plus className="h-4 w-4 mr-2" />
               Add Unit
             </Button>
           </div>
-          
-          {/* Unit tree */}
+
           <div className="space-y-2">
             {facilityUnits.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
                 No units configured. Add units above to use them in audits and reports.
               </p>
             ) : (
-              facilityUnits.map(unit => {
+              facilityUnits.map((unit) => {
                 const isExpanded = expandedUnits.has(unit.id);
-                
+
                 return (
                   <Collapsible key={unit.id} open={isExpanded} onOpenChange={() => toggleUnitExpanded(unit.id)}>
                     <div className="border rounded-lg">
@@ -340,7 +380,7 @@ export function SettingsPage() {
                             <span className="font-medium">{unit.name}</span>
                             {unit.wings.length > 0 && (
                               <Badge variant="secondary" className="text-xs">
-                                {unit.wings.length} wing{unit.wings.length !== 1 ? 's' : ''}
+                                {unit.wings.length} wing{unit.wings.length !== 1 ? "s" : ""}
                               </Badge>
                             )}
                           </div>
@@ -357,18 +397,13 @@ export function SettingsPage() {
                           </Button>
                         </div>
                       </CollapsibleTrigger>
-                      
+
                       <CollapsibleContent>
                         <div className="border-t p-3 bg-muted/20 space-y-3">
-                          {/* Existing wings */}
                           {unit.wings.length > 0 && (
                             <div className="flex flex-wrap gap-2">
-                              {unit.wings.map(wing => (
-                                <Badge 
-                                  key={wing} 
-                                  variant="outline" 
-                                  className="px-3 py-1.5 text-sm flex items-center gap-2"
-                                >
+                              {unit.wings.map((wing) => (
+                                <Badge key={wing} variant="outline" className="px-3 py-1.5 text-sm flex items-center gap-2">
                                   {wing}
                                   <button
                                     onClick={() => handleRemoveWing(unit.id, wing)}
@@ -380,18 +415,17 @@ export function SettingsPage() {
                               ))}
                             </div>
                           )}
-                          
-                          {/* Add wing input */}
+
                           <div className="flex gap-2">
                             <Input
-                              value={newWingInputs[unit.id] || ''}
-                              onChange={(e) => setNewWingInputs(prev => ({ ...prev, [unit.id]: e.target.value }))}
+                              value={newWingInputs[unit.id] || ""}
+                              onChange={(e) => setNewWingInputs((prev) => ({ ...prev, [unit.id]: e.target.value }))}
                               placeholder={`Add wing (e.g., East ${unit.name}, West ${unit.name})`}
-                              onKeyDown={(e) => e.key === 'Enter' && handleAddWing(unit.id)}
+                              onKeyDown={(e) => e.key === "Enter" && handleAddWing(unit.id)}
                               className="flex-1"
                             />
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => handleAddWing(unit.id)}
                               disabled={!newWingInputs[unit.id]?.trim()}
@@ -419,16 +453,39 @@ export function SettingsPage() {
                 <Database className="h-5 w-5" />
                 Current Data
               </CardTitle>
-              <CardDescription>
-                Overview of data stored in your application
-              </CardDescription>
+              <CardDescription>Overview of data stored in your application</CardDescription>
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-              <AlertCircle className="h-3.5 w-3.5" />
-              Local storage only • Not synced
+
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${syncBadgeClass}`}>
+                {synced === null ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : synced ? (
+                  <Cloud className="h-3.5 w-3.5" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                )}
+                {syncBadgeText}
+              </div>
+
+              <Button variant="outline" size="sm" onClick={runSyncCheck} className="h-7 px-2">
+                <RefreshCw className={`h-3.5 w-3.5 ${synced === null ? "animate-spin" : ""}`} />
+              </Button>
             </div>
           </div>
+
+          {(syncCheckedAt || syncError) && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              {syncCheckedAt && <span>Last checked: {syncCheckedAt}</span>}
+              {syncError && (
+                <span className="ml-2 text-amber-700">
+                  • {syncError}
+                </span>
+              )}
+            </div>
+          )}
         </CardHeader>
+
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center p-4 bg-muted rounded-lg">
@@ -462,12 +519,10 @@ export function SettingsPage() {
             <FileJson className="h-5 w-5" />
             Backup & Restore
           </CardTitle>
-          <CardDescription>
-            Import data from your old InService Hub backup or export current data
-          </CardDescription>
+          <CardDescription>Import data from your old InService Hub backup or export current data</CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-6">
-          {/* Backup Reminder Settings */}
           <div className="rounded-lg border p-4 bg-muted/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -477,12 +532,14 @@ export function SettingsPage() {
                 <div>
                   <h3 className="font-medium">Backup Reminders</h3>
                   <p className="text-sm text-muted-foreground">
-                    Last backup: {formatLastBackup(backupSettings.lastBackupAt)} • 
-                    Frequency: {backupSettings.reminderFrequency === '3days' ? 'Every 3 days' : 
-                               backupSettings.reminderFrequency.charAt(0).toUpperCase() + backupSettings.reminderFrequency.slice(1)}
+                    Last backup: {formatLastBackup(backupSettings.lastBackupAt)} • Frequency:{" "}
+                    {backupSettings.reminderFrequency === "3days"
+                      ? "Every 3 days"
+                      : backupSettings.reminderFrequency.charAt(0).toUpperCase() + backupSettings.reminderFrequency.slice(1)}
                   </p>
                 </div>
               </div>
+
               <Button variant="outline" size="sm" onClick={() => setShowBackupSettings(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Configure
@@ -495,11 +552,11 @@ export function SettingsPage() {
             <div>
               <h3 className="font-medium mb-2">Restore from Backup</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Upload your backup JSON file from the original InService Hub to import all your templates, 
-                sessions, education records, and QA actions.
+                Upload your backup JSON file from the original InService Hub to import all your templates, sessions,
+                education records, and QA actions.
               </p>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <input
                 ref={fileInputRef}
@@ -509,26 +566,16 @@ export function SettingsPage() {
                 className="hidden"
                 id="backup-file"
               />
-              <Button
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isRestoring}
-              >
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isRestoring}>
                 <Upload className="h-4 w-4 mr-2" />
-                {isRestoring ? 'Restoring...' : 'Select Backup File'}
+                {isRestoring ? "Restoring..." : "Select Backup File"}
               </Button>
             </div>
 
             {restoreResult && (
-              <Alert variant={restoreResult.success ? 'default' : 'destructive'}>
-                {restoreResult.success ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <AlertCircle className="h-4 w-4" />
-                )}
-                <AlertTitle>
-                  {restoreResult.success ? 'Restore Successful' : 'Restore Failed'}
-                </AlertTitle>
+              <Alert variant={restoreResult.success ? "default" : "destructive"}>
+                {restoreResult.success ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                <AlertTitle>{restoreResult.success ? "Restore Successful" : "Restore Failed"}</AlertTitle>
                 <AlertDescription>
                   {restoreResult.message}
                   {restoreResult.success && restoreResult.counts && (
@@ -545,6 +592,7 @@ export function SettingsPage() {
             )}
           </div>
 
+          {/* OneDrive */}
           <div className="border-t pt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -574,6 +622,7 @@ export function SettingsPage() {
                     Use a folder that is synced by OneDrive on this device. You can paste a shared path, too.
                   </p>
                 </div>
+
                 <div className="flex gap-2">
                   {oneDriveConnected ? (
                     <Button variant="outline" onClick={handleDisconnectOneDrive}>
@@ -591,16 +640,14 @@ export function SettingsPage() {
             </div>
           </div>
 
+          {/* Export */}
           <div className="border-t pt-6">
-            {/* Export Section */}
             <div className="space-y-4">
               <div>
                 <h3 className="font-medium mb-2">Export Backup</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Download a backup of all your current data.
-                </p>
+                <p className="text-sm text-muted-foreground mb-4">Download a backup of all your current data.</p>
               </div>
-              
+
               <Button variant="outline" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
                 Export Backup
@@ -608,8 +655,8 @@ export function SettingsPage() {
             </div>
           </div>
 
+          {/* Demo */}
           <div className="border-t pt-6">
-            {/* Demo Data Section */}
             <div className="space-y-4">
               <div>
                 <h3 className="font-medium mb-2">Demo Data</h3>
@@ -617,7 +664,7 @@ export function SettingsPage() {
                   Generate sample data for testing and demonstration purposes.
                 </p>
               </div>
-              
+
               <Button variant="secondary" onClick={handleLoadDemo}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Load Demo Data
@@ -627,8 +674,8 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <BackupSettingsModal 
-        open={showBackupSettings} 
+      <BackupSettingsModal
+        open={showBackupSettings}
         onOpenChange={setShowBackupSettings}
         onSettingsUpdate={handleBackupSettingsUpdate}
       />
