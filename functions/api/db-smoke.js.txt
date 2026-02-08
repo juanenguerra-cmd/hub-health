@@ -1,11 +1,9 @@
 export async function onRequest({ env }) {
   try {
-    // write
     await env.DB.prepare(
       "INSERT INTO sync_probe (note) VALUES (?)"
     ).bind("db-smoke hit from production").run();
 
-    // read
     const { results } = await env.DB.prepare(
       "SELECT * FROM sync_probe ORDER BY id DESC LIMIT 5"
     ).all();
