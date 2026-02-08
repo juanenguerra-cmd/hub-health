@@ -59,6 +59,37 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Cloudflare Workers + D1 (optional backend)
+
+## Cloudflare D1 setup
+
+This repo includes a minimal Cloudflare Worker and D1 schema to support serverless APIs.
+
+### 1) Create the D1 database
+
+```sh
+wrangler d1 create hub-health
+```
+
+Copy the `database_id` into `wrangler.toml`.
+
+### 2) Apply migrations
+
+```sh
+npm run d1:migrate:local
+```
+
+### 3) Run the worker locally
+
+```sh
+npm run cf:dev
+```
+
+### 4) Deploy
+
+```sh
+npm run cf:deploy
+```
 
 ## How can I deploy this project?
 

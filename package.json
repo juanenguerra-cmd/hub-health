@@ -7,6 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "cf:dev": "wrangler dev src/worker.ts",
+    "cf:deploy": "wrangler deploy",
+    "d1:migrate:local": "wrangler d1 migrations apply hub-health --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply hub-health",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
@@ -64,6 +68,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250910.0",
     "@eslint/js": "^9.32.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
@@ -84,6 +89,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.36.0"
   }
 }
