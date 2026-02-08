@@ -74,7 +74,8 @@ export const runD1HardCheck = async (
     }
 
     const row = await db
-      .prepare('SELECT id, env FROM __sync_probe ORDER BY id DESC LIMIT 1')
+      .prepare('SELECT id, env FROM __sync_probe WHERE id = ?1')
+      .bind(insertedId)
       .first<{ id: number; env: string }>();
 
     if (!row) {
