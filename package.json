@@ -93,3 +93,9 @@
     "vitest": "^3.2.4"
   }
 }
+
+{
+  "scripts": {
+    "check:migrations": "node scripts/check-migrations.js"
+  }
+}

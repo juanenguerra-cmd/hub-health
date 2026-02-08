@@ -6,3 +6,5 @@ pages_build_output_dir = "dist"
 binding = "DB"
 database_name = "hub-health"
 database_id = "cd5b7d90-33ee-4e73-8576-954796378182"
+migrations_dir = "migrations"
+

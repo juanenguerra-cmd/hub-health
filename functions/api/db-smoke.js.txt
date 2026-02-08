@@ -1,0 +1,24 @@
+export async function onRequest({ env }) {
+  try {
+    await env.DB.prepare(
+      "CREATE TABLE IF NOT EXISTS __smoke (id INTEGER PRIMARY KEY AUTOINCREMENT, t TEXT)"
+    ).run();
+
+    await env.DB.prepare(
+      "INSERT INTO __smoke (t) VALUES (datetime('now'))"
+    ).run();
+
+    const { results } = await env.DB.prepare(
+      "SELECT * FROM __smoke ORDER BY id DESC LIMIT 3"
+    ).all();
+
+    return new Response(JSON.stringify({ ok: true, results }, null, 2), {
+      headers: { "content-type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: String(e) }, null, 2), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
