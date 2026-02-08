@@ -73,13 +73,13 @@ wrangler d1 create hub-health
 
 Copy the `database_id` into `wrangler.toml`.
 
-### 2) Apply migrations
+### 2) Apply migrations locally
 
 ```sh
 npm run d1:migrate:local
 ```
 
-### 2b) Sync remote D1 database
+### 2b) Sync remote D1 database (manual)
 
 After verifying locally, apply migrations to the remote D1 database:
 
@@ -95,11 +95,25 @@ verification query is also available as a standalone command:
 npm run d1:verify:remote
 ```
 
-### 2c) GitHub Actions workflow (optional)
+### 2c) GitHub Actions workflows
 
 You can also trigger the `D1 Remote Migrations` workflow in GitHub Actions. It
 expects `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets to be set
 with access to the `hub-health` D1 database.
+
+The workflow also runs automatically on pushes to `main`, so remote migrations
+stay in sync without manual intervention.
+
+### 2d) Verify database sync status
+
+To confirm the remote database has applied migrations:
+
+```sh
+npm run d1:verify:remote
+```
+
+The command checks for the `__sync_probe` table and returns JSON output from
+Wrangler. A successful response indicates the remote schema is in sync.
 
 ### 3) Run the D1 sync health check (local)
 
@@ -134,6 +148,16 @@ If the check fails, confirm that:
 - Local migrations have been applied (`npm run d1:migrate:local`).
 - The `__sync_probe` table exists.
 - The reported `envTag` matches the environment you expect.
+
+### Troubleshooting D1 sync issues
+
+- Ensure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set in GitHub
+  Actions and locally when running remote migrations.
+- Re-run `npm run d1:migrate:remote` (idempotent) if the Cloudflare dashboard
+  shows no recent activity.
+- Use `npm run d1:verify:remote` to confirm the `__sync_probe` table exists.
+- Validate the database name and ID in `wrangler.toml` match the intended D1
+  database.
 
 ## How can I deploy this project?
 
