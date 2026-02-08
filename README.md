@@ -79,17 +79,39 @@ Copy the `database_id` into `wrangler.toml`.
 npm run d1:migrate:local
 ```
 
-### 3) Run the worker locally
+### 3) Run the D1 sync health check (local)
+
+```sh
+npm run d1:health
+```
+
+This command applies local migrations, starts a local Wrangler dev server, calls
+`/api/health/d1`, and fails if the D1 hard check does not return `ok: true`.
+
+### 4) Run the worker locally
 
 ```sh
 npm run cf:dev
 ```
 
-### 4) Deploy
+### 5) Deploy
 
 ```sh
 npm run cf:deploy
 ```
+
+### CI D1 health check
+
+CI runs `npm run d1:health` in GitHub Actions. The job fails if:
+
+- `/api/health/d1` returns a non-200 response.
+- The response JSON includes `ok: false`.
+
+If the check fails, confirm that:
+
+- Local migrations have been applied (`npm run d1:migrate:local`).
+- The `__sync_probe` table exists.
+- The reported `envTag` matches the environment you expect.
 
 ## How can I deploy this project?
 

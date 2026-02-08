@@ -423,9 +423,9 @@ export function SettingsPage() {
                 Overview of data stored in your application
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Database sync is working • Updated
+            <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Local storage only • Not synced
             </div>
           </div>
         </CardHeader>
