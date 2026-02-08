@@ -5,7 +5,8 @@ import {
   getSqliteVersion,
   listTables,
   resolveEnvTag,
-  runD1HardCheck
+  runD1HardCheck,
+  runD1LivenessCheck
 } from './lib/d1-health';
 
 type Env = {
@@ -147,6 +148,22 @@ export default {
           error: result.error,
           sqlite_version: sqlite.version,
           tables
+        },
+        { status: result.ok ? 200 : 500 }
+      );
+    }
+
+    if (url.pathname === "/api/health/d1/liveness" && request.method === "GET") {
+      const expectedTables = ["notes", "__sync_probe"];
+      const result = await runD1LivenessCheck(env.DB, envTag, expectedTables);
+
+      return jsonResponse(
+        {
+          ok: result.ok,
+          tablesFound: result.tablesFound,
+          writeOk: result.writeOk,
+          readOk: result.readOk,
+          error: result.error
         },
         { status: result.ok ? 200 : 500 }
       );
