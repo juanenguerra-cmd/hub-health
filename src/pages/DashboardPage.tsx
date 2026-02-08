@@ -23,7 +23,10 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  ClipboardCheck,
+  ShieldCheck,
+  TrendingDown
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -180,6 +183,66 @@ export function DashboardPage() {
           subtitle="Requires action"
         />
       </KpiGrid>
+
+      {/* Infographic */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-transparent">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ClipboardCheck className="w-5 h-5 text-primary" />
+            Quality Loop Infographic
+          </CardTitle>
+          <CardDescription>How audits translate into safer outcomes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="relative rounded-lg border border-border/60 bg-background/70 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <ClipboardCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Assess</p>
+                  <p className="text-xs text-muted-foreground">Capture real-time audits</p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold">{summary.sessions}</span>
+                <span className="text-xs text-muted-foreground">sessions completed</span>
+              </div>
+            </div>
+            <div className="relative rounded-lg border border-border/60 bg-background/70 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Act</p>
+                  <p className="text-xs text-muted-foreground">Close the loop on QA</p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold">{qaStats.done}</span>
+                <span className="text-xs text-muted-foreground">actions closed</span>
+              </div>
+            </div>
+            <div className="relative rounded-lg border border-border/60 bg-background/70 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">
+                  <TrendingDown className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Improve</p>
+                  <p className="text-xs text-muted-foreground">Lift compliance results</p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold">{summary.compliance}%</span>
+                <span className="text-xs text-muted-foreground">current compliance</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Secondary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
