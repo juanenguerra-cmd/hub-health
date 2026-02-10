@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type {
   AuditTemplate,
   AuditSession,
@@ -38,6 +39,7 @@ import {
   generateDemoData
 } from '@/lib/storage';
 import { parseBackupFile, processBackupData, createBackup, type RestoreResult } from '@/lib/backup-restore';
+import { getNavItemById, getNavItemByPath } from '@/lib/navigation';
 
 interface AppContextType {
   // Data
@@ -128,7 +130,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [facilityUnits, setFacilityUnits] = useState<FacilityUnit[]>([]);
   
   // Navigation
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [activeTab, setActiveTabState] = useState('dashboard');
+
+  useEffect(() => {
+    const activeItem = getNavItemByPath(location.pathname);
+    setActiveTabState(activeItem?.id ?? 'dashboard');
+  }, [location.pathname]);
+
+  const setActiveTab = (tab: string) => {
+    const navItem = getNavItemById(tab);
+    if (navItem) {
+      navigate(navItem.path);
+      return;
+    }
+
+    setActiveTabState(tab);
+  };
   
   // Filters
   const [dashFilters, setDashFilters] = useState<DashboardFilters>({
