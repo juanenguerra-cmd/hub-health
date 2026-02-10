@@ -76,6 +76,12 @@ export function SessionsPage() {
   
   const activeTemplates = templates.filter(t => !t.archived);
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+  const activeSessionTemplate = activeSession
+    ? templates.find(t => t.id === activeSession.templateId)
+    : null;
+  const printPostAuditTemplate = printPostAuditSession
+    ? templates.find(t => t.id === printPostAuditSession.templateId)
+    : null;
 
   // Check for pre-selected template from TemplatesPage
   useEffect(() => {
@@ -655,7 +661,7 @@ export function SessionsPage() {
       </div>
 
       {/* Active Session Panel */}
-      {activeSession && selectedTemplate && (
+      {activeSession && activeSessionTemplate && (
         <Card className="border-primary">
           <CardHeader className="bg-primary/5">
             <div className="flex items-start justify-between gap-4">
@@ -724,7 +730,7 @@ export function SessionsPage() {
                             <tr className="text-left">
                               <th className="px-2 py-2 font-semibold min-w-[80px]">Sample</th>
                               <th className="px-2 py-2 font-semibold min-w-[180px]">Staff Audited</th>
-                              {selectedTemplate.sampleQuestions.map(q => (
+                              {activeSessionTemplate.sampleQuestions.map(q => (
                                 <th key={q.key} className="px-2 py-2 font-semibold min-w-[180px]">
                                   {q.label}
                                   {q.required && <span className="text-destructive ml-1">*</span>}
@@ -747,7 +753,7 @@ export function SessionsPage() {
                                     className="h-8 text-xs"
                                   />
                                 </td>
-                                {selectedTemplate.sampleQuestions.map(q => (
+                                {activeSessionTemplate.sampleQuestions.map(q => (
                                   <td key={q.key} className="px-2 py-2 align-top">
                                     {q.type === 'patientCode' && (
                                       <Input
@@ -888,7 +894,7 @@ export function SessionsPage() {
                         
                         {/* Questions Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {selectedTemplate.sampleQuestions.map(q => (
+                          {activeSessionTemplate.sampleQuestions.map(q => (
                             <div key={q.key} className="space-y-1">
                               <Label className="text-xs">
                                 {q.label}
@@ -1083,6 +1089,32 @@ export function SessionsPage() {
                   </Button>
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeSession && !activeSessionTemplate && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-lg text-destructive">Audit tool not found</CardTitle>
+            <CardDescription>
+              This session references a template that is no longer available. You can close or delete the session from history.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium">Session:</span>
+              <span>{activeSession.header.sessionId}</span>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" onClick={() => setActiveSession(null)}>
+                Close
+              </Button>
+              <Button variant="destructive" onClick={() => deleteSession(activeSession.id)}>
+                <Trash2 className="mr-1 h-4 w-4" />
+                Delete Session
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -1312,12 +1344,12 @@ export function SessionsPage() {
       )}
 
       {/* Print Post-Audit Modal */}
-      {printPostAuditSession && (
+      {printPostAuditSession && printPostAuditTemplate && (
         <PostAuditPrintModal
           open={!!printPostAuditSession}
           onOpenChange={(open) => !open && setPrintPostAuditSession(null)}
           session={printPostAuditSession}
-          template={templates.find(t => t.id === printPostAuditSession.templateId)!}
+          template={printPostAuditTemplate}
         />
       )}
     </div>
