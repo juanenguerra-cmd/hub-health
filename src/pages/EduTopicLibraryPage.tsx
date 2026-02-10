@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,16 +28,19 @@ import {
   ClipboardCheck,
   ChevronDown,
   CheckCircle2,
+  ListFilter,
   Play
 } from 'lucide-react';
 
 export function EduTopicLibraryPage() {
   const { eduLibrary, setEduLibrary, templates, setActiveTab, eduSessions, setEduSessions } = useApp();
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<EduTopic | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [sessionPrefill, setSessionPrefill] = useState<Partial<EducationSession> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +48,7 @@ export function EduTopicLibraryPage() {
   // Form state
   const [formData, setFormData] = useState<Partial<EduTopic>>({
     topic: '',
+    category: '',
     description: '',
     purpose: '',
     disciplines: '',
@@ -56,6 +60,7 @@ export function EduTopicLibraryPage() {
   const resetForm = () => {
     setFormData({
       topic: '',
+      category: '',
       description: '',
       purpose: '',
       disciplines: '',
@@ -72,10 +77,28 @@ export function EduTopicLibraryPage() {
     setDialogOpen(true);
   };
 
+
+  const normalizeCategory = (value: string) => value.trim() || 'Uncategorized';
+
+  const inferCategory = (topic: EduTopic): string => {
+    if (topic.category && topic.category.trim()) {
+      return topic.category.trim();
+    }
+
+    const haystack = `${topic.topic} ${topic.purpose} ${topic.ftags}`.toLowerCase();
+
+    if (haystack.includes('orientation') || haystack.includes('onboarding')) return 'Orientation';
+    if (haystack.includes('medication') || haystack.includes('med pass')) return 'Medication Safety';
+    if (haystack.includes('fall') || haystack.includes('pressure') || haystack.includes('wound')) return 'Clinical Safety';
+    if (haystack.includes('documentation') || haystack.includes('chart')) return 'Documentation';
+    if (haystack.includes('abuse') || haystack.includes('resident rights') || haystack.includes('dementia')) return 'Resident Care & Rights';
+    if (haystack.includes('infection') || haystack.includes('ipcp') || haystack.includes('ppe') || haystack.includes('hand hygiene') || haystack.includes('f880')) return 'Infection Prevention';
+
+    return 'General Education';
+  };
+
   const saveTopic = () => {
     if (!formData.topic) return;
-
-    const now = new Date().toISOString();
 
     if (editingTopic) {
       // Update existing
@@ -89,6 +112,7 @@ export function EduTopicLibraryPage() {
       const newTopic: EduTopic = {
         id: `edu_topic_${Date.now().toString(16)}`,
         topic: formData.topic!,
+        category: normalizeCategory(formData.category || ''),
         description: formData.description || '',
         purpose: formData.purpose || '',
         disciplines: formData.disciplines || '',
@@ -126,13 +150,50 @@ export function EduTopicLibraryPage() {
   const filtered = eduLibrary.filter(t => {
     if (!showArchived && t.archived) return false;
     if (showArchived && !t.archived) return false;
+    if (selectedCategory !== 'all' && inferCategory(t) !== selectedCategory) return false;
     if (search) {
       const q = search.toLowerCase();
-      const hay = `${t.topic} ${t.disciplines} ${t.ftags} ${t.purpose}`.toLowerCase();
+      const hay = `${t.topic} ${t.category || ''} ${t.disciplines} ${t.ftags} ${t.purpose}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
   });
+
+  const categories = useMemo(() => {
+    const all = eduLibrary
+      .filter(t => (showArchived ? t.archived : !t.archived))
+      .map(inferCategory);
+    return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b));
+  }, [eduLibrary, showArchived]);
+
+  const groupedTopics = useMemo(() => {
+    const groups = new Map<string, EduTopic[]>();
+    filtered.forEach(topic => {
+      const category = inferCategory(topic);
+      const items = groups.get(category) || [];
+      items.push(topic);
+      groups.set(category, items);
+    });
+
+    return Array.from(groups.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([category, topics]) => ({
+        category,
+        topics: topics.sort((a, b) => a.topic.localeCompare(b.topic))
+      }));
+  }, [filtered]);
+
+  const toggleCategoryExpanded = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
 
   const toggleExpanded = (id: string) => {
     setExpandedTopics(prev => {
@@ -200,8 +261,9 @@ export function EduTopicLibraryPage() {
 
   // CSV Export
   const exportCsv = () => {
-    const headers = ['Topic', 'Description', 'Purpose', 'Disciplines', 'F-Tags', 'NYSDOH Regs', 'Facility Policy', 'Archived'];
+    const headers = ['Category', 'Topic', 'Description', 'Purpose', 'Disciplines', 'F-Tags', 'NYSDOH Regs', 'Facility Policy', 'Archived'];
     const rows = eduLibrary.map(t => [
+      `"${inferCategory(t).replace(/"/g, '""')}"`,
       `"${(t.topic || '').replace(/"/g, '""')}"`,
       `"${(t.description || '').replace(/"/g, '""')}"`,
       `"${(t.purpose || '').replace(/"/g, '""')}"`,
@@ -272,6 +334,7 @@ export function EduTopicLibraryPage() {
           const values = parseCSVLine(lines[i]);
           if (values.length < 2) continue;
 
+          const categoryIdx = headers.findIndex(h => h.includes('category'));
           const topicIdx = headers.findIndex(h => h.includes('topic'));
           const descIdx = headers.findIndex(h => h.includes('description'));
           const purposeIdx = headers.findIndex(h => h.includes('purpose'));
@@ -286,6 +349,7 @@ export function EduTopicLibraryPage() {
           imported.push({
             id: `edu_topic_import_${Date.now().toString(16)}_${i}`,
             topic,
+            category: values[categoryIdx] || '',
             description: values[descIdx] || '',
             purpose: values[purposeIdx] || '',
             disciplines: values[discIdx] || '',
@@ -368,6 +432,14 @@ export function EduTopicLibraryPage() {
                   />
                 </div>
                 <div>
+                  <Label>Category</Label>
+                  <Input
+                    value={formData.category || ''}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    placeholder="e.g., Infection Prevention"
+                  />
+                </div>
+                <div>
                   <Label>Purpose</Label>
                   <Input
                     value={formData.purpose || ''}
@@ -447,7 +519,20 @@ export function EduTopicLibraryPage() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <ListFilter className="w-4 h-4 text-muted-foreground" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="all">All categories</option>
+                  {categories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
               <Badge variant="secondary">{activeCount} Active</Badge>
               <Badge variant="outline">{archivedCount} Archived</Badge>
               <div className="flex items-center gap-2">
@@ -482,91 +567,108 @@ export function EduTopicLibraryPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {filtered.map(topic => {
-                const isExpanded = expandedTopics.has(topic.id);
-                const triggerAuditTitle = getTriggerAuditTitle(topic.triggerAuditId);
-                const hasExtras = topic.triggerAuditId || (topic.evidenceArtifacts && topic.evidenceArtifacts.length > 0);
-                
+            <div className="space-y-3">
+              {groupedTopics.map(group => {
+                const categoryOpen = expandedCategories.size === 0 || expandedCategories.has(group.category);
+
                 return (
-                  <Card key={topic.id} className={`${topic.archived ? 'opacity-60' : ''}`}>
-                    <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(topic.id)}>
-                      <div className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <FileText className="w-4 h-4 text-primary shrink-0" />
-                              <span className="font-medium">{topic.topic}</span>
-                              {topic.ftags && topic.ftags.split(';').map((tag, i) => (
-                                <Badge key={i} variant="outline" className="text-xs">
-                                  <Tag className="w-3 h-3 mr-1" />
-                                  {tag.trim()}
-                                </Badge>
-                              ))}
-                              {topic.triggerAuditId && (
-                                <Badge variant="secondary" className="text-xs gap-1">
-                                  <ClipboardCheck className="w-3 h-3" />
-                                  Has Audit
-                                </Badge>
-                              )}
-                            </div>
-                            {topic.purpose && (
-                              <p className="text-sm text-muted-foreground mt-1">{topic.purpose}</p>
-                            )}
-                            <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
-                              <span><strong>Disciplines:</strong> {topic.disciplines || '—'}</span>
-                              <span><strong>NYSDOH:</strong> {topic.nysdohRegs || '—'}</span>
-                              {topic.facilityPolicy && <span><strong>Policy:</strong> {topic.facilityPolicy}</span>}
-                            </div>
+                  <Card key={group.category}>
+                    <Collapsible open={categoryOpen} onOpenChange={() => toggleCategoryExpanded(group.category)}>
+                      <CollapsibleTrigger asChild>
+                        <button type="button" className="w-full p-4 flex items-center justify-between text-left hover:bg-muted/40 rounded-t-lg">
+                          <div className="flex items-center gap-2">
+                            <Badge>{group.category}</Badge>
+                            <span className="text-sm text-muted-foreground">{group.topics.length} topic{group.topics.length === 1 ? '' : 's'}</span>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {hasExtras && (
-                              <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="gap-1">
-                                  <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                  Details
-                                </Button>
-                              </CollapsibleTrigger>
-                            )}
-                            {!topic.archived && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openQuickSession(topic, 'planned')}
-                                  title="Plan inservice"
-                                >
-                                  <Calendar className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openQuickSession(topic, 'completed')}
-                                  title="Log completed inservice"
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                </Button>
-                              </>
-                            )}
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(topic)}>
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            {topic.archived ? (
-                              <Button variant="ghost" size="sm" onClick={() => restoreTopic(topic.id)} title="Restore">
-                                <RotateCcw className="w-4 h-4" />
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" onClick={() => archiveTopic(topic.id)} title="Archive">
-                                <Archive className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      
+                          <ChevronDown className={`w-4 h-4 transition-transform ${categoryOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                      </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <div className="px-4 pb-4 pt-0 border-t border-border mt-2">
-                          <div className="grid md:grid-cols-2 gap-4 pt-4">
+                        <div className="px-4 pb-4 space-y-2 border-t border-border">
+                          {group.topics.map(topic => {
+                            const isExpanded = expandedTopics.has(topic.id);
+                            const triggerAuditTitle = getTriggerAuditTitle(topic.triggerAuditId);
+                            const hasExtras = topic.triggerAuditId || (topic.evidenceArtifacts && topic.evidenceArtifacts.length > 0);
+
+                            return (
+                              <Card key={topic.id} className={`${topic.archived ? 'opacity-60' : ''}`}>
+                                <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(topic.id)}>
+                                  <div className="p-4">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <FileText className="w-4 h-4 text-primary shrink-0" />
+                                          <span className="font-medium">{topic.topic}</span>
+                                          {topic.ftags && topic.ftags.split(';').map((tag, i) => (
+                                            <Badge key={i} variant="outline" className="text-xs">
+                                              <Tag className="w-3 h-3 mr-1" />
+                                              {tag.trim()}
+                                            </Badge>
+                                          ))}
+                                          {topic.triggerAuditId && (
+                                            <Badge variant="secondary" className="text-xs gap-1">
+                                              <ClipboardCheck className="w-3 h-3" />
+                                              Has Audit
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {topic.purpose && (
+                                          <p className="text-sm text-muted-foreground mt-1">{topic.purpose}</p>
+                                        )}
+                                        <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
+                                          <span><strong>Disciplines:</strong> {topic.disciplines || '—'}</span>
+                                          <span><strong>NYSDOH:</strong> {topic.nysdohRegs || '—'}</span>
+                                          {topic.facilityPolicy && <span><strong>Policy:</strong> {topic.facilityPolicy}</span>}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        {hasExtras && (
+                                          <CollapsibleTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="gap-1">
+                                              <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                              Details
+                                            </Button>
+                                          </CollapsibleTrigger>
+                                        )}
+                                        {!topic.archived && (
+                                          <>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => openQuickSession(topic, 'planned')}
+                                              title="Plan inservice"
+                                            >
+                                              <Calendar className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => openQuickSession(topic, 'completed')}
+                                              title="Log completed inservice"
+                                            >
+                                              <CheckCircle2 className="w-4 h-4" />
+                                            </Button>
+                                          </>
+                                        )}
+                                        <Button variant="ghost" size="sm" onClick={() => openEdit(topic)}>
+                                          <Edit2 className="w-4 h-4" />
+                                        </Button>
+                                        {topic.archived ? (
+                                          <Button variant="ghost" size="sm" onClick={() => restoreTopic(topic.id)} title="Restore">
+                                            <RotateCcw className="w-4 h-4" />
+                                          </Button>
+                                        ) : (
+                                          <Button variant="ghost" size="sm" onClick={() => archiveTopic(topic.id)} title="Archive">
+                                            <Archive className="w-4 h-4" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <CollapsibleContent>
+                                    <div className="px-4 pb-4 pt-0 border-t border-border mt-2">
+                                      <div className="grid md:grid-cols-2 gap-4 pt-4">
                             {/* Trigger Audit Section */}
                             {topic.triggerAuditId && (
                               <div className="space-y-2">
@@ -618,6 +720,13 @@ export function EduTopicLibraryPage() {
                               <p className="text-sm text-muted-foreground">{topic.description}</p>
                             </div>
                           )}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                );
+
+                          })}
                         </div>
                       </CollapsibleContent>
                     </Collapsible>
