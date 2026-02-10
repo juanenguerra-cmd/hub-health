@@ -163,10 +163,12 @@ export interface OrientationRecord {
   id: string;
   date: string;
   weekStart: string;
+  sessionName?: string;
   orientee: string;
   department: string;
   position: string;
   hireDate: string;
+  attendanceCount?: number;
   status: 'active' | 'completed' | 'terminated';
   terminationDate: string;
   retention30: boolean;
