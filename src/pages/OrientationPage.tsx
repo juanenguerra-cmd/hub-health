@@ -24,8 +24,8 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-const DEPARTMENTS = ['1A', '1B', '2A', '2B', '3A', '3B', 'ICU', 'ER', 'OR', 'Rehab', 'Admin'];
-const POSITIONS = ['RN', 'LPN', 'CNA', 'Unit Secretary', 'Dietary', 'Housekeeping', 'Maintenance', 'Social Worker', 'Activities'];
+const DEPARTMENTS = ['Nursing', 'Administration', 'housekeeping', 'maintenance', 'dietary', 'recreation', 'rehabilitation', 'HR', 'others'];
+const POSITIONS = ['RN', 'LPN', 'CNA', 'Unit Secretary', 'Dietary', 'Housekeeping', 'Maintenance', 'Social Worker', 'Activities', 'others'];
 const STATUS_OPTIONS: Array<OrientationRecord['status']> = ['active', 'completed', 'terminated'];
 const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -43,11 +43,12 @@ export function OrientationPage() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<OrientationRecord | null>(null);
+  const [departmentOther, setDepartmentOther] = useState('');
+  const [positionOther, setPositionOther] = useState('');
 
   const today = new Date().toISOString().slice(0, 10);
 
   const [formData, setFormData] = useState<Partial<OrientationRecord>>({
-    sessionName: '',
     orientee: '',
     department: '',
     position: '',
@@ -59,7 +60,6 @@ export function OrientationPage() {
 
   const resetForm = () => {
     setFormData({
-      sessionName: '',
       orientee: '',
       department: '',
       position: '',
@@ -68,17 +68,32 @@ export function OrientationPage() {
       status: 'completed',
       notes: ''
     });
+    setDepartmentOther('');
+    setPositionOther('');
     setEditingRecord(null);
   };
 
   const openEdit = (record: OrientationRecord) => {
+    const departmentIsPreset = DEPARTMENTS.includes(record.department);
+    const positionIsPreset = POSITIONS.includes(record.position);
+
+    setDepartmentOther(departmentIsPreset ? '' : record.department);
+    setPositionOther(positionIsPreset ? '' : record.position);
     setEditingRecord(record);
-    setFormData({ ...record, sessionName: getSessionName(record), attendanceCount: getAttendanceCount(record) });
+    setFormData({
+      ...record,
+      department: departmentIsPreset ? record.department : 'others',
+      position: positionIsPreset ? record.position : 'others',
+      attendanceCount: getAttendanceCount(record)
+    });
     setDialogOpen(true);
   };
 
   const saveRecord = () => {
-    if (!formData.sessionName || !formData.department || !formData.position || !formData.hireDate) return;
+    const finalDepartment = formData.department === 'others' ? departmentOther.trim() : formData.department;
+    const finalPosition = formData.position === 'others' ? positionOther.trim() : formData.position;
+
+    if (!finalDepartment || !finalPosition || !formData.hireDate) return;
 
     const now = new Date().toISOString();
     const weekStart = formData.hireDate;
@@ -89,7 +104,10 @@ export function OrientationPage() {
           ? {
               ...r,
               ...formData,
-              orientee: formData.sessionName,
+              sessionName: '',
+              orientee: `${finalDepartment} - ${finalPosition}`,
+              department: finalDepartment,
+              position: finalPosition,
               attendanceCount: Number(formData.attendanceCount || 0),
               weekStart
             }
@@ -101,10 +119,10 @@ export function OrientationPage() {
         id: `ori_${Date.now().toString(16)}`,
         date: today,
         weekStart,
-        sessionName: formData.sessionName,
-        orientee: formData.sessionName,
-        department: formData.department,
-        position: formData.position,
+        sessionName: '',
+        orientee: `${finalDepartment} - ${finalPosition}`,
+        department: finalDepartment,
+        position: finalPosition,
         hireDate: formData.hireDate,
         status: (formData.status || 'completed') as OrientationRecord['status'],
         attendanceCount: Number(formData.attendanceCount || 0),
@@ -194,31 +212,51 @@ export function OrientationPage() {
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label>Session Name *</Label>
-                  <Input
-                    value={formData.sessionName || ''}
-                    onChange={(e) => setFormData({ ...formData, sessionName: e.target.value, orientee: e.target.value })}
-                    placeholder="Example: New RN Orientation - Week 1"
-                  />
-                </div>
                 <div>
                   <Label>Department *</Label>
-                  <Select value={formData.department} onValueChange={(v) => setFormData({ ...formData, department: v })}>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(v) => {
+                      setFormData({ ...formData, department: v });
+                      if (v !== 'others') setDepartmentOther('');
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {formData.department === 'others' && (
+                    <Input
+                      className="mt-2"
+                      value={departmentOther}
+                      onChange={(e) => setDepartmentOther(e.target.value)}
+                      placeholder="Enter department"
+                    />
+                  )}
                 </div>
                 <div>
                   <Label>Position *</Label>
-                  <Select value={formData.position} onValueChange={(v) => setFormData({ ...formData, position: v })}>
+                  <Select
+                    value={formData.position}
+                    onValueChange={(v) => {
+                      setFormData({ ...formData, position: v });
+                      if (v !== 'others') setPositionOther('');
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       {POSITIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {formData.position === 'others' && (
+                    <Input
+                      className="mt-2"
+                      value={positionOther}
+                      onChange={(e) => setPositionOther(e.target.value)}
+                      placeholder="Enter position"
+                    />
+                  )}
                 </div>
                 <div>
                   <Label>Session Date *</Label>
@@ -260,7 +298,16 @@ export function OrientationPage() {
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
-                <Button onClick={saveRecord} disabled={!formData.sessionName || !formData.department || !formData.position || !formData.hireDate}>
+                <Button
+                  onClick={saveRecord}
+                  disabled={
+                    !formData.department ||
+                    !formData.position ||
+                    (formData.department === 'others' && !departmentOther.trim()) ||
+                    (formData.position === 'others' && !positionOther.trim()) ||
+                    !formData.hireDate
+                  }
+                >
                   {editingRecord ? 'Update Session' : 'Add Session'}
                 </Button>
               </div>
