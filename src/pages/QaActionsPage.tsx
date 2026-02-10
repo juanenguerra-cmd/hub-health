@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { QaActionFormModal } from '@/components/qa/QaActionFormModal';
+import { ClosedLoopTracker } from '@/components/workflow/ClosedLoopTracker';
+import { buildWorkflowStages } from '@/lib/workflow-tracker';
 import { PrintableQaActionsReport } from '@/components/reports/PrintableQaActionsReport';
 import { toast } from '@/hooks/use-toast';
 import { useAuditNavigation } from '@/hooks/use-audit-navigation';
@@ -51,7 +53,7 @@ const extractCompetenciesFromNotes = (notes: string): string[] => {
 };
 
 export function QaActionsPage() {
-  const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab, sessions } = useApp();
+  const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab, sessions, eduSessions, startQAActionRequest, setStartQAActionRequest } = useApp();
   const { startAudit, openAuditSession } = useAuditNavigation();
   
   // Modal states
@@ -114,6 +116,47 @@ export function QaActionsPage() {
       return rule.searchTags.some(tag => actionText.includes(tag.toLowerCase()));
     });
   }, [filtered]);
+
+
+  useEffect(() => {
+    if (!startQAActionRequest) return;
+    setEditAction((prev) => ({
+      ...(prev ?? {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        status: 'open',
+        templateId: '',
+        templateTitle: '',
+        unit: '',
+        auditDate: '',
+        sessionId: '',
+        sample: '',
+        issue: '',
+        reason: '',
+        topic: '',
+        summary: '',
+        owner: '',
+        dueDate: '',
+        completedAt: '',
+        notes: '',
+        ftagTags: [],
+        nydohTags: [],
+        reAuditDueDate: '',
+        reAuditCompletedAt: '',
+        reAuditSessionRef: '',
+        reAuditTemplateId: '',
+        ev_policyReviewed: false,
+        ev_educationProvided: false,
+        ev_competencyValidated: false,
+        ev_correctiveAction: false,
+        ev_monitoringInPlace: false,
+        linkedEduSessionId: '',
+      }),
+      ...startQAActionRequest.prefillData,
+    } as QaAction));
+    setShowFormModal(true);
+    setStartQAActionRequest(null);
+  }, [setStartQAActionRequest, startQAActionRequest]);
 
   const getStatusBadge = (action: typeof qaActions[0]) => {
     const due = (action.dueDate || '').slice(0, 10);
@@ -531,6 +574,10 @@ export function QaActionsPage() {
                 </div>
               )}
               
+              <ClosedLoopTracker
+                stages={buildWorkflowStages(selectedAction, sessions, eduSessions)}
+              />
+
               {/* Actions */}
               <div className="flex flex-wrap justify-between gap-2 pt-4 border-t">
                 <AlertDialog>

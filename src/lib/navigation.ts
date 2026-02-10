@@ -13,6 +13,7 @@ import {
   Settings,
   Sparkles,
   Users,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -48,6 +49,7 @@ export const navGroups: NavGroup[] = [
       { id: 'templates', label: 'Audit Templates', path: '/templates', icon: ClipboardCheck, groupId: 'audit', groupLabel: 'Audit Management' },
       { id: 'sessions', label: 'Audit Sessions', path: '/sessions', icon: FileText, groupId: 'audit', groupLabel: 'Audit Management' },
       { id: 'qa-actions', label: 'QA Actions', path: '/qa-actions', icon: AlertCircle, groupId: 'audit', groupLabel: 'Audit Management' },
+      { id: 'workflow-dashboard', label: 'Workflow Dashboard', path: '/workflow-dashboard', icon: Workflow, groupId: 'audit', groupLabel: 'Audit Management' },
     ],
   },
   {

@@ -90,6 +90,10 @@ interface AppContextType {
   setStartAuditRequest: (request: StartAuditRequest | null) => void;
   openSessionRequest: OpenSessionRequest | null;
   setOpenSessionRequest: (request: OpenSessionRequest | null) => void;
+  startQAActionRequest: StartQAActionRequest | null;
+  setStartQAActionRequest: (request: StartQAActionRequest | null) => void;
+  startEducationRequest: StartEducationRequest | null;
+  setStartEducationRequest: (request: StartEducationRequest | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -101,11 +105,22 @@ type StartAuditRequest = {
   unit?: string;
   auditor?: string;
   autoStart?: boolean;
+  isReAudit?: boolean;
 };
 
 type OpenSessionRequest = {
   sessionId: string;
   from: string;
+};
+
+type StartQAActionRequest = {
+  prefillData: Partial<QaAction>;
+  returnTo: string;
+};
+
+type StartEducationRequest = {
+  prefillData: Partial<EducationSession>;
+  returnTo: string;
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -180,6 +195,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [startAuditRequest, setStartAuditRequest] = useState<StartAuditRequest | null>(null);
   const [openSessionRequest, setOpenSessionRequest] = useState<OpenSessionRequest | null>(null);
+  const [startQAActionRequest, setStartQAActionRequest] = useState<StartQAActionRequest | null>(null);
+  const [startEducationRequest, setStartEducationRequest] = useState<StartEducationRequest | null>(null);
   
   // Load data on mount
   useEffect(() => {
@@ -373,7 +390,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       startAuditRequest,
       setStartAuditRequest,
       openSessionRequest,
-      setOpenSessionRequest
+      setOpenSessionRequest,
+      startQAActionRequest,
+      setStartQAActionRequest,
+      startEducationRequest,
+      setStartEducationRequest
     }}>
       {children}
     </AppContext.Provider>

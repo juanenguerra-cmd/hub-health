@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { detectEducationCategory, todayYMD } from '@/lib/calculations';
 import { EducationSessionFormModal } from '@/components/education/EducationSessionFormModal';
 import { SignOffSheetModal } from '@/components/education/SignOffSheetModal';
 import { SessionDetailModal } from '@/components/education/SessionDetailModal';
+import { useWorkflowNavigation } from '@/hooks/use-workflow-navigation';
 import type { EducationSession } from '@/types/nurse-educator';
 import { 
   Search, 
@@ -42,7 +43,7 @@ const MONTHS = [
 ];
 
 export function EducationPage() {
-  const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName, eduLibrary, setActiveTab } = useApp();
+  const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName, eduLibrary, setActiveTab, startEducationRequest, setStartEducationRequest } = useApp();
   
   // Modal states
   const [selectedSession, setSelectedSession] = useState<EducationSession | null>(null);
@@ -51,12 +52,41 @@ export function EducationPage() {
   const [showSignOffModal, setShowSignOffModal] = useState(false);
   const [signOffSession, setSignOffSession] = useState<EducationSession | null>(null);
   
+
+  useEffect(() => {
+    if (!startEducationRequest) return;
+
+    setEditSession((prev) => ({
+      ...(prev ?? {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        status: 'planned',
+        topic: '',
+        summary: '',
+        audience: '',
+        instructor: '',
+        unit: '',
+        scheduledDate: '',
+        completedDate: '',
+        notes: '',
+        templateTitle: '',
+        templateId: '',
+        issue: '',
+        linkedQaActionId: '',
+      }),
+      ...startEducationRequest.prefillData,
+    } as EducationSession));
+    setShowFormModal(true);
+    setStartEducationRequest(null);
+  }, [setStartEducationRequest, startEducationRequest]);
+
   // Month/Year filter state
   const [filterMonth, setFilterMonth] = useState<string>('All');
   const [filterYear, setFilterYear] = useState<string>(String(currentYear));
+  const { scheduleReAuditFromEducation } = useWorkflowNavigation();
 
   // Filter sessions
-  let filtered = eduSessions.filter(s => {
+  const filtered = eduSessions.filter(s => {
     // Status filter
     if (eduFilters.status !== 'All' && s.status !== eduFilters.status) return false;
     
@@ -325,6 +355,7 @@ export function EducationPage() {
         onEdit={handleEditSession}
         onDelete={handleDeleteSession}
         onGenerateSignOff={handleGenerateSignOff}
+        onScheduleReAudit={() => selectedSession && scheduleReAuditFromEducation(selectedSession)}
       />
 
       {/* Create/Edit Form Modal */}

@@ -24,6 +24,7 @@ interface SessionDetailModalProps {
   onEdit: () => void;
   onDelete: () => void;
   onGenerateSignOff: () => void;
+  onScheduleReAudit: () => void;
 }
 
 export function SessionDetailModal({
@@ -32,7 +33,8 @@ export function SessionDetailModal({
   session,
   onEdit,
   onDelete,
-  onGenerateSignOff
+  onGenerateSignOff,
+  onScheduleReAudit
 }: SessionDetailModalProps) {
   if (!session) return null;
 
@@ -175,6 +177,12 @@ export function SessionDetailModal({
                 <FileText className="w-4 h-4 mr-1" />
                 Sign-Off Sheet
               </Button>
+              {session.status === 'completed' && session.linkedQaActionId && (
+                <Button variant="outline" onClick={onScheduleReAudit}>
+                  <FileText className="w-4 h-4 mr-1" />
+                  Schedule Re-Audit
+                </Button>
+              )}
               <Button onClick={onEdit}>
                 <Pencil className="w-4 h-4 mr-1" />
                 Edit
