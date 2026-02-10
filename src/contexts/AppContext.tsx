@@ -40,6 +40,7 @@ import {
 } from '@/lib/storage';
 import { parseBackupFile, processBackupData, createBackup, type RestoreResult } from '@/lib/backup-restore';
 import { getNavItemById, getNavItemByPath } from '@/lib/navigation';
+import { categorizeByKeywords } from '@/lib/regulatory-categories';
 
 interface AppContextType {
   // Data
@@ -200,16 +201,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   // Load data on mount
   useEffect(() => {
+    const loadedLibrary = loadEduLibrary();
+    const migratedLibrary = loadedLibrary.map(topic => {
+      if (topic.regulatoryCategory) {
+        return topic;
+      }
+
+      const regulatoryCategory = categorizeByKeywords(
+        topic.topic,
+        topic.ftags,
+        topic.nysdohRegs || '',
+        topic.purpose
+      );
+      const nysdohRequired = /orientation|abuse|infection|fire|emergency|rights/i.test(
+        `${topic.topic} ${topic.purpose}`
+      );
+
+      return {
+        ...topic,
+        regulatoryCategory,
+        nysdohRequired
+      };
+    });
+
     setTemplates(loadTemplates());
     setSessionsState(loadSessions());
     setQaActionsState(loadQaActions());
     setEduSessionsState(loadEduSessions());
     setOrientationRecords(loadOrientationRecords());
-    setEduLibrary(loadEduLibrary());
+    setEduLibrary(migratedLibrary);
     setStaffDirectory(loadStaffDirectory());
     setAdminOwners(loadAdminOwners());
     setFacilityName(loadFacilityName());
     setFacilityUnits(loadFacilityUnits());
+
+    if (migratedLibrary.some((topic, index) => topic.regulatoryCategory !== loadedLibrary[index]?.regulatoryCategory)) {
+      saveEduLibrary(migratedLibrary);
+    }
   }, []);
   
   // Persist data mutations

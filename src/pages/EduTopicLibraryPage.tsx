@@ -11,10 +11,18 @@ import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from '@/hooks/use-toast';
 import { EducationSessionFormModal } from '@/components/education/EducationSessionFormModal';
+import { AdvancedFilterPanel } from '@/components/education/AdvancedFilterPanel';
+import { useEducationFilters } from '@/hooks/use-education-filters';
 import { todayYMD } from '@/lib/calculations';
+import {
+  categorizeByKeywords,
+  getAllCategoriesByPriority,
+  getCategoryMetadata,
+  parseFTags,
+  type CMSCategory
+} from '@/lib/regulatory-categories';
 import type { EduTopic, EducationSession } from '@/types/nurse-educator';
 import {
-  Search,
   Plus,
   BookOpen,
   Download,
@@ -28,15 +36,12 @@ import {
   ClipboardCheck,
   ChevronDown,
   CheckCircle2,
-  ListFilter,
+  Sparkles,
   Play
 } from 'lucide-react';
 
 export function EduTopicLibraryPage() {
   const { eduLibrary, setEduLibrary, templates, setActiveTab, eduSessions, setEduSessions } = useApp();
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<EduTopic | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
@@ -48,25 +53,40 @@ export function EduTopicLibraryPage() {
   // Form state
   const [formData, setFormData] = useState<Partial<EduTopic>>({
     topic: '',
+    regulatoryCategory: undefined,
     category: '',
     description: '',
     purpose: '',
     disciplines: '',
     ftags: '',
     nysdohRegs: '',
-    facilityPolicy: ''
+    facilityPolicy: '',
+    nysdohRequired: false
   });
+
+  const {
+    filters,
+    updateFilter,
+    resetFilters,
+    hasActiveFilters,
+    filteredTopics,
+    filterStats,
+    availableFTags,
+    availableDisciplines
+  } = useEducationFilters(eduLibrary);
 
   const resetForm = () => {
     setFormData({
       topic: '',
+      regulatoryCategory: undefined,
       category: '',
       description: '',
       purpose: '',
       disciplines: '',
       ftags: '',
       nysdohRegs: '',
-      facilityPolicy: ''
+      facilityPolicy: '',
+      nysdohRequired: false
     });
     setEditingTopic(null);
   };
@@ -75,26 +95,6 @@ export function EduTopicLibraryPage() {
     setEditingTopic(topic);
     setFormData({ ...topic });
     setDialogOpen(true);
-  };
-
-
-  const normalizeCategory = (value: string) => value.trim() || 'Uncategorized';
-
-  const inferCategory = (topic: EduTopic): string => {
-    if (topic.category && topic.category.trim()) {
-      return topic.category.trim();
-    }
-
-    const haystack = `${topic.topic} ${topic.purpose} ${topic.ftags}`.toLowerCase();
-
-    if (haystack.includes('orientation') || haystack.includes('onboarding')) return 'Orientation';
-    if (haystack.includes('medication') || haystack.includes('med pass')) return 'Medication Safety';
-    if (haystack.includes('fall') || haystack.includes('pressure') || haystack.includes('wound')) return 'Clinical Safety';
-    if (haystack.includes('documentation') || haystack.includes('chart')) return 'Documentation';
-    if (haystack.includes('abuse') || haystack.includes('resident rights') || haystack.includes('dementia')) return 'Resident Care & Rights';
-    if (haystack.includes('infection') || haystack.includes('ipcp') || haystack.includes('ppe') || haystack.includes('hand hygiene') || haystack.includes('f880')) return 'Infection Prevention';
-
-    return 'General Education';
   };
 
   const saveTopic = () => {
@@ -112,13 +112,20 @@ export function EduTopicLibraryPage() {
       const newTopic: EduTopic = {
         id: `edu_topic_${Date.now().toString(16)}`,
         topic: formData.topic!,
-        category: normalizeCategory(formData.category || ''),
+        regulatoryCategory: formData.regulatoryCategory || categorizeByKeywords(
+          formData.topic || '',
+          formData.ftags || '',
+          formData.nysdohRegs || '',
+          formData.purpose || ''
+        ),
+        category: formData.category || '',
         description: formData.description || '',
         purpose: formData.purpose || '',
         disciplines: formData.disciplines || '',
         ftags: formData.ftags || '',
         nysdohRegs: formData.nysdohRegs || '',
         facilityPolicy: formData.facilityPolicy || '',
+        nysdohRequired: Boolean(formData.nysdohRequired),
         archived: false
       };
       setEduLibrary([...eduLibrary, newTopic]);
@@ -146,42 +153,32 @@ export function EduTopicLibraryPage() {
     toast({ title: 'Topic Restored', description: 'The topic has been restored.' });
   };
 
-  // Filter topics
-  const filtered = eduLibrary.filter(t => {
-    if (!showArchived && t.archived) return false;
-    if (showArchived && !t.archived) return false;
-    if (selectedCategory !== 'all' && inferCategory(t) !== selectedCategory) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const hay = `${t.topic} ${t.category || ''} ${t.disciplines} ${t.ftags} ${t.purpose}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
-
-  const categories = useMemo(() => {
-    const all = eduLibrary
-      .filter(t => (showArchived ? t.archived : !t.archived))
-      .map(inferCategory);
-    return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b));
-  }, [eduLibrary, showArchived]);
-
   const groupedTopics = useMemo(() => {
-    const groups = new Map<string, EduTopic[]>();
-    filtered.forEach(topic => {
-      const category = inferCategory(topic);
+    const groups = new Map<CMSCategory, EduTopic[]>();
+    filteredTopics.forEach(topic => {
+      const category = topic.regulatoryCategory || categorizeByKeywords(
+        topic.topic,
+        topic.ftags,
+        topic.nysdohRegs || '',
+        topic.purpose
+      );
       const items = groups.get(category) || [];
       items.push(topic);
       groups.set(category, items);
     });
 
     return Array.from(groups.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
       .map(([category, topics]) => ({
         category,
+        metadata: getCategoryMetadata(category),
         topics: topics.sort((a, b) => a.topic.localeCompare(b.topic))
-      }));
-  }, [filtered]);
+      }))
+      .sort((a, b) => {
+        const priorityOrder = { critical: 0, high: 1, medium: 2 };
+        return priorityOrder[a.metadata.priority] - priorityOrder[b.metadata.priority]
+          || a.metadata.name.localeCompare(b.metadata.name);
+      });
+  }, [filteredTopics]);
 
   const toggleCategoryExpanded = (category: string) => {
     setExpandedCategories(prev => {
@@ -261,9 +258,12 @@ export function EduTopicLibraryPage() {
 
   // CSV Export
   const exportCsv = () => {
-    const headers = ['Category', 'Topic', 'Description', 'Purpose', 'Disciplines', 'F-Tags', 'NYSDOH Regs', 'Facility Policy', 'Archived'];
+    const headers = ['Regulatory Category', 'Legacy Category', 'Priority', 'NYSDOH Required', 'Topic', 'Description', 'Purpose', 'Disciplines', 'F-Tags', 'NYSDOH Regs', 'Facility Policy', 'Archived'];
     const rows = eduLibrary.map(t => [
-      `"${inferCategory(t).replace(/"/g, '""')}"`,
+      `"${(t.regulatoryCategory || categorizeByKeywords(t.topic, t.ftags, t.nysdohRegs || '', t.purpose)).replace(/"/g, '""')}"`,
+      `"${(t.category || '').replace(/"/g, '""')}"`,
+      `"${(t.priority || getCategoryMetadata(t.regulatoryCategory || categorizeByKeywords(t.topic, t.ftags, t.nysdohRegs || '', t.purpose)).priority).replace(/"/g, '""')}"`,
+      t.nysdohRequired ? 'Yes' : 'No',
       `"${(t.topic || '').replace(/"/g, '""')}"`,
       `"${(t.description || '').replace(/"/g, '""')}"`,
       `"${(t.purpose || '').replace(/"/g, '""')}"`,
@@ -335,6 +335,9 @@ export function EduTopicLibraryPage() {
           if (values.length < 2) continue;
 
           const categoryIdx = headers.findIndex(h => h.includes('category'));
+          const regCategoryIdx = headers.findIndex(h => h.includes('regulatorycategory'));
+          const priorityIdx = headers.findIndex(h => h.includes('priority'));
+          const requiredIdx = headers.findIndex(h => h.includes('required'));
           const topicIdx = headers.findIndex(h => h.includes('topic'));
           const descIdx = headers.findIndex(h => h.includes('description'));
           const purposeIdx = headers.findIndex(h => h.includes('purpose'));
@@ -349,7 +352,10 @@ export function EduTopicLibraryPage() {
           imported.push({
             id: `edu_topic_import_${Date.now().toString(16)}_${i}`,
             topic,
+            regulatoryCategory: values[regCategoryIdx] as CMSCategory || undefined,
             category: values[categoryIdx] || '',
+            priority: values[priorityIdx] as EduTopic['priority'] || undefined,
+            nysdohRequired: /^yes|true|1$/i.test(values[requiredIdx] || ''),
             description: values[descIdx] || '',
             purpose: values[purposeIdx] || '',
             disciplines: values[discIdx] || '',
@@ -432,12 +438,36 @@ export function EduTopicLibraryPage() {
                   />
                 </div>
                 <div>
-                  <Label>Category</Label>
-                  <Input
-                    value={formData.category || ''}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="e.g., Infection Prevention"
-                  />
+                  <Label>Regulatory Category *</Label>
+                  <select
+                    value={formData.regulatoryCategory || ''}
+                    onChange={(e) => setFormData({ ...formData, regulatoryCategory: e.target.value as CMSCategory })}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="">Select regulatory category...</option>
+                    {getAllCategoriesByPriority().map(cat => (
+                      <option key={cat.name} value={cat.name}>{cat.name} ({cat.ftagRange})</option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 mt-2"
+                    onClick={() => {
+                      const suggested = categorizeByKeywords(
+                        formData.topic || '',
+                        formData.ftags || '',
+                        formData.nysdohRegs || '',
+                        formData.purpose || ''
+                      );
+                      setFormData({ ...formData, regulatoryCategory: suggested });
+                      toast({ title: 'Category Suggested', description: suggested });
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Auto-Suggest Category
+                  </Button>
                 </div>
                 <div>
                   <Label>Purpose</Label>
@@ -474,6 +504,16 @@ export function EduTopicLibraryPage() {
                     />
                   </div>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="nysdoh-required"
+                    checked={formData.nysdohRequired || false}
+                    onCheckedChange={(checked) => setFormData({ ...formData, nysdohRequired: checked })}
+                  />
+                  <Label htmlFor="nysdoh-required" className="text-sm">
+                    NYSDOH Annual Required Training (10 NYCRR 415.26)
+                  </Label>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>NYSDOH Regulations</Label>
@@ -504,67 +544,40 @@ export function EduTopicLibraryPage() {
         </div>
       </div>
 
-      {/* Stats & Filter */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search topics..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <ListFilter className="w-4 h-4 text-muted-foreground" />
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="all">All categories</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-              <Badge variant="secondary">{activeCount} Active</Badge>
-              <Badge variant="outline">{archivedCount} Archived</Badge>
-              <div className="flex items-center gap-2">
-                <Switch checked={showArchived} onCheckedChange={setShowArchived} id="show-archived" />
-                <Label htmlFor="show-archived" className="text-sm">Show Archived</Label>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <AdvancedFilterPanel
+            filters={filters}
+            updateFilter={updateFilter}
+            resetFilters={resetFilters}
+            hasActiveFilters={hasActiveFilters}
+            filterStats={filterStats}
+            availableFTags={availableFTags}
+            availableDisciplines={availableDisciplines}
+          />
+        </div>
 
-      {/* Topics Table */}
-      <Card>
+        <div className="lg:col-span-2">
+          <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <BookOpen className="w-5 h-5" />
-            {showArchived ? 'Archived Topics' : 'Active Topics'}
+            {filters.showArchived ? 'Archived Topics' : 'Active Topics'}
           </CardTitle>
           <CardDescription>
-            {showArchived
-              ? 'Previously used topics preserved for historical reference'
-              : 'Education topics with regulatory and policy references'}
+            {hasActiveFilters
+              ? <span className="text-primary font-medium">Filtered results — {filteredTopics.length} topic{filteredTopics.length === 1 ? '' : 's'}</span>
+              : 'Education topics with regulatory references'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {filteredTopics.length === 0 ? (
             <div className="py-12 text-center">
               <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <p className="font-medium">No topics found</p>
-              <p className="text-sm text-muted-foreground">
-                {showArchived ? 'No archived topics' : 'Add your first education topic'}
-              </p>
+              <p className="font-medium">No topics match your filters</p>
+              {hasActiveFilters && (
+                <Button variant="outline" size="sm" onClick={resetFilters} className="mt-4">Clear Filters</Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -576,8 +589,9 @@ export function EduTopicLibraryPage() {
                     <Collapsible open={categoryOpen} onOpenChange={() => toggleCategoryExpanded(group.category)}>
                       <CollapsibleTrigger asChild>
                         <button type="button" className="w-full p-4 flex items-center justify-between text-left hover:bg-muted/40 rounded-t-lg">
-                          <div className="flex items-center gap-2">
-                            <Badge>{group.category}</Badge>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={group.metadata.priority === 'critical' ? 'destructive' : 'secondary'}>{group.category}</Badge>
+                            <Badge variant="outline" className="text-xs">{group.metadata.ftagRange}</Badge>
                             <span className="text-sm text-muted-foreground">{group.topics.length} topic{group.topics.length === 1 ? '' : 's'}</span>
                           </div>
                           <ChevronDown className={`w-4 h-4 transition-transform ${categoryOpen ? 'rotate-180' : ''}`} />
@@ -599,12 +613,16 @@ export function EduTopicLibraryPage() {
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <FileText className="w-4 h-4 text-primary shrink-0" />
                                           <span className="font-medium">{topic.topic}</span>
-                                          {topic.ftags && topic.ftags.split(';').map((tag, i) => (
+                                          {parseFTags(topic.ftags).map((tag, i) => (
                                             <Badge key={i} variant="outline" className="text-xs">
                                               <Tag className="w-3 h-3 mr-1" />
                                               {tag.trim()}
                                             </Badge>
                                           ))}
+                                          <Badge variant={(topic.priority || group.metadata.priority) === 'critical' ? 'destructive' : 'secondary'} className="text-xs uppercase">
+                                            {topic.priority || group.metadata.priority}
+                                          </Badge>
+                                          {topic.nysdohRequired && <Badge variant="outline" className="text-xs">NYSDOH Required</Badge>}
                                           {topic.triggerAuditId && (
                                             <Badge variant="secondary" className="text-xs gap-1">
                                               <ClipboardCheck className="w-3 h-3" />
@@ -736,7 +754,9 @@ export function EduTopicLibraryPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </div>
+      </div>
       <EducationSessionFormModal
         open={showSessionModal}
         onOpenChange={(open) => {

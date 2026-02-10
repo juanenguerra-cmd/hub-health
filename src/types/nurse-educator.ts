@@ -1,5 +1,7 @@
 // Nurse Educator Suite - Core Types
 
+import type { CMSCategory } from '@/lib/regulatory-categories';
+
 export interface AuditTemplate {
   id: string;
   title: string;
@@ -199,6 +201,7 @@ export interface AdminOwners {
 
 export interface EduTopic {
   id: string;
+  regulatoryCategory?: CMSCategory;
   category?: string;
   topic: string;
   description: string;
@@ -211,6 +214,8 @@ export interface EduTopic {
   archivedAt?: string;
   triggerAuditId?: string;
   evidenceArtifacts?: string[];
+  priority?: 'critical' | 'high' | 'medium';
+  nysdohRequired?: boolean;
 }
 
 export interface CompetencySkill {
