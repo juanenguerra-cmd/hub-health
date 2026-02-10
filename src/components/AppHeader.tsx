@@ -1,9 +1,10 @@
 import { useApp } from '@/contexts/AppContext';
-import { Bell, Search, HelpCircle, Menu } from 'lucide-react';
+import { Search, HelpCircle, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AppBreadcrumbs } from '@/components/Breadcrumbs';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface AppHeaderProps {
   onMenuClick?: () => void;
@@ -48,10 +49,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             )}
           </div>
 
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            {overdueCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full" />}
-          </Button>
+          <NotificationBell />
 
           <Button variant="ghost" size="icon">
             <HelpCircle className="w-5 h-5" />

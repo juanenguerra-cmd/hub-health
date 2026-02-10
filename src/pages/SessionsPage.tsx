@@ -615,15 +615,15 @@ export function SessionsPage() {
               Start New Audit
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-auto">
             <DialogHeader>
               <DialogTitle>Start New Audit Session</DialogTitle>
               <DialogDescription>
-                Select an audit tool and enter session details
+                Select an audit tool and complete the guided workflow.
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="space-y-4 pt-4">
+
+            <div className="space-y-4 pt-2">
               <div className="space-y-2">
                 <Label>Audit Tool</Label>
                 <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
@@ -637,58 +637,18 @@ export function SessionsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="space-y-2">
-                <Label>Audit Date</Label>
-                <Input 
-                  type="date"
-                  value={newSessionDate} 
-                  onChange={(e) => setNewSessionDate(e.target.value)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Unit</Label>
-                <Input 
-                  value={newSessionUnit} 
-                  onChange={(e) => setNewSessionUnit(e.target.value)}
-                  placeholder="e.g., 1A, 2B, ICU"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Auditor Name</Label>
-                <Input 
-                  value={newSessionAuditor} 
-                  onChange={(e) => setNewSessionAuditor(e.target.value)}
-                  placeholder="Your name"
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <Button 
-                  onClick={startNewSession} 
-                  disabled={!selectedTemplateId}
-                  className="flex-1"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Audit
-                </Button>
-                <Button 
-                  variant="outline"
-                  disabled={!selectedTemplateId}
-                  onClick={() => {
-                    const tpl = templates.find(t => t.id === selectedTemplateId);
-                    if (tpl) {
-                      setPrintPreAuditTemplate(tpl);
-                      setShowNewSessionDialog(false);
-                    }
+
+              {selectedTemplate ? (
+                <AuditSessionWizard
+                  template={selectedTemplate}
+                  onComplete={(session) => {
+                    setSessions([session, ...sessions]);
+                    setShowNewSessionDialog(false);
                   }}
-                >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print Form
-                </Button>
-              </div>
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">Choose an audit tool to continue.</p>
+              )}
             </div>
           </DialogContent>
         </Dialog>

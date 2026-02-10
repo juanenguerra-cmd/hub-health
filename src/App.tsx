@@ -14,6 +14,7 @@ import { FollowUpPage } from '@/pages/FollowUpPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { RegulatoryReferencesPage } from '@/pages/RegulatoryReferencesPage';
 import { RecommendationCenterPage } from '@/pages/RecommendationCenterPage';
+import { WorkflowDashboardPage } from '@/pages/WorkflowDashboardPage';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { BackupReminderBanner } from '@/components/BackupReminderBanner';
@@ -48,6 +49,7 @@ function AppContent() {
               <Route path="/sessions" element={<SessionsPage />} />
               <Route path="/sessions/:id" element={<SessionsPage />} />
               <Route path="/qa-actions" element={<QaActionsPage />} />
+              <Route path="/workflow-dashboard" element={<WorkflowDashboardPage />} />
               <Route path="/education" element={<EducationPage />} />
               <Route path="/edu-library" element={<EduTopicLibraryPage />} />
               <Route path="/orientation" element={<OrientationPage />} />
