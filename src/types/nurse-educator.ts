@@ -199,6 +199,7 @@ export interface AdminOwners {
 
 export interface EduTopic {
   id: string;
+  category?: string;
   topic: string;
   description: string;
   purpose: string;
