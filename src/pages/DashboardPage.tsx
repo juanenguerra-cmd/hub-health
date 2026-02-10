@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 export function DashboardPage() {
   const { 
