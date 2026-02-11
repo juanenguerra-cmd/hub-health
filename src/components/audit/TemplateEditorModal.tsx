@@ -36,6 +36,7 @@ interface TemplateEditorModalProps {
 
 const QUESTION_TYPES = [
   { value: 'yn', label: 'Yes/No' },
+  { value: 'ynna', label: 'Yes/No/N-A' },
   { value: 'text', label: 'Text' },
   { value: 'patientCode', label: 'Patient Code' },
   { value: 'select', label: 'Select (Options)' },

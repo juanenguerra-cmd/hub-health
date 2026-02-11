@@ -44,21 +44,41 @@ export const daysBetween = (startYmd: string, endYmd: string): number => {
 
 // Compute sample result from template and answers
 export function computeSampleResult(tpl: AuditTemplate, answers: Record<string, string>): SampleResult {
-  let max = 0, got = 0;
+  const scoring = tpl.scoring || { mode: 'sum', maxScore: 0, naPolicy: 'excludeFromDenominator' as const };
+  let max = 0;
+  let got = 0;
   const criticalFails: string[] = [];
   const actionNeeded: { key: string; label: string; reason: string }[] = [];
 
   for (const q of tpl.sampleQuestions || []) {
     const v = answers[q.key] ?? '';
-    if (q.type === 'yn' && q.score > 0) {
-      if (v !== 'na') max += q.score;
-      if (v === 'yes') got += q.score;
-    }
-    if (q.criticalFailIf && v === q.criticalFailIf) {
-      if (!criticalFails.includes(q.key)) criticalFails.push(q.key);
-    }
+    const points = q.points ?? q.score ?? 0;
+    const affectsScore = q.affectsScore ?? points > 0;
+    const isNA = v === 'na' && (q.type === 'ynna' || q.type === 'yn');
+
     if (q.required && (!v || String(v).trim() === '')) {
       actionNeeded.push({ key: q.key, label: q.label, reason: 'Required item missing' });
+    }
+
+    if (affectsScore && points > 0) {
+      if (q.type === 'yn' || q.type === 'ynna') {
+        if (isNA) {
+          if (scoring.naPolicy === 'fullCredit') {
+            max += points;
+            got += points;
+          } else if (scoring.naPolicy === 'zero') {
+            max += points;
+          }
+        } else {
+          max += points;
+          if (v === 'yes') got += points;
+        }
+      }
+    }
+
+    const failsByQuestionRule = (q.criticalFail ?? false) && v === (q.criticalFailIf || 'no');
+    if (failsByQuestionRule && !criticalFails.includes(q.key)) {
+      criticalFails.push(q.key);
     }
   }
 
@@ -66,17 +86,26 @@ export function computeSampleResult(tpl: AuditTemplate, answers: Record<string, 
     if (answers[k] === 'no' && !criticalFails.includes(k)) criticalFails.push(k);
   }
 
+  for (const gate of tpl.gatingRules || []) {
+    if ((answers[gate.key] ?? '') === gate.failIf && !criticalFails.includes(gate.key)) {
+      criticalFails.push(gate.key);
+      const q = tpl.sampleQuestions?.find((item) => item.key === gate.key);
+      actionNeeded.push({ key: gate.key, label: q?.label || gate.key, reason: gate.reason || 'Gating rule failed' });
+    }
+  }
+
   for (const k of criticalFails) {
-    const q = tpl.sampleQuestions?.find(x => x.key === k);
-    if (q && !actionNeeded.find(a => a.key === k)) {
+    const q = tpl.sampleQuestions?.find((x) => x.key === k);
+    if (q && !actionNeeded.find((a) => a.key === k)) {
       actionNeeded.push({ key: k, label: q.label, reason: 'Critical fail' });
     }
   }
 
+  const deterministicMax = scoring.maxScore || max;
   const pct = max === 0 ? 100 : Math.round((got / max) * 100);
   const pass = pct >= (tpl.passingThreshold || 0) && criticalFails.length === 0;
-  
-  return { pct, pass, criticalFails, actionNeeded, max, got };
+
+  return { pct, pass, criticalFails, actionNeeded, max: deterministicMax, got };
 }
 
 // Compute trend series from sessions
