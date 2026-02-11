@@ -11,6 +11,7 @@ import type {
   AdminOwners
 } from '@/types/nurse-educator';
 import { SEED_TEMPLATES, SEED_EDU_TOPICS } from './seed-templates';
+import { normalizeTemplate } from './template-schema';
 
 const LS_KEYS = {
   templates: 'NES_TEMPLATES_V1',
@@ -34,48 +35,6 @@ const DEFAULT_OWNERS: AdminOwners = {
   hr: 'HR/Staffing',
   unitMgr: 'Unit Manager',
   admin: 'Administrator'
-};
-
-const DEFAULT_TEMPLATE: Omit<AuditTemplate, 'id' | 'title'> = {
-  version: '1.0.0',
-  category: 'Uncategorized',
-  placementTags: [],
-  ftagTags: [],
-  nydohTags: [],
-  purpose: {
-    summary: '',
-    risk: '',
-    evidenceToShow: ''
-  },
-  references: [],
-  passingThreshold: 100,
-  criticalFailKeys: [],
-  sessionQuestions: [],
-  sampleQuestions: [],
-  archived: false,
-  archivedAt: '',
-  archivedBy: '',
-  replacedByTemplateId: ''
-};
-
-const normalizeTemplate = (template: Partial<AuditTemplate>, index: number): AuditTemplate => {
-  return {
-    ...DEFAULT_TEMPLATE,
-    ...template,
-    id: template.id || `legacy_template_${index + 1}`,
-    title: template.title || 'Untitled Audit Template',
-    purpose: {
-      ...DEFAULT_TEMPLATE.purpose,
-      ...template.purpose
-    },
-    placementTags: Array.isArray(template.placementTags) ? template.placementTags : [],
-    ftagTags: Array.isArray(template.ftagTags) ? template.ftagTags : [],
-    nydohTags: Array.isArray(template.nydohTags) ? template.nydohTags : [],
-    references: Array.isArray(template.references) ? template.references : [],
-    criticalFailKeys: Array.isArray(template.criticalFailKeys) ? template.criticalFailKeys : [],
-    sessionQuestions: Array.isArray(template.sessionQuestions) ? template.sessionQuestions : [],
-    sampleQuestions: Array.isArray(template.sampleQuestions) ? template.sampleQuestions : []
-  };
 };
 
 // Templates - merge seed templates with user data to ensure new templates are available

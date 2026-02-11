@@ -12,6 +12,7 @@ import type {
   StaffMember
 } from '@/types/nurse-educator';
 import type { FacilityUnit } from '@/types/facility-units';
+import { normalizeTemplate } from '@/lib/template-schema';
 
 export interface BackupData {
   v?: number;
@@ -251,7 +252,7 @@ export function processBackupData(backup: BackupData): {
   if (backup.templates) {
     for (const tpl of backup.templates) {
       if (!tpl.archived) {
-        templates.push(tpl);
+        templates.push(normalizeTemplate(tpl, templates.length));
       }
     }
   }

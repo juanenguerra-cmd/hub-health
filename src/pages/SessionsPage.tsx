@@ -83,6 +83,10 @@ export function SessionsPage() {
     ? templates.find(t => t.id === printPostAuditSession.templateId)
     : null;
 
+  const getSubjectCode = (answers: Record<string, string>) => {
+    return answers.subjectCode || answers.patient_code || answers.residentCode || answers.patientCode || '';
+  };
+
   // Check for pre-selected template from TemplatesPage
   useEffect(() => {
     if (!startAuditRequest) return;
@@ -332,6 +336,16 @@ export function SessionsPage() {
     const tpl = templates.find(t => t.id === activeSession.templateId);
     if (!tpl) return;
     
+    const missingRequired = activeSession.samples.flatMap((sample, index) => {
+      return (tpl.sampleQuestions || [])
+        .filter((q) => q.required && (!sample.answers[q.key] || !String(sample.answers[q.key]).trim()))
+        .map((q) => `Sample #${index + 1}: ${q.label}`);
+    });
+    if (missingRequired.length > 0) {
+      window.alert(`Session is incomplete. Fill required fields before completing:\n\n${missingRequired.slice(0, 10).join('\n')}`);
+      return;
+    }
+
     const scoredSamples = activeSession.samples.map(smp => {
       if (smp.result) return smp;
       return { ...smp, result: computeSampleResult(tpl, smp.answers) };
@@ -360,7 +374,7 @@ export function SessionsPage() {
             unit: activeSession.header.unit,
             auditDate: activeSession.header.auditDate,
             sessionId: activeSession.header.sessionId,
-            sample: smp.answers.patient_code || smp.id,
+            sample: getSubjectCode(smp.answers) || smp.id,
             issue: action.label,
             reason: action.reason,
             topic: '',
@@ -764,7 +778,7 @@ export function SessionsPage() {
                                         className="h-8 text-xs"
                                       />
                                     )}
-                                    {q.type === 'yn' && (
+                                    {(q.type === 'yn' || q.type === 'ynna') && (
                                       <RadioGroup
                                         value={sample.answers[q.key] || ''}
                                         onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
@@ -779,10 +793,12 @@ export function SessionsPage() {
                                           <RadioGroupItem value="no" id={`${sample.id}-${q.key}-no`} />
                                           <Label htmlFor={`${sample.id}-${q.key}-no`} className="text-[11px]">No</Label>
                                         </div>
-                                        <div className="flex items-center space-x-1">
-                                          <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
-                                          <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-[11px]">N/A</Label>
-                                        </div>
+                                        {q.type === 'ynna' && (
+                                          <div className="flex items-center space-x-1">
+                                            <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
+                                            <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-[11px]">N/A</Label>
+                                          </div>
+                                        )}
                                       </RadioGroup>
                                     )}
                                     {q.type === 'select' && q.options && (
@@ -910,7 +926,7 @@ export function SessionsPage() {
                                 />
                               )}
                               
-                              {q.type === 'yn' && (
+                              {(q.type === 'yn' || q.type === 'ynna') && (
                                 <RadioGroup
                                   value={sample.answers[q.key] || ''}
                                   onValueChange={(v) => updateSampleAnswer(sample.id, q.key, v)}
@@ -925,10 +941,12 @@ export function SessionsPage() {
                                     <RadioGroupItem value="no" id={`${sample.id}-${q.key}-no`} />
                                     <Label htmlFor={`${sample.id}-${q.key}-no`} className="text-xs">No</Label>
                                   </div>
-                                  <div className="flex items-center space-x-1">
-                                    <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
-                                    <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-xs">N/A</Label>
-                                  </div>
+                                  {q.type === 'ynna' && (
+                                    <div className="flex items-center space-x-1">
+                                      <RadioGroupItem value="na" id={`${sample.id}-${q.key}-na`} />
+                                      <Label htmlFor={`${sample.id}-${q.key}-na`} className="text-xs">N/A</Label>
+                                    </div>
+                                  )}
                                 </RadioGroup>
                               )}
                               

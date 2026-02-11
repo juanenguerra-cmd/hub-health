@@ -4,6 +4,7 @@ import type { CMSCategory } from '@/lib/regulatory-categories';
 
 export interface AuditTemplate {
   id: string;
+  templateId?: string;
   title: string;
   version: string;
   category: string;
@@ -16,6 +17,9 @@ export interface AuditTemplate {
     evidenceToShow: string;
   };
   references: TemplateReference[];
+  scoring?: TemplateScoring;
+  sessionHeader?: TemplateSessionHeader;
+  gatingRules?: TemplateGatingRule[];
   passingThreshold: number;
   criticalFailKeys: string[];
   sessionQuestions: TemplateQuestion[];
@@ -27,20 +31,57 @@ export interface AuditTemplate {
 }
 
 export interface TemplateReference {
+  framework?: 'CMS' | 'NYCRR' | 'CDC' | 'SSA' | 'Other';
+  type?: string;
+  id?: string;
+  title?: string;
   system: string;
   code: string;
-  title: string;
-  whyItMatters: string;
+  whyItMatters?: string;
 }
 
 export interface TemplateQuestion {
+  scope?: 'session' | 'sample';
   key: string;
   label: string;
-  type: 'text' | 'select' | 'yn' | 'patientCode' | 'number' | 'date';
+  type: 'text' | 'select' | 'yn' | 'ynna' | 'patientCode' | 'number' | 'date' | 'datetime';
   options?: string[];
   required: boolean;
-  score: number;
+  affectsScore?: boolean;
+  criticalFail?: boolean;
+  score?: number;
+  points?: number;
+  weight?: number;
   criticalFailIf?: string;
+  subjectCode?: string;
+  room?: string;
+  unit?: string;
+  evidenceHint?: string;
+  riskIfNoncompliant?: string;
+  references?: TemplateReference[];
+}
+
+export interface TemplateScoring {
+  mode: 'sum' | 'weighted' | 'singleGate';
+  maxScore: number;
+  naPolicy: 'excludeFromDenominator' | 'fullCredit' | 'zero';
+}
+
+export interface TemplateGatingRule {
+  key: string;
+  failIf: string;
+  reason?: string;
+}
+
+export interface TemplateSessionHeader {
+  facility?: string;
+  unit?: string;
+  date?: string;
+  shift?: string;
+  auditorName?: string;
+  auditorRole?: string;
+  batchLabel?: string;
+  notes?: string;
 }
 
 export interface AuditSession {
