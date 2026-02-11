@@ -1,13 +1,22 @@
-import { useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from '@/components/ui/pagination';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from '@/hooks/use-toast';
 import { EducationSessionFormModal } from '@/components/education/EducationSessionFormModal';
@@ -48,6 +57,7 @@ export function EduTopicLibraryPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [sessionPrefill, setSessionPrefill] = useState<Partial<EducationSession> | null>(null);
+  const [topicsPage, setTopicsPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -153,9 +163,19 @@ export function EduTopicLibraryPage() {
     toast({ title: 'Topic Restored', description: 'The topic has been restored.' });
   };
 
+  const TOPICS_PER_PAGE = 8;
+  const totalTopicPages = Math.max(1, Math.ceil(filteredTopics.length / TOPICS_PER_PAGE));
+  const safeTopicsPage = Math.min(topicsPage, totalTopicPages);
+  const pageStart = (safeTopicsPage - 1) * TOPICS_PER_PAGE;
+  const pagedTopics = filteredTopics.slice(pageStart, pageStart + TOPICS_PER_PAGE);
+
+  useEffect(() => {
+    setTopicsPage(1);
+  }, [filters, filteredTopics.length]);
+
   const groupedTopics = useMemo(() => {
     const groups = new Map<CMSCategory, EduTopic[]>();
-    filteredTopics.forEach(topic => {
+    pagedTopics.forEach(topic => {
       const category = topic.regulatoryCategory || categorizeByKeywords(
         topic.topic,
         topic.ftags,
@@ -178,7 +198,7 @@ export function EduTopicLibraryPage() {
         return priorityOrder[a.metadata.priority] - priorityOrder[b.metadata.priority]
           || a.metadata.name.localeCompare(b.metadata.name);
       });
-  }, [filteredTopics]);
+  }, [pagedTopics]);
 
   const toggleCategoryExpanded = (category: string) => {
     setExpandedCategories(prev => {
@@ -439,16 +459,24 @@ export function EduTopicLibraryPage() {
                 </div>
                 <div>
                   <Label>Regulatory Category *</Label>
-                  <select
-                    value={formData.regulatoryCategory || ''}
-                    onChange={(e) => setFormData({ ...formData, regulatoryCategory: e.target.value as CMSCategory })}
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  <Select
+                    value={formData.regulatoryCategory || 'unselected'}
+                    onValueChange={(value) => setFormData({ ...formData, regulatoryCategory: value === 'unselected' ? undefined : value as CMSCategory })}
                   >
-                    <option value="">Select regulatory category...</option>
-                    {getAllCategoriesByPriority().map(cat => (
-                      <option key={cat.name} value={cat.name}>{cat.name} ({cat.ftagRange})</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select regulatory category..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[320px]">
+                      <SelectItem value="unselected">Select regulatory category...</SelectItem>
+                      {getAllCategoriesByPriority().map(cat => (
+                        <SelectItem key={cat.name} value={cat.name}>
+                          <div className="whitespace-normal break-words leading-snug">
+                            {cat.name} ({cat.ftagRange})
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     type="button"
                     variant="outline"
@@ -605,9 +633,9 @@ export function EduTopicLibraryPage() {
                             const hasExtras = topic.triggerAuditId || (topic.evidenceArtifacts && topic.evidenceArtifacts.length > 0);
 
                             return (
-                              <Card key={topic.id} className={`${topic.archived ? 'opacity-60' : ''}`}>
+                              <Card key={topic.id} className={`border ${topic.archived ? 'opacity-60' : ''}`}>
                                 <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(topic.id)}>
-                                  <div className="p-4">
+                                  <div className="p-3">
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
@@ -637,6 +665,7 @@ export function EduTopicLibraryPage() {
                                           <span><strong>Disciplines:</strong> {topic.disciplines || '—'}</span>
                                           <span><strong>NYSDOH:</strong> {topic.nysdohRegs || '—'}</span>
                                           {topic.facilityPolicy && <span><strong>Policy:</strong> {topic.facilityPolicy}</span>}
+                                          <span><strong>Potential Audit Tool:</strong> {triggerAuditTitle || 'Not mapped yet'}</span>
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1 shrink-0">
@@ -751,6 +780,50 @@ export function EduTopicLibraryPage() {
                   </Card>
                 );
               })}
+            </div>
+          )}
+
+          {filteredTopics.length > 0 && (
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                Showing {pageStart + 1}-{Math.min(pageStart + TOPICS_PER_PAGE, filteredTopics.length)} of {filteredTopics.length} topics
+              </p>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setTopicsPage((prev) => Math.max(1, prev - 1));
+                      }}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalTopicPages }, (_, index) => index + 1).map((pageNumber) => (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink
+                        href="#"
+                        isActive={pageNumber === safeTopicsPage}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setTopicsPage(pageNumber);
+                        }}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setTopicsPage((prev) => Math.min(totalTopicPages, prev + 1));
+                      }}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </CardContent>

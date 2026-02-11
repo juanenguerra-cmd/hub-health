@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import type { EducationSession, EduTopic } from '@/types/nurse-educator';
-import { GraduationCap, BookOpen, ClipboardList } from 'lucide-react';
+import { Check, ChevronsUpDown, GraduationCap, BookOpen, ClipboardList } from 'lucide-react';
 import { findMatchingCompetencies, formatCompetenciesForNotes } from '@/lib/competency-library';
 
 interface EducationSessionFormModalProps {
@@ -205,28 +207,45 @@ export function EducationSessionFormModal({
                   <BookOpen className="w-4 h-4" />
                   Select from Topic Library
                 </Label>
-                <Select value={selectedTopicId} onValueChange={handleTopicSelect}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Choose a topic or enter custom..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50 max-h-[300px]">
-                    <SelectItem value="custom">
-                      <span className="text-muted-foreground">— Enter custom topic —</span>
-                    </SelectItem>
-                    {availableTopics.map(topic => (
-                      <SelectItem key={topic.id} value={topic.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{topic.topic}</span>
-                          {topic.ftags && (
-                            <span className="text-xs text-muted-foreground">{topic.ftags}</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between bg-background">
+                      {selectedTopicId && selectedTopicId !== 'custom'
+                        ? availableTopics.find((topic) => topic.id === selectedTopicId)?.topic
+                        : 'Choose a topic or enter custom...'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Type a topic keyword..." />
+                      <CommandEmpty>No topic found.</CommandEmpty>
+                      <CommandList className="max-h-[300px]">
+                        <CommandGroup>
+                          <CommandItem value="custom topic" onSelect={() => handleTopicSelect('custom')}>
+                            <Check className={`mr-2 h-4 w-4 ${selectedTopicId === 'custom' ? 'opacity-100' : 'opacity-0'}`} />
+                            <span className="text-muted-foreground">— Enter custom topic —</span>
+                          </CommandItem>
+                          {availableTopics.map((topic) => (
+                            <CommandItem
+                              key={topic.id}
+                              value={`${topic.topic} ${topic.ftags || ''}`}
+                              onSelect={() => handleTopicSelect(topic.id)}
+                            >
+                              <Check className={`mr-2 h-4 w-4 ${selectedTopicId === topic.id ? 'opacity-100' : 'opacity-0'}`} />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{topic.topic}</span>
+                                {topic.ftags && <span className="text-xs text-muted-foreground">{topic.ftags}</span>}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <p className="text-xs text-muted-foreground">
-                  Selecting a topic will auto-fill the form below
+                  Type at least one keyword to quickly find a topic from your library.
                 </p>
               </div>
               <Separator />

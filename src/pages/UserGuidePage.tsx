@@ -233,7 +233,7 @@ export function UserGuidePage() {
           <BookOpen className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">User Guide & Documentation</h1>
+          <h1 className="text-2xl font-bold">User Guide & Documentation (v2.1)</h1>
           <p className="text-muted-foreground">
             Learn how to use the Nurse Educator Suite effectively
           </p>
@@ -843,30 +843,44 @@ export function UserGuidePage() {
                   <div className="border-l-4 border-primary pl-4 pb-6">
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className="bg-primary">Current</Badge>
-                      <span className="font-bold">v2.0 – Template & Competency Update</span>
+                      <span className="font-bold">v2.1 – Education & References Repolish</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">January 2026</p>
+                    <p className="text-sm text-muted-foreground mb-3">February 2026</p>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <Zap className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-                        <span><strong>Template Creation Wizard:</strong> Build custom audit templates with a 4-step guided process</span>
+                        <span><strong>Topic Library UI refresh:</strong> Compact expandable topic rows with pagination for easier browsing</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Zap className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-                        <span><strong>Template Duplication:</strong> Clone existing templates with fresh version history</span>
+                        <span><strong>Improved filters:</strong> Regulatory category dropdown now wraps long values and disciplines can be edited inline</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Zap className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-                        <span><strong>Competency Library:</strong> 160+ MASTERED.IT skills with keyword matching</span>
+                        <span><strong>Plan Inservice search:</strong> Topic selector now supports keyword typeahead with suggestions</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Zap className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-                        <span><strong>User Guide:</strong> In-app documentation and help system</span>
+                        <span><strong>Regulatory references mapping:</strong> Added Education Topic and Available Audit Tool columns</span>
                       </li>
                     </ul>
                   </div>
 
                   {/* Previous Releases */}
+                  <div className="border-l-4 border-muted-foreground/30 pl-4 pb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary">v2.0</Badge>
+                      <span className="font-bold">Template & Competency Update</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">January 2026</p>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li>• Template Creation Wizard (4-step guided builder)</li>
+                      <li>• Template Duplication with clean version history</li>
+                      <li>• Competency library matching for education and QA</li>
+                      <li>• Initial in-app User Guide release</li>
+                    </ul>
+                  </div>
+
                   <div className="border-l-4 border-muted-foreground/30 pl-4 pb-6">
                     <div className="flex items-center gap-2 mb-2">
                       <Badge variant="secondary">v1.8</Badge>

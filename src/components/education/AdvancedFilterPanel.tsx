@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,16 @@ export const AdvancedFilterPanel = ({
   availableDisciplines
 }: AdvancedFilterPanelProps) => {
   const categories = getAllCategoriesByPriority();
+  const [disciplineInput, setDisciplineInput] = useState('');
+
+  const addDisciplineFilter = () => {
+    const next = disciplineInput.trim();
+    if (!next) return;
+    if (!filters.disciplines.some((discipline) => discipline.toLowerCase() === next.toLowerCase())) {
+      updateFilter('disciplines', [...filters.disciplines, next]);
+    }
+    setDisciplineInput('');
+  };
 
   return (
     <Card>
@@ -81,15 +92,15 @@ export const AdvancedFilterPanel = ({
             value={filters.regulatoryCategory}
             onValueChange={(value) => updateFilter('regulatoryCategory', value as 'all' | CMSCategory)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="max-h-[400px]">
+            <SelectContent className="max-h-[400px] w-[var(--radix-select-trigger-width)] max-w-[min(92vw,460px)]">
               <SelectItem value="all">All Categories</SelectItem>
               {categories.map(cat => (
                 <SelectItem key={cat.name} value={cat.name}>
                   <div className="flex flex-col gap-1">
-                    <span className="font-medium">{cat.name}</span>
+                    <span className="font-medium whitespace-normal break-words">{cat.name}</span>
                     <span className="text-xs text-muted-foreground">
                       {cat.ftagRange} — {cat.priority.toUpperCase()}
                     </span>
@@ -207,6 +218,32 @@ export const AdvancedFilterPanel = ({
               </Command>
             </PopoverContent>
           </Popover>
+          <div className="flex gap-2">
+            <Input
+              value={disciplineInput}
+              onChange={(event) => setDisciplineInput(event.target.value)}
+              placeholder="Add custom discipline"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  addDisciplineFilter();
+                }
+              }}
+            />
+            <Button type="button" variant="outline" onClick={addDisciplineFilter}>Add</Button>
+          </div>
+          {filters.disciplines.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {filters.disciplines.map((discipline) => (
+                <Badge key={discipline} variant="secondary" className="gap-1">
+                  {discipline}
+                  <button type="button" onClick={() => updateFilter('disciplines', filters.disciplines.filter(d => d !== discipline))}>
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
 
         <Separator />

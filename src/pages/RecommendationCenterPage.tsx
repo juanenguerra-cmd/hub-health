@@ -7,7 +7,7 @@ export function RecommendationCenterPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-foreground">Recommendation Center</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Recommended Competency</h1>
         <p className="text-sm text-muted-foreground">
           Prepare your QI workflow to recommend competencies and in-services without owning corporate LMS data.
         </p>
@@ -15,7 +15,7 @@ export function RecommendationCenterPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Top Recommendations (Preview)</CardTitle>
+          <CardTitle>Top Recommended Competencies (Preview)</CardTitle>
           <CardDescription>
             These are generated from audit findings and trends. Use them to select matching corporate modules.
           </CardDescription>

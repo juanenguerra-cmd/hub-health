@@ -22,6 +22,8 @@ type ReferenceRecord = {
   lookingFor: string;
   artifacts: string;
   auditMap: string;
+  educationTopic: string;
+  availableAuditTool: string;
 };
 
 const referenceLibrary: ReferenceRecord[] = [
@@ -34,6 +36,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'IP risk assessment, surveillance logs, isolation workflows, and staff competency checks.',
     artifacts: 'IP plan, surveillance reports, PPE audits, isolation signage photos.',
     auditMap: 'Hand Hygiene Observation, PPE Compliance, Outbreak Readiness, Environmental Cleaning.',
+    educationTopic: 'IPCP Core Practices and Outbreak Response',
+    availableAuditTool: 'Hand Hygiene Observation; PPE Compliance; Outbreak Readiness; Environmental Cleaning',
   },
   {
     title: 'CMS Appendix PP (State Operations Manual) - Surveyor Guidance',
@@ -44,6 +48,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Policy alignment, staff interviews, documentation consistency, and corrective action loops.',
     artifacts: 'Policies, training logs, QA action plans, audit results.',
     auditMap: 'All audits with evidence-to-show and corrective action documentation.',
+    educationTopic: 'Survey Readiness and Documentation Integrity',
+    availableAuditTool: 'All audit templates with evidence mapping',
   },
   {
     title: 'CMS 42 CFR 483.25 Quality of Care',
@@ -54,6 +60,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Care plan adherence, ADL support, incident follow-up, clinical monitoring.',
     artifacts: 'Care plans, ADL support logs, incident investigations, reassessments.',
     auditMap: 'Care Plan Audit, ADL Care Audit, Incident Reporting Audit.',
+    educationTopic: 'Quality of Care, ADL Support, and Incident Follow-up',
+    availableAuditTool: 'Care Plan Audit; ADL Care Audit; Incident Reporting Audit',
   },
   {
     title: 'CMS 42 CFR 483.10 Resident Rights',
@@ -64,6 +72,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Preference documentation, advance directives, meal timing, grooming choices.',
     artifacts: 'Resident interviews, preference records, advance directive documentation.',
     auditMap: 'Resident Rights & Preferences Audit.',
+    educationTopic: 'Resident Choice, Dignity, and Privacy',
+    availableAuditTool: 'Resident Rights & Preferences Audit',
   },
   {
     title: 'CMS 42 CFR 483.12 Freedom from Abuse, Neglect, and Exploitation',
@@ -74,6 +84,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Abuse prevention training, reporting timelines, investigation files.',
     artifacts: 'Incident reports, investigation summaries, staff training records.',
     auditMap: 'Abuse Prevention Audit, Incident Reporting Audit.',
+    educationTopic: 'Abuse Prevention, Mandatory Reporting, and Investigation',
+    availableAuditTool: 'Abuse Prevention Audit; Incident Reporting Audit',
   },
   {
     title: 'CMS 42 CFR 483.45 Pharmacy Services & Medication Management',
@@ -84,6 +96,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Medication storage audits, labeling checks, psychotropic review notes.',
     artifacts: 'Medication room audits, IV labeling audits, GDR documentation.',
     auditMap: 'IV Labeling Audit, Psychotropic GDR Audit.',
+    educationTopic: 'Medication Safety, Labeling, and GDR Compliance',
+    availableAuditTool: 'IV Labeling Audit; Psychotropic GDR Audit',
   },
   {
     title: 'CMS 42 CFR 483.60 Food and Nutrition Services',
@@ -94,6 +108,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Temperature logs, storage audits, meal service timing checks.',
     artifacts: 'Temperature logs, food storage photos, resident feedback notes.',
     auditMap: 'Food Safety Audit, Resident Rights & Preferences Audit.',
+    educationTopic: 'Safe Food Handling and Resident Dining Preferences',
+    availableAuditTool: 'Food Safety Audit; Resident Rights & Preferences Audit',
   },
   {
     title: 'CMS 42 CFR 483.75 QAPI Program',
@@ -104,26 +120,32 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'QAPI minutes, trend analyses, audit-driven action plans.',
     artifacts: 'QAPI meeting reports, dashboards, action plan tracking.',
     auditMap: 'QA Actions, Analytics+ reports, audit trending.',
+    educationTopic: 'QAPI Data Review and Performance Improvement Projects',
+    availableAuditTool: 'QA Actions Dashboard; Analytics+; Audit Trending',
   },
   {
     title: 'NYSDOH 10 NYCRR Part 415 - Residential Health Care Facilities',
     publicationDate: '2023-10-25',
-    tags: ['NYSDOH', 'NYSDOG', 'SNF', 'LTC', 'State'],
+    tags: ['NYSDOH', 'SNF', 'LTC', 'State'],
     explanation: 'New York State regulatory requirements for nursing homes and LTC operations.',
     expectation: 'State-specific policies, staffing oversight, and resident care documentation.',
     lookingFor: 'State-required policy adherence, staffing evidence, care oversight logs.',
     artifacts: 'Staffing schedules, policy attestations, resident care documentation.',
     auditMap: 'Staff Training Audit, Care Plan Audit, Incident Reporting Audit.',
+    educationTopic: 'NYSDOH Part 415 Operational and Care Delivery Requirements',
+    availableAuditTool: 'Staff Training Audit; Care Plan Audit; Incident Reporting Audit',
   },
   {
     title: 'NYSDOH Infection Control Guidance (DAL/QSO Communications)',
     publicationDate: '2024-01-12',
-    tags: ['NYSDOH', 'NYSDOG', 'Infection Control', 'State'],
+    tags: ['NYSDOH', 'Infection Control', 'State'],
     explanation: 'State memos clarifying infection control requirements and outbreak response.',
     expectation: 'Rapid identification, reporting, and mitigation of communicable disease risks.',
     lookingFor: 'Outbreak response checklists, reporting timelines, PPE supply monitoring.',
     artifacts: 'Outbreak logs, PPE inventory checks, notification templates.',
     auditMap: 'Outbreak Readiness Audit, PPE Compliance, Surveillance Audit.',
+    educationTopic: 'State Infection-Control Alerts and Outbreak Reporting',
+    availableAuditTool: 'Outbreak Readiness Audit; PPE Compliance; Surveillance Audit',
   },
   {
     title: 'CDC Enhanced Barrier Precautions (EBP) Guidance for Nursing Homes',
@@ -134,6 +156,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'EBP roster accuracy, signage, and staff ability to differentiate EBP from isolation.',
     artifacts: 'EBP roster, staff training records, signage verification.',
     auditMap: 'EBP Audit, PPE Compliance, Room Readiness Audit.',
+    educationTopic: 'Enhanced Barrier Precautions in Long-Term Care',
+    availableAuditTool: 'EBP Audit; PPE Compliance; Room Readiness Audit',
   },
   {
     title: 'CDC Transmission-Based Precautions (Isolation) Guidance',
@@ -144,6 +168,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Isolation orders, signage, PPE supply, and EBP vs isolation identification.',
     artifacts: 'Isolation logs, isolation signage photos, PPE audits.',
     auditMap: 'Isolation/EBP Room Readiness Audit, PPE Compliance.',
+    educationTopic: 'Transmission-Based Precautions and Isolation Setup',
+    availableAuditTool: 'Isolation/EBP Room Readiness Audit; PPE Compliance',
   },
   {
     title: 'CMS Emergency Preparedness Rule (EP)',
@@ -154,6 +180,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Hazard vulnerability analysis, drill reports, staff training compliance.',
     artifacts: 'EP plan, drill after-action reports, training rosters.',
     auditMap: 'Staff Training Audit, Room Readiness Audit.',
+    educationTopic: 'Emergency Preparedness Training and Drill Execution',
+    availableAuditTool: 'Staff Training Audit; Room Readiness Audit',
   },
   {
     title: 'CMS 42 CFR 483.70 Physical Environment (Life Safety)',
@@ -164,6 +192,8 @@ const referenceLibrary: ReferenceRecord[] = [
     lookingFor: 'Environmental rounds, equipment cleaning audits, storage compliance.',
     artifacts: 'Environmental checklists, equipment cleaning logs, corrective actions.',
     auditMap: 'Environment Audit, Equipment Cleaning Audit, Room Readiness Audit.',
+    educationTopic: 'Physical Environment Safety and Equipment Readiness',
+    availableAuditTool: 'Environment Audit; Equipment Cleaning Audit; Room Readiness Audit',
   },
 ];
 
@@ -212,7 +242,7 @@ export function RegulatoryReferencesPage() {
         <CardHeader>
           <CardTitle>Regulatory Reference Library</CardTitle>
           <CardDescription>
-            Search NYSDOH (NYSDOG) and CMS references tied to SNF/LTC expectations and the audits you already run.
+            Search NYSDOH and CMS references tied to SNF/LTC expectations, education topics, and the audits you already run.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -252,12 +282,14 @@ export function RegulatoryReferencesPage() {
                 <TableHead className="min-w-[240px]">Looking For</TableHead>
                 <TableHead className="min-w-[220px]">Artifacts</TableHead>
                 <TableHead className="min-w-[220px]">Map to Audit</TableHead>
+                <TableHead className="min-w-[220px]">Education Topic</TableHead>
+                <TableHead className="min-w-[220px]">Available Audit Tool</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pagedReferences.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-sm text-muted-foreground">
                     No references match your search.
                   </TableCell>
                 </TableRow>
@@ -280,6 +312,8 @@ export function RegulatoryReferencesPage() {
                     <TableCell className="text-sm text-muted-foreground">{item.lookingFor}</TableCell>
                     <TableCell className="text-sm">{item.artifacts}</TableCell>
                     <TableCell className="text-sm">{item.auditMap}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{item.educationTopic}</TableCell>
+                    <TableCell className="text-sm">{item.availableAuditTool}</TableCell>
                   </TableRow>
                 ))
               )}
