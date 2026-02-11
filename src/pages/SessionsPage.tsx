@@ -14,6 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { AuditTable } from '@/components/audit/AuditTable';
 import { AuditCards } from '@/components/audit/AuditCards';
+import { AuditSessionWizard } from '@/components/audit/AuditSessionWizard';
 import { computeSampleResult, todayYMD, nowISO } from '@/lib/calculations';
 import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/types/nurse-educator';
 import { getAllUnitOptions } from '@/types/facility-units';
