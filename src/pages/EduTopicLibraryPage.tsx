@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { Fragment, useEffect, useMemo, useState, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
+  PaginationEllipsis,
   PaginationLink,
   PaginationNext,
   PaginationPrevious
@@ -54,7 +55,6 @@ export function EduTopicLibraryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<EduTopic | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [sessionPrefill, setSessionPrefill] = useState<Partial<EducationSession> | null>(null);
   const [topicsPage, setTopicsPage] = useState(1);
@@ -163,7 +163,7 @@ export function EduTopicLibraryPage() {
     toast({ title: 'Topic Restored', description: 'The topic has been restored.' });
   };
 
-  const TOPICS_PER_PAGE = 8;
+  const TOPICS_PER_PAGE = 10;
   const totalTopicPages = Math.max(1, Math.ceil(filteredTopics.length / TOPICS_PER_PAGE));
   const safeTopicsPage = Math.min(topicsPage, totalTopicPages);
   const pageStart = (safeTopicsPage - 1) * TOPICS_PER_PAGE;
@@ -173,44 +173,25 @@ export function EduTopicLibraryPage() {
     setTopicsPage(1);
   }, [filters, filteredTopics.length]);
 
-  const groupedTopics = useMemo(() => {
-    const groups = new Map<CMSCategory, EduTopic[]>();
-    pagedTopics.forEach(topic => {
-      const category = topic.regulatoryCategory || categorizeByKeywords(
-        topic.topic,
-        topic.ftags,
-        topic.nysdohRegs || '',
-        topic.purpose
-      );
-      const items = groups.get(category) || [];
-      items.push(topic);
-      groups.set(category, items);
-    });
-
-    return Array.from(groups.entries())
-      .map(([category, topics]) => ({
-        category,
-        metadata: getCategoryMetadata(category),
-        topics: topics.sort((a, b) => a.topic.localeCompare(b.topic))
-      }))
-      .sort((a, b) => {
-        const priorityOrder = { critical: 0, high: 1, medium: 2 };
-        return priorityOrder[a.metadata.priority] - priorityOrder[b.metadata.priority]
-          || a.metadata.name.localeCompare(b.metadata.name);
-      });
+  const pagedTopicGroups = useMemo(() => {
+    return pagedTopics
+      .slice()
+      .sort((a, b) => a.topic.localeCompare(b.topic));
   }, [pagedTopics]);
 
-  const toggleCategoryExpanded = (category: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  };
+  const pageNumbers = useMemo(() => {
+    if (totalTopicPages <= 7) {
+      return Array.from({ length: totalTopicPages }, (_, index) => index + 1);
+    }
+
+    const pages = new Set<number>([1, totalTopicPages, safeTopicsPage]);
+    for (let offset = 1; offset <= 1; offset += 1) {
+      pages.add(Math.max(1, safeTopicsPage - offset));
+      pages.add(Math.min(totalTopicPages, safeTopicsPage + offset));
+    }
+
+    return Array.from(pages).sort((a, b) => a - b);
+  }, [safeTopicsPage, totalTopicPages]);
 
   const toggleExpanded = (id: string) => {
     setExpandedTopics(prev => {
@@ -609,46 +590,38 @@ export function EduTopicLibraryPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {groupedTopics.map(group => {
-                const categoryOpen = expandedCategories.size === 0 || expandedCategories.has(group.category);
-
-                return (
-                  <Card key={group.category}>
-                    <Collapsible open={categoryOpen} onOpenChange={() => toggleCategoryExpanded(group.category)}>
-                      <CollapsibleTrigger asChild>
-                        <button type="button" className="w-full p-4 flex items-center justify-between text-left hover:bg-muted/40 rounded-t-lg">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant={group.metadata.priority === 'critical' ? 'destructive' : 'secondary'}>{group.category}</Badge>
-                            <Badge variant="outline" className="text-xs">{group.metadata.ftagRange}</Badge>
-                            <span className="text-sm text-muted-foreground">{group.topics.length} topic{group.topics.length === 1 ? '' : 's'}</span>
-                          </div>
-                          <ChevronDown className={`w-4 h-4 transition-transform ${categoryOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="px-4 pb-4 space-y-2 border-t border-border">
-                          {group.topics.map(topic => {
+              {pagedTopicGroups.map((topic) => {
+                            const resolvedCategory = topic.regulatoryCategory || categorizeByKeywords(
+                              topic.topic,
+                              topic.ftags,
+                              topic.nysdohRegs || '',
+                              topic.purpose
+                            );
+                            const categoryMetadata = getCategoryMetadata(resolvedCategory);
                             const isExpanded = expandedTopics.has(topic.id);
                             const triggerAuditTitle = getTriggerAuditTitle(topic.triggerAuditId);
                             const hasExtras = topic.triggerAuditId || (topic.evidenceArtifacts && topic.evidenceArtifacts.length > 0);
 
                             return (
-                              <Card key={topic.id} className={`border ${topic.archived ? 'opacity-60' : ''}`}>
+                              <Card key={topic.id} className={`border shadow-none ${topic.archived ? 'opacity-60' : ''}`}>
                                 <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(topic.id)}>
-                                  <div className="p-3">
-                                    <div className="flex items-start justify-between gap-4">
+                                  <div className="px-3 py-2">
+                                    <div className="flex items-start justify-between gap-2">
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <FileText className="w-4 h-4 text-primary shrink-0" />
                                           <span className="font-medium">{topic.topic}</span>
+                                          <Badge variant={categoryMetadata.priority === 'critical' ? 'destructive' : 'secondary'} className="text-xs">
+                                            {resolvedCategory}
+                                          </Badge>
                                           {parseFTags(topic.ftags).map((tag, i) => (
                                             <Badge key={i} variant="outline" className="text-xs">
                                               <Tag className="w-3 h-3 mr-1" />
                                               {tag.trim()}
                                             </Badge>
                                           ))}
-                                          <Badge variant={(topic.priority || group.metadata.priority) === 'critical' ? 'destructive' : 'secondary'} className="text-xs uppercase">
-                                            {topic.priority || group.metadata.priority}
+                                          <Badge variant={(topic.priority || categoryMetadata.priority) === 'critical' ? 'destructive' : 'secondary'} className="text-xs uppercase">
+                                            {topic.priority || categoryMetadata.priority}
                                           </Badge>
                                           {topic.nysdohRequired && <Badge variant="outline" className="text-xs">NYSDOH Required</Badge>}
                                           {topic.triggerAuditId && (
@@ -714,7 +687,7 @@ export function EduTopicLibraryPage() {
                                   </div>
 
                                   <CollapsibleContent>
-                                    <div className="px-4 pb-4 pt-0 border-t border-border mt-2">
+                                    <div className="px-3 pb-3 pt-0 border-t border-border mt-1">
                                       <div className="grid md:grid-cols-2 gap-4 pt-4">
                             {/* Trigger Audit Section */}
                             {topic.triggerAuditId && (
@@ -772,13 +745,6 @@ export function EduTopicLibraryPage() {
                     </Collapsible>
                   </Card>
                 );
-
-                          })}
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </Card>
-                );
               })}
             </div>
           )}
@@ -793,29 +759,43 @@ export function EduTopicLibraryPage() {
                   <PaginationItem>
                     <PaginationPrevious
                       href="#"
+                      className={safeTopicsPage === 1 ? 'pointer-events-none opacity-50' : ''}
                       onClick={(event) => {
                         event.preventDefault();
                         setTopicsPage((prev) => Math.max(1, prev - 1));
                       }}
                     />
                   </PaginationItem>
-                  {Array.from({ length: totalTopicPages }, (_, index) => index + 1).map((pageNumber) => (
-                    <PaginationItem key={pageNumber}>
-                      <PaginationLink
-                        href="#"
-                        isActive={pageNumber === safeTopicsPage}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setTopicsPage(pageNumber);
-                        }}
-                      >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
+                  {pageNumbers.map((pageNumber, index) => {
+                    const previous = pageNumbers[index - 1];
+                    const needsEllipsis = previous && pageNumber - previous > 1;
+
+                    return (
+                      <Fragment key={`page-${pageNumber}`}>
+                        {needsEllipsis && (
+                          <PaginationItem>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        )}
+                        <PaginationItem>
+                          <PaginationLink
+                            href="#"
+                            isActive={pageNumber === safeTopicsPage}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setTopicsPage(pageNumber);
+                            }}
+                          >
+                            {pageNumber}
+                          </PaginationLink>
+                        </PaginationItem>
+                      </Fragment>
+                    );
+                  })}
                   <PaginationItem>
                     <PaginationNext
                       href="#"
+                      className={safeTopicsPage === totalTopicPages ? 'pointer-events-none opacity-50' : ''}
                       onClick={(event) => {
                         event.preventDefault();
                         setTopicsPage((prev) => Math.min(totalTopicPages, prev + 1));
