@@ -589,7 +589,7 @@ export function EduTopicLibraryPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {pagedTopicGroups.map((topic) => {
                             const resolvedCategory = topic.regulatoryCategory || categorizeByKeywords(
                               topic.topic,
@@ -603,14 +603,14 @@ export function EduTopicLibraryPage() {
                             const hasExtras = topic.triggerAuditId || (topic.evidenceArtifacts && topic.evidenceArtifacts.length > 0);
 
                             return (
-                              <Card key={topic.id} className={`border shadow-none ${topic.archived ? 'opacity-60' : ''}`}>
+                              <Card key={topic.id} className={`border shadow-none rounded-md ${topic.archived ? 'opacity-60' : ''}`}>
                                 <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(topic.id)}>
                                   <div className="px-3 py-2">
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <FileText className="w-4 h-4 text-primary shrink-0" />
-                                          <span className="font-medium">{topic.topic}</span>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                                          <span className="font-medium text-sm leading-tight">{topic.topic}</span>
                                           <Badge variant={categoryMetadata.priority === 'critical' ? 'destructive' : 'secondary'} className="text-xs">
                                             {resolvedCategory}
                                           </Badge>
@@ -620,31 +620,31 @@ export function EduTopicLibraryPage() {
                                               {tag.trim()}
                                             </Badge>
                                           ))}
-                                          <Badge variant={(topic.priority || categoryMetadata.priority) === 'critical' ? 'destructive' : 'secondary'} className="text-xs uppercase">
+                                          <Badge variant={(topic.priority || categoryMetadata.priority) === 'critical' ? 'destructive' : 'secondary'} className="text-[10px] uppercase">
                                             {topic.priority || categoryMetadata.priority}
                                           </Badge>
-                                          {topic.nysdohRequired && <Badge variant="outline" className="text-xs">NYSDOH Required</Badge>}
+                                          {topic.nysdohRequired && <Badge variant="outline" className="text-[10px]">NYSDOH Required</Badge>}
                                           {topic.triggerAuditId && (
-                                            <Badge variant="secondary" className="text-xs gap-1">
+                                            <Badge variant="secondary" className="text-[10px] gap-1">
                                               <ClipboardCheck className="w-3 h-3" />
                                               Has Audit
                                             </Badge>
                                           )}
                                         </div>
                                         {topic.purpose && (
-                                          <p className="text-sm text-muted-foreground mt-1">{topic.purpose}</p>
+                                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{topic.purpose}</p>
                                         )}
-                                        <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
                                           <span><strong>Disciplines:</strong> {topic.disciplines || '—'}</span>
                                           <span><strong>NYSDOH:</strong> {topic.nysdohRegs || '—'}</span>
                                           {topic.facilityPolicy && <span><strong>Policy:</strong> {topic.facilityPolicy}</span>}
                                           <span><strong>Potential Audit Tool:</strong> {triggerAuditTitle || 'Not mapped yet'}</span>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-1 shrink-0">
+                                      <div className="flex items-center gap-0.5 shrink-0">
                                         {hasExtras && (
                                           <CollapsibleTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="gap-1">
+                                            <Button variant="ghost" size="sm" className="gap-1 h-7 px-2">
                                               <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                               Details
                                             </Button>
@@ -655,6 +655,7 @@ export function EduTopicLibraryPage() {
                                             <Button
                                               variant="ghost"
                                               size="sm"
+                                              className="h-7 w-7 p-0"
                                               onClick={() => openQuickSession(topic, 'planned')}
                                               title="Plan inservice"
                                             >
@@ -663,6 +664,7 @@ export function EduTopicLibraryPage() {
                                             <Button
                                               variant="ghost"
                                               size="sm"
+                                              className="h-7 w-7 p-0"
                                               onClick={() => openQuickSession(topic, 'completed')}
                                               title="Log completed inservice"
                                             >
@@ -670,15 +672,15 @@ export function EduTopicLibraryPage() {
                                             </Button>
                                           </>
                                         )}
-                                        <Button variant="ghost" size="sm" onClick={() => openEdit(topic)}>
+                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(topic)}>
                                           <Edit2 className="w-4 h-4" />
                                         </Button>
                                         {topic.archived ? (
-                                          <Button variant="ghost" size="sm" onClick={() => restoreTopic(topic.id)} title="Restore">
+                                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => restoreTopic(topic.id)} title="Restore">
                                             <RotateCcw className="w-4 h-4" />
                                           </Button>
                                         ) : (
-                                          <Button variant="ghost" size="sm" onClick={() => archiveTopic(topic.id)} title="Archive">
+                                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => archiveTopic(topic.id)} title="Archive">
                                             <Archive className="w-4 h-4" />
                                           </Button>
                                         )}
