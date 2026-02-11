@@ -32,12 +32,26 @@ const defaultFilters: EducationFilters = {
 export const useEducationFilters = (topics: EduTopic[]) => {
   const [filters, setFilters] = useState<EducationFilters>(defaultFilters);
 
-  const normalizeDiscipline = (value: string) =>
-    value
+  const normalizeDiscipline = (value: string) => {
+    const base = value
       .trim()
+      .replace(/[|/]+/g, ' ')
+      .replace(/\b\d+\b/g, '')
+      .replace(/\((\d+|[ivx]+)\)/gi, '')
       .replace(/\s+/g, ' ')
-      .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+      .trim()
+      .toLowerCase();
+
+    if (!base) return '';
+    if (base.includes('all staff') || base === 'staff') return 'All Staff';
+    if (base.includes('cna') || base.includes('nursing assistant')) return 'CNA';
+    if (base.includes('nurse') || base.includes('rn') || base.includes('lpn') || base.includes('lvn')) return 'Nursing';
+    if (base.includes('rehab') || base.includes('pt') || base.includes('ot') || base.includes('speech')) return 'Rehab';
+    if (base.includes('housekeeping') || base.includes('environmental')) return 'Environmental Services';
+    if (base.includes('dietary') || base.includes('nutrition') || base.includes('food service')) return 'Dietary';
+
+    return base.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
 
   const availableFTags = useMemo(() => {
     const tags = new Set<string>();
@@ -119,10 +133,19 @@ export const useEducationFilters = (topics: EduTopic[]) => {
       }
 
       if (filters.disciplines.length > 0) {
-        const topicDisciplines = topic.disciplines.split(/[;,]/).map(d => d.trim().toLowerCase());
-        const hasAny = filters.disciplines.some(d =>
-          topicDisciplines.some(td => td.includes(d.toLowerCase()))
+        const topicDisciplines = new Set(
+          topic.disciplines
+            .split(/[;,]/)
+            .map(normalizeDiscipline)
+            .filter(Boolean)
+            .map((discipline) => discipline.toLowerCase())
         );
+        const selectedDisciplines = filters.disciplines
+          .map(normalizeDiscipline)
+          .filter(Boolean)
+          .map((discipline) => discipline.toLowerCase());
+
+        const hasAny = selectedDisciplines.some((discipline) => topicDisciplines.has(discipline));
         if (!hasAny) return false;
       }
 
