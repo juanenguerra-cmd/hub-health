@@ -32,6 +32,13 @@ const defaultFilters: EducationFilters = {
 export const useEducationFilters = (topics: EduTopic[]) => {
   const [filters, setFilters] = useState<EducationFilters>(defaultFilters);
 
+  const normalizeDiscipline = (value: string) =>
+    value
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
   const availableFTags = useMemo(() => {
     const tags = new Set<string>();
     topics.forEach(topic => {
@@ -41,14 +48,16 @@ export const useEducationFilters = (topics: EduTopic[]) => {
   }, [topics]);
 
   const availableDisciplines = useMemo(() => {
-    const disciplines = new Set<string>();
+    const disciplines = new Map<string, string>();
     topics.forEach(topic => {
       topic.disciplines?.split(/[;,]/).forEach(d => {
-        const trimmed = d.trim();
-        if (trimmed) disciplines.add(trimmed);
+        const normalized = normalizeDiscipline(d);
+        if (normalized) {
+          disciplines.set(normalized.toLowerCase(), normalized);
+        }
       });
     });
-    return Array.from(disciplines).sort();
+    return Array.from(disciplines.values()).sort((a, b) => a.localeCompare(b));
   }, [topics]);
 
   const filteredTopics = useMemo(() => {

@@ -67,7 +67,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { id: 'analytics', label: 'Analytics+', path: '/analytics', icon: BarChart3, groupId: 'insights', groupLabel: 'Insights & Reporting' },
       { id: 'reports', label: 'Reports', path: '/reports', icon: FileSpreadsheet, groupId: 'insights', groupLabel: 'Insights & Reporting' },
-      { id: 'recommendations', label: 'AI Recommendations', path: '/recommendations', icon: Sparkles, groupId: 'insights', groupLabel: 'Insights & Reporting' },
+      { id: 'recommendations', label: 'Recommended Competency', path: '/recommendations', icon: Sparkles, groupId: 'insights', groupLabel: 'Insights & Reporting' },
     ],
   },
   {
