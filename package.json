@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "cf:dev": "wrangler dev src/worker.ts",
     "cf:deploy": "wrangler deploy",
+    "db": "node scripts/db-manager.mjs",
     "d1:migrate:local": "wrangler d1 migrations apply hub-health --local",
     "d1:migrate:remote": "node scripts/d1-migrate-remote.mjs",
     "d1:verify:remote": "wrangler d1 execute hub-health --remote --command \"SELECT name FROM sqlite_master WHERE type='table' AND name='__sync_probe';\" --json",
