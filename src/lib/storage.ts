@@ -395,7 +395,10 @@ export function generateDemoData(): {
             ev_competencyValidated: status === 'complete',
             ev_correctiveAction: status === 'complete',
             ev_monitoringInPlace: status === 'complete',
-            linkedEduSessionId: ''
+            linkedEduSessionId: '',
+            linkedEducationSessions: [],
+            staffAudited: smp.staffAudited || '',
+            staffRole: ''
           });
           actionCount++;
         }

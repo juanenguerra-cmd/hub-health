@@ -22,6 +22,7 @@ import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
 import { PostAuditPrintModal } from '@/components/audit/PostAuditPrintModal';
 import { findMatchingCompetencies, getCompetencyRecommendations } from '@/lib/competency-library';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 import { 
   Play, 
   FileText, 
@@ -172,6 +173,20 @@ export function SessionsPage() {
     : 0;
   const passCount = sessionSummaries.filter(item => item.isPass).length;
   const needsReviewCount = totalAudits - passCount;
+  const missingStaffRecords = sessions.reduce((count, session) => (
+    count + session.samples.filter((sample) => !sample.staffAudited?.trim()).length
+  ), 0);
+
+  const backfillMissingStaffRecords = () => {
+    const updatedSessions = sessions.map((session) => ({
+      ...session,
+      samples: session.samples.map((sample) => (
+        sample.staffAudited?.trim() ? sample : { ...sample, staffAudited: 'Unknown - Requires Update' }
+      ))
+    }));
+    setSessions(updatedSessions);
+    toast({ title: 'Staff data backfilled', description: `${missingStaffRecords} records updated.` });
+  };
 
   // Start a new session
   const startNewSession = () => {
@@ -366,6 +381,12 @@ export function SessionsPage() {
       return;
     }
 
+    const missingStaff = activeSession.samples.find((sample) => !sample.staffAudited?.trim());
+    if (missingStaff) {
+      toast({ title: 'Validation Error', description: 'Staff member required for audit sample', variant: 'destructive' });
+      return;
+    }
+
     const scoredSamples = activeSession.samples.map(smp => {
       if (smp.result) return smp;
       return { ...smp, result: computeSampleResult(tpl, smp.answers) };
@@ -415,7 +436,9 @@ export function SessionsPage() {
             ev_correctiveAction: false,
             ev_monitoringInPlace: false,
             linkedEduSessionId: '',
-            staffAudited: smp.staffAudited || ''
+            linkedEducationSessions: [],
+            staffAudited: smp.staffAudited || 'Unknown - Requires Update',
+            staffRole: smp.staffRole || ''
           });
         }
       }
@@ -707,6 +730,15 @@ export function SessionsPage() {
         </Dialog>
       </div>
 
+      {missingStaffRecords > 0 && (
+        <Card className="border-warning bg-warning/10">
+          <CardContent className="pt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium">{missingStaffRecords} records missing staff data.</p>
+            <Button size="sm" variant="outline" onClick={backfillMissingStaffRecords}>Update Now</Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Active Session Panel */}
       {activeSession && activeSessionTemplate && (
         <Card className="border-primary">
@@ -939,7 +971,7 @@ export function SessionsPage() {
 
                         {/* Staff Being Audited Field */}
                         <div className="mb-3 max-w-xs">
-                          <Label className="text-xs text-muted-foreground">Staff Being Audited (Optional)</Label>
+                          <Label className="text-xs text-muted-foreground">Staff Being Audited *</Label>
                           <Input
                             value={sample.staffAudited || ''}
                             onChange={(e) => updateStaffAudited(sample.id, e.target.value)}

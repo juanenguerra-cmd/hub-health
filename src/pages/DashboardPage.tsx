@@ -12,7 +12,9 @@ import {
   filterActionsByRange,
   summarizeEducation,
   todayYMD,
-  dateAddDays
+  dateAddDays,
+  findRecurringIssues,
+  countStaffWithMultipleActions
 } from '@/lib/calculations';
 import { 
   FileText, 
@@ -26,7 +28,9 @@ import {
   Sparkles,
   ClipboardCheck,
   ShieldCheck,
-  TrendingDown
+  TrendingDown,
+  Bell,
+  Users
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -40,7 +44,8 @@ export function DashboardPage() {
     templates,
     dashFilters, 
     setDashFilters,
-    loadDemoData 
+    loadDemoData,
+    setActiveTab
   } = useApp();
 
   const daysAgo = parseInt(dashFilters.range, 10);
@@ -105,6 +110,17 @@ export function DashboardPage() {
   ]), [qaStats.done, summary.compliance, summary.sessions]);
   const [activeInfographicStep, setActiveInfographicStep] = useState(infographicSteps[0]?.id ?? 'assess');
   const activeStep = infographicSteps.find(step => step.id === activeInfographicStep) ?? infographicSteps[0];
+
+  const urgentItems = useMemo(() => {
+    const overdueActions = qaActions.filter(a => a.status !== 'complete' && a.dueDate && a.dueDate < today);
+    const dueThisWeek = qaActions.filter(a => a.status !== 'complete' && a.dueDate && a.dueDate >= today && a.dueDate <= dateAddDays(today, 7));
+    const reAuditsDue = qaActions.filter(a => a.reAuditDueDate && a.reAuditDueDate <= dateAddDays(today, 2) && !a.reAuditCompletedAt);
+    const upcomingEducation = eduSessions.filter(e => e.status === 'planned' && e.scheduledDate >= today && e.scheduledDate <= dateAddDays(today, 7));
+    const recurringIssues = findRecurringIssues(qaActions, 30);
+    const staffWithMultipleActions = countStaffWithMultipleActions(qaActions);
+
+    return { overdueActions, dueThisWeek, reAuditsDue, upcomingEducation, recurringIssues, staffWithMultipleActions };
+  }, [qaActions, eduSessions, today]);
 
   // Check if we have data
   const hasData = sessions.length > 0;
@@ -191,6 +207,37 @@ export function DashboardPage() {
               </Select>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-2 border-primary/40">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Bell className="w-4 h-4" /> Today's Focus</CardTitle>
+          <CardDescription>Action items requiring immediate attention</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {urgentItems.overdueActions.length > 0 && (
+            <div className="rounded border border-destructive/30 bg-destructive/10 p-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">{urgentItems.overdueActions.length} overdue QA actions</p>
+              <Button size="sm" variant="destructive" onClick={() => setActiveTab('qa-actions')}>View Now</Button>
+            </div>
+          )}
+          <div className="rounded border p-3 flex items-center justify-between gap-3">
+            <p className="text-sm">{urgentItems.dueThisWeek.length} QA actions due this week</p>
+            <Button size="sm" variant="outline" onClick={() => setActiveTab('qa-actions')}>Review</Button>
+          </div>
+          <div className="rounded border p-3 flex items-center justify-between gap-3">
+            <p className="text-sm">{urgentItems.upcomingEducation.length} education sessions this week</p>
+            <Button size="sm" variant="outline" onClick={() => setActiveTab('education')}>View Schedule</Button>
+          </div>
+          {urgentItems.reAuditsDue.length > 0 && <StatusBadge status="warning">{urgentItems.reAuditsDue.length} re-audits due within 48 hours</StatusBadge>}
+          {urgentItems.recurringIssues.length > 0 && <StatusBadge status="warning">{urgentItems.recurringIssues.length} recurring issues detected</StatusBadge>}
+          {urgentItems.staffWithMultipleActions.length > 0 && (
+            <div className="rounded border p-3 flex items-center justify-between gap-3">
+              <p className="text-sm flex items-center gap-2"><Users className="w-4 h-4" />{urgentItems.staffWithMultipleActions.length} staff with 3+ open actions</p>
+              <Button size="sm" variant="outline" onClick={() => setActiveTab('reports')}>View Staff</Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

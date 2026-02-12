@@ -48,7 +48,8 @@ export function QaActionFormModal({
     ev_competencyValidated: false,
     ev_correctiveAction: false,
     ev_monitoringInPlace: false,
-    staffAudited: ''
+    staffAudited: '',
+    linkedEducationSessions: []
   });
 
   // Find matching competencies based on issue and topic
@@ -80,7 +81,8 @@ export function QaActionFormModal({
         ev_educationProvided: false,
         ev_competencyValidated: false,
         ev_correctiveAction: false,
-        ev_monitoringInPlace: false
+        ev_monitoringInPlace: false,
+        linkedEducationSessions: []
       });
     }
   }, [action, open]);
@@ -88,6 +90,11 @@ export function QaActionFormModal({
   const handleSave = () => {
     if (!formData.issue?.trim()) {
       toast({ title: 'Error', description: 'Issue is required', variant: 'destructive' });
+      return;
+    }
+
+    if (!formData.staffAudited?.trim()) {
+      toast({ title: 'Error', description: 'Staff member required for audit sample', variant: 'destructive' });
       return;
     }
 
@@ -122,7 +129,9 @@ export function QaActionFormModal({
       ev_correctiveAction: !!formData.ev_correctiveAction,
       ev_monitoringInPlace: !!formData.ev_monitoringInPlace,
       linkedEduSessionId: action?.linkedEduSessionId || '',
-      staffAudited: formData.staffAudited || ''
+      linkedEducationSessions: action?.linkedEducationSessions || [],
+      staffAudited: formData.staffAudited || '',
+      staffRole: formData.staffRole || action?.staffRole || ''
     };
 
     onSave(savedAction);
@@ -168,7 +177,7 @@ export function QaActionFormModal({
               <Label>Status</Label>
               <Select
                 value={formData.status || 'open'}
-                onValueChange={(v) => setFormData({ ...formData, status: v as any })}
+                onValueChange={(v: 'open' | 'in_progress' | 'complete') => setFormData({ ...formData, status: v })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -221,7 +230,7 @@ export function QaActionFormModal({
 
           {/* Staff Audited */}
           <div>
-            <Label>Staff Being Audited (Optional)</Label>
+            <Label>Staff Being Audited *</Label>
             <Input
               value={formData.staffAudited || ''}
               onChange={(e) => setFormData({ ...formData, staffAudited: e.target.value })}
