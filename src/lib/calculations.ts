@@ -15,6 +15,7 @@ import type {
   ActionSummaryItem,
   SampleResult
 } from '@/types/nurse-educator';
+import type { TemplateQuestion } from '@/types/nurse-educator';
 
 // Date utilities
 export const todayYMD = (): string => new Date().toISOString().split('T')[0];
@@ -40,6 +41,13 @@ export const daysBetween = (startYmd: string, endYmd: string): number => {
   } catch {
     return 0;
   }
+};
+
+export const isCriticalFailTriggered = (question: TemplateQuestion, answer: string): boolean => {
+  if (!answer) return false;
+  const triggerValue = question.criticalFailIf || (question.criticalFail ? 'no' : '');
+  if (!triggerValue) return false;
+  return answer === triggerValue;
 };
 
 // Compute sample result from template and answers
@@ -76,7 +84,7 @@ export function computeSampleResult(tpl: AuditTemplate, answers: Record<string, 
       }
     }
 
-    const failsByQuestionRule = (q.criticalFail ?? false) && v === (q.criticalFailIf || 'no');
+    const failsByQuestionRule = isCriticalFailTriggered(q, v);
     if (failsByQuestionRule && !criticalFails.includes(q.key)) {
       criticalFails.push(q.key);
     }

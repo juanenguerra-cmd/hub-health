@@ -15,7 +15,7 @@ import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { AuditTable } from '@/components/audit/AuditTable';
 import { AuditCards } from '@/components/audit/AuditCards';
 import { AuditSessionWizard } from '@/components/audit/AuditSessionWizard';
-import { computeSampleResult, todayYMD, nowISO } from '@/lib/calculations';
+import { computeSampleResult, todayYMD, nowISO, isCriticalFailTriggered } from '@/lib/calculations';
 import type { AuditSession, AuditTemplate, SampleResult, QaAction } from '@/types/nurse-educator';
 import { getAllUnitOptions } from '@/types/facility-units';
 import { PreAuditPrintModal } from '@/components/audit/PreAuditPrintModal';
@@ -83,6 +83,18 @@ export function SessionsPage() {
   const printPostAuditTemplate = printPostAuditSession
     ? templates.find(t => t.id === printPostAuditSession.templateId)
     : null;
+
+  const getLiveCriticalFailCount = (session: AuditSession): number => {
+    const template = templates.find((tpl) => tpl.id === session.templateId);
+    if (!template) return 0;
+
+    return session.samples.reduce((count, sample) => {
+      const criticalForSample = template.sampleQuestions.filter((question) =>
+        isCriticalFailTriggered(question, sample.answers?.[question.key] || '')
+      ).length;
+      return count + criticalForSample;
+    }, 0);
+  };
 
   const getSubjectCode = (answers: Record<string, string>) => {
     return answers.subjectCode || answers.patient_code || answers.residentCode || answers.patientCode || '';
@@ -245,17 +257,24 @@ export function SessionsPage() {
   // Update sample answer
   const updateSampleAnswer = (sampleId: string, key: string, value: string) => {
     if (!activeSession) return;
-    
+
+    const template = templates.find((tpl) => tpl.id === activeSession.templateId);
     const updated = {
       ...activeSession,
       samples: activeSession.samples.map(smp => {
         if (smp.id !== sampleId) return smp;
-        return { ...smp, answers: { ...smp.answers, [key]: value } };
+        const nextAnswers = { ...smp.answers, [key]: value };
+        return {
+          ...smp,
+          answers: nextAnswers,
+          result: template ? computeSampleResult(template, nextAnswers) : smp.result
+        };
       })
     };
-    
-    setActiveSession(updated);
-    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+    const next = ensureEditableActionItems(updated, getActionItemsForSession(updated));
+
+    setActiveSession(next);
+    setSessions(sessions.map(s => s.id === next.id ? next : s));
   };
 
   const updateSessionCorrectiveField = (
@@ -441,6 +460,19 @@ export function SessionsPage() {
   };
 
   const isReadOnly = activeSession?.header.status === 'complete';
+  const liveCriticalFailCount = activeSession ? getLiveCriticalFailCount(activeSession) : 0;
+  const liveCriticalIssues = activeSession && activeSessionTemplate
+    ? activeSession.samples.flatMap((sample, sampleIndex) =>
+        activeSessionTemplate.sampleQuestions
+          .filter((question) => isCriticalFailTriggered(question, sample.answers?.[question.key] || ''))
+          .map((question) => ({
+            sampleIndex,
+            questionKey: question.key,
+            label: question.label,
+            answer: sample.answers?.[question.key] || ''
+          }))
+      )
+    : [];
   const getActionItemsForSession = (session: AuditSession | null) => (
     session
       ? session.samples.flatMap((sample, sampleIndex) =>
@@ -723,6 +755,11 @@ export function SessionsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Samples ({activeSession.samples.length})</h3>
+                {liveCriticalFailCount > 0 && (
+                  <StatusBadge status="error">
+                    🔴 {liveCriticalFailCount} Critical Issue{liveCriticalFailCount > 1 ? 's' : ''} Detected
+                  </StatusBadge>
+                )}
                 {activeSession.header.status !== 'complete' && (
                   <Button size="sm" onClick={addSample} variant="outline">
                     <Plus className="w-4 h-4 mr-1" /> Add Sample
@@ -826,6 +863,9 @@ export function SessionsPage() {
                                         className="h-8 text-xs"
                                       />
                                     )}
+                                    {isCriticalFailTriggered(q, sample.answers[q.key] || '') && (
+                                      <p className="mt-1 text-[11px] font-medium text-error">🔴 Critical fail flagged</p>
+                                    )}
                                   </td>
                                 ))}
                                 <td className="px-2 py-2 align-top">
@@ -916,6 +956,7 @@ export function SessionsPage() {
                               <Label className="text-xs">
                                 {q.label}
                                 {q.required && <span className="text-destructive ml-1">*</span>}
+                                {isCriticalFailTriggered(q, sample.answers[q.key] || '') && <span className="ml-1">🔴</span>}
                               </Label>
                               
                               {q.type === 'patientCode' && (
@@ -1004,7 +1045,7 @@ export function SessionsPage() {
                             
                             {sample.result.actionNeeded.length > 0 && (
                               <div>
-                                <p className="text-xs text-muted-foreground mb-1">Action Needed:</p>
+                                <p className="text-xs text-muted-foreground mb-1">Action Plan Recommendations:</p>
                                 <ul className="text-sm space-y-1">
                                   {sample.result.actionNeeded.map((a, i) => (
                                     <li key={i} className="flex items-start gap-2">
@@ -1083,6 +1124,20 @@ export function SessionsPage() {
                   </div>
                 </div>
               </div>
+
+              {liveCriticalIssues.length > 0 && (
+                <div className="rounded-lg border border-error/40 bg-error/5 p-4 space-y-2">
+                  <h4 className="text-sm font-semibold text-error">🔴 End-of-Audit Critical Summary</h4>
+                  <p className="text-xs text-muted-foreground">Review all flagged critical issues before completing this session.</p>
+                  <ul className="space-y-1 text-sm">
+                    {liveCriticalIssues.map((issue, idx) => (
+                      <li key={`${issue.sampleIndex}-${issue.questionKey}-${idx}`}>
+                        Sample #{issue.sampleIndex + 1}: {issue.label} (Answer: {issue.answer})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               
               {/* Session Actions */}
               {activeSession.header.status !== 'complete' && activeSession.samples.length > 0 && (
