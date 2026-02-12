@@ -437,3 +437,138 @@ export function formatDelta(current: number, previous: number): { text: string; 
   const sign = delta > 0 ? '+' : '';
   return { text: `${sign}${delta}%`, direction: delta > 0 ? 'up' : 'down' };
 }
+
+
+export function computeStaffPerformance(
+  sessions: AuditSession[],
+  actions: QaAction[],
+  education: EducationSession[],
+  dateRange: { start: string; end: string }
+): import('@/types/nurse-educator').StaffPerformanceRecord[] {
+  const staffMap = new Map<string, import('@/types/nurse-educator').StaffPerformanceRecord>();
+
+  const inRange = (date: string) => {
+    if (!date) return false;
+    if (dateRange.start && date < dateRange.start) return false;
+    if (dateRange.end && date > dateRange.end) return false;
+    return true;
+  };
+
+  for (const session of sessions) {
+    const auditDate = session.header?.auditDate || session.createdAt.slice(0, 10);
+    if (!inRange(auditDate)) continue;
+
+    for (const sample of session.samples) {
+      const staffName = (sample.staffAudited || '').trim();
+      if (!staffName) continue;
+
+      const current = staffMap.get(staffName) ?? {
+        staffId: staffName,
+        staffName,
+        role: sample.staffRole || 'Unspecified',
+        period: { start: dateRange.start, end: dateRange.end },
+        metrics: {
+          totalAudits: 0,
+          passedAudits: 0,
+          passRate: 0,
+          openQaActions: 0,
+          completedQaActions: 0,
+          educationHours: 0,
+          requiredEducationComplete: false,
+          trendDirection: 'stable' as const
+        },
+        recentIssues: []
+      };
+
+      current.metrics.totalAudits += 1;
+      if (sample.result?.pass) current.metrics.passedAudits += 1;
+      staffMap.set(staffName, current);
+    }
+  }
+
+  for (const action of actions) {
+    if (!inRange(action.auditDate || action.createdAt.slice(0, 10))) continue;
+    const staffName = (action.staffAudited || '').trim();
+    if (!staffName) continue;
+
+    const current = staffMap.get(staffName) ?? {
+      staffId: staffName,
+      staffName,
+      role: action.staffRole || 'Unspecified',
+      period: { start: dateRange.start, end: dateRange.end },
+      metrics: {
+        totalAudits: 0,
+        passedAudits: 0,
+        passRate: 0,
+        openQaActions: 0,
+        completedQaActions: 0,
+        educationHours: 0,
+        requiredEducationComplete: false,
+        trendDirection: 'stable' as const
+      },
+      recentIssues: []
+    };
+
+    if (action.status === 'complete') current.metrics.completedQaActions += 1;
+    else current.metrics.openQaActions += 1;
+
+    current.recentIssues.push({
+      date: action.auditDate,
+      issue: action.issue,
+      template: action.templateTitle,
+      status: action.status
+    });
+
+    staffMap.set(staffName, current);
+  }
+
+  for (const edu of education) {
+    const sessionDate = edu.completedDate || edu.scheduledDate;
+    if (!inRange(sessionDate)) continue;
+    for (const attendee of edu.attendees || []) {
+      const staffName = attendee.trim();
+      if (!staffName) continue;
+      const current = staffMap.get(staffName);
+      if (!current) continue;
+      current.metrics.educationHours += 1;
+      staffMap.set(staffName, current);
+    }
+  }
+
+  return Array.from(staffMap.values()).map((record) => {
+    const passRate = record.metrics.totalAudits
+      ? Math.round((record.metrics.passedAudits / record.metrics.totalAudits) * 10000) / 100
+      : 0;
+    return {
+      ...record,
+      metrics: {
+        ...record.metrics,
+        passRate,
+        requiredEducationComplete: record.metrics.educationHours > 0,
+        trendDirection: passRate >= 90 ? 'improving' : passRate < 70 ? 'declining' : 'stable'
+      },
+      recentIssues: record.recentIssues.slice(0, 5)
+    };
+  });
+}
+
+export function findRecurringIssues(actions: QaAction[], windowDays: number): QaAction[] {
+  const cutoff = dateAddDays(todayYMD(), -windowDays);
+  const counts = new Map<string, number>();
+  for (const action of actions) {
+    const date = action.auditDate || action.createdAt.slice(0, 10);
+    if (date < cutoff) continue;
+    const key = `${action.issue}::${action.unit}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return actions.filter((a) => (counts.get(`${a.issue}::${a.unit}`) || 0) >= 3);
+}
+
+export function countStaffWithMultipleActions(actions: QaAction[]): string[] {
+  const open = actions.filter((a) => a.status !== 'complete' && a.staffAudited);
+  const counts = new Map<string, number>();
+  for (const action of open) {
+    counts.set(action.staffAudited, (counts.get(action.staffAudited) || 0) + 1);
+  }
+  return Array.from(counts.entries()).filter(([, count]) => count >= 3).map(([name]) => name);
+}

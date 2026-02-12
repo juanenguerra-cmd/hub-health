@@ -17,6 +17,8 @@ import { buildWorkflowStages } from '@/lib/workflow-tracker';
 import { PrintableQaActionsReport } from '@/components/reports/PrintableQaActionsReport';
 import { toast } from '@/hooks/use-toast';
 import { useAuditNavigation } from '@/hooks/use-audit-navigation';
+import { validateQaActionClosure } from '@/lib/qa-validation';
+import { ReAuditLinkageModal } from '@/components/qa/ReAuditLinkageModal';
 import type { QaAction } from '@/types/nurse-educator';
 import { 
   Search, 
@@ -61,6 +63,7 @@ export function QaActionsPage() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [editAction, setEditAction] = useState<QaAction | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showReAuditModal, setShowReAuditModal] = useState(false);
 
   const daysAgo = parseInt(actionsFilters.range, 10);
   const today = todayYMD();
@@ -151,6 +154,8 @@ export function QaActionsPage() {
         ev_correctiveAction: false,
         ev_monitoringInPlace: false,
         linkedEduSessionId: '',
+        linkedEducationSessions: [],
+        staffAudited: '',
       }),
       ...startQAActionRequest.prefillData,
     } as QaAction));
@@ -194,11 +199,29 @@ export function QaActionsPage() {
   };
 
   const handleSaveAction = (action: QaAction) => {
-    const exists = qaActions.find(a => a.id === action.id);
+    if (!action.staffAudited?.trim()) {
+      toast({ title: 'Validation Error', description: 'Staff member required for audit sample', variant: 'destructive' });
+      return;
+    }
+
+    const validation = validateQaActionClosure(action);
+    const normalizedAction: QaAction = {
+      ...action,
+      linkedEducationSessions: action.linkedEducationSessions || [],
+      closureValidated: validation.canClose,
+      closureValidationErrors: validation.errors,
+    };
+
+    if (normalizedAction.status === 'complete' && !validation.canClose) {
+      toast({ title: 'Cannot close action', description: validation.errors.join(' | '), variant: 'destructive' });
+      return;
+    }
+
+    const exists = qaActions.find(a => a.id === normalizedAction.id);
     if (exists) {
-      setQaActions(qaActions.map(a => a.id === action.id ? action : a));
+      setQaActions(qaActions.map(a => a.id === normalizedAction.id ? normalizedAction : a));
     } else {
-      setQaActions([action, ...qaActions]);
+      setQaActions([normalizedAction, ...qaActions]);
     }
   };
 
@@ -547,6 +570,16 @@ export function QaActionsPage() {
                 </div>
               </div>
               
+              <div>
+                <p className="text-muted-foreground text-sm mb-2">Closure Quality</p>
+                {(() => {
+                  const quality = validateQaActionClosure(selectedAction);
+                  if (quality.canClose) return <Badge>✓ Complete Evidence</Badge>;
+                  if (quality.errors.length > 0) return <Badge variant="destructive">✗ Invalid</Badge>;
+                  return <Badge variant="outline">⚠ Incomplete</Badge>;
+                })()}
+              </div>
+
               {/* Competencies Section */}
               {(() => {
                 const comps = extractCompetenciesFromNotes(selectedAction.notes);
@@ -610,6 +643,7 @@ export function QaActionsPage() {
                       Start Re-Audit
                     </Button>
                   )}
+                  <Button variant="outline" onClick={() => setShowReAuditModal(true)}>Link Re-Audit</Button>
                   <Button onClick={handleEditAction}>
                     <Pencil className="w-4 h-4 mr-1" />
                     Edit
@@ -628,6 +662,19 @@ export function QaActionsPage() {
         action={editAction}
         templates={templates}
         onSave={handleSaveAction}
+      />
+
+      <ReAuditLinkageModal
+        open={showReAuditModal}
+        onOpenChange={setShowReAuditModal}
+        qaAction={selectedAction}
+        sessions={sessions}
+        onLink={(results) => {
+          if (!selectedAction) return;
+          const updated = qaActions.map((action) => action.id === selectedAction.id ? { ...action, reAuditResults: results, reAuditCompletedAt: results?.completedDate || action.reAuditCompletedAt } : action);
+          setQaActions(updated);
+          setSelectedAction(updated.find((action) => action.id === selectedAction.id) || null);
+        }}
       />
 
       <PrintableQaActionsReport

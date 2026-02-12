@@ -99,6 +99,28 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+
+const normalizeSessionStaff = (items: AuditSession[]): AuditSession[] => (
+  items.map((session) => ({
+    ...session,
+    samples: (session.samples || []).map((sample) => ({
+      ...sample,
+      staffAudited: sample.staffAudited || ''
+    }))
+  }))
+);
+
+const normalizeQaActions = (items: QaAction[]): QaAction[] => (
+  items.map((action) => ({
+    ...action,
+    staffAudited: action.staffAudited || '',
+    linkedEducationSessions: action.linkedEducationSessions || (action.linkedEduSessionId ? [action.linkedEduSessionId] : []),
+    closureValidated: action.closureValidated ?? true,
+    closureValidationErrors: action.closureValidationErrors || []
+  }))
+);
+
+
 type StartAuditRequest = {
   templateId: string;
   from: string;
@@ -225,8 +247,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
 
     setTemplates(loadTemplates());
-    setSessionsState(loadSessions());
-    setQaActionsState(loadQaActions());
+    setSessionsState(normalizeSessionStaff(loadSessions()));
+    setQaActionsState(normalizeQaActions(loadQaActions()));
     setEduSessionsState(loadEduSessions());
     setOrientationRecords(loadOrientationRecords());
     setEduLibrary(migratedLibrary);
@@ -242,13 +264,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   // Persist data mutations
   const setSessions = (newSessions: AuditSession[]) => {
-    setSessionsState(newSessions);
-    saveSessions(newSessions);
+    const normalized = normalizeSessionStaff(newSessions);
+    setSessionsState(normalized);
+    saveSessions(normalized);
   };
   
   const setQaActions = (newActions: QaAction[]) => {
-    setQaActionsState(newActions);
-    saveQaActions(newActions);
+    const normalized = normalizeQaActions(newActions);
+    setQaActionsState(normalized);
+    saveQaActions(normalized);
   };
   
   const setEduSessions = (newSessions: EducationSession[]) => {

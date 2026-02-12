@@ -111,7 +111,8 @@ export interface AuditSample {
   id: string;
   answers: Record<string, string>;
   result: SampleResult;
-  staffAudited?: string; // Optional: staff member being audited for this sample
+  staffAudited: string;
+  staffRole?: string;
   immediateAction?: string;
   immediateActionDate?: string;
   followUpAction?: string;
@@ -178,8 +179,48 @@ export interface QaAction {
   ev_monitoringInPlace: boolean;
   // Linked education
   linkedEduSessionId: string;
+  linkedEducationSessions: string[];
   // Staff being audited
-  staffAudited?: string;
+  staffAudited: string;
+  staffRole?: string;
+  reAuditResults?: {
+    sessionId: string;
+    templateId: string;
+    completedDate: string;
+    passed: boolean;
+    complianceRate: number;
+    staffAudited: string;
+    notes: string;
+    sampleIds: string[];
+  };
+  closureValidated?: boolean;
+  closureValidationErrors?: string[];
+}
+
+export interface StaffPerformanceRecord {
+  staffId: string;
+  staffName: string;
+  role: string;
+  period: {
+    start: string;
+    end: string;
+  };
+  metrics: {
+    totalAudits: number;
+    passedAudits: number;
+    passRate: number;
+    openQaActions: number;
+    completedQaActions: number;
+    educationHours: number;
+    requiredEducationComplete: boolean;
+    trendDirection: 'improving' | 'declining' | 'stable';
+  };
+  recentIssues: Array<{
+    date: string;
+    issue: string;
+    template: string;
+    status: string;
+  }>;
 }
 
 export interface EducationSession {
