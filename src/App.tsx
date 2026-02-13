@@ -14,6 +14,7 @@ import { FollowUpPage } from '@/pages/FollowUpPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { RegulatoryReferencesPage } from '@/pages/RegulatoryReferencesPage';
 import { RecommendationCenterPage } from '@/pages/RecommendationCenterPage';
+import { CaseWorkspacePage } from '@/pages/CaseWorkspacePage';
 import { WorkflowDashboardPage } from '@/pages/WorkflowDashboardPage';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
@@ -54,6 +55,7 @@ function AppContent() {
               <Route path="/edu-library" element={<EduTopicLibraryPage />} />
               <Route path="/orientation" element={<OrientationPage />} />
               <Route path="/follow-up" element={<FollowUpPage />} />
+              <Route path="/cases/:caseId" element={<CaseWorkspacePage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/reports" element={<ReportsPage />} />

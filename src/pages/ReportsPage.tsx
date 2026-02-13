@@ -97,6 +97,30 @@ export function ReportsPage() {
       .slice(0, 5);
   }, [filteredActions]);
 
+
+  const projection = useMemo(() => {
+    const total = filteredActions.length || 1;
+    const closed = filteredActions.filter((a) => a.status === 'complete').length;
+    const closureRate = Math.round((closed / total) * 100);
+    const overdue = filteredActions.filter((a) => a.status !== 'complete' && a.dueDate && a.dueDate < today).length;
+    return {
+      closureRate,
+      complianceProjection: Math.max(0, Math.min(100, Math.round(summary.compliance + (closureRate - 50) * 0.2))),
+      overdueProjection: Math.max(0, overdue - Math.round(closed * 0.15)),
+    };
+  }, [filteredActions, summary.compliance, today]);
+
+  const pdsaItems = useMemo(() => topIssues.map(([issue]) => ({
+    plan: `Review root cause for ${issue}`,
+    do: `Assign owner and launch bundle for ${issue}`,
+    study: `Check re-audit outcome for ${issue}`,
+    act: `Standardize successful intervention for ${issue}`,
+  })), [topIssues]);
+
+  const copyQapiNarrative = async () => {
+    const narrative = `QAPI ${rangeLabel}: Compliance ${summary.compliance}%. Closure rate ${qaStats.closureRate}%. Overdue actions ${qaStats.overdueCount}.`; 
+    await navigator.clipboard.writeText(narrative);
+  };
   // Print handler
   const handlePrint = () => {
     window.print();
@@ -150,6 +174,10 @@ export function ReportsPage() {
           <Button variant="outline" onClick={() => setShowStaffPerformance(true)}>
             <Users className="w-4 h-4 mr-2" />
             Staff Performance
+          </Button>
+          <Button variant="outline" onClick={copyQapiNarrative}>
+            <FileText className="w-4 h-4 mr-2" />
+            Copy QAPI Narrative
           </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
@@ -313,6 +341,33 @@ export function ReportsPage() {
                   </div>
                 </section>
               )}
+
+
+              <section>
+                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Weekly/Monthly Projection
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg border">Projected Compliance: <strong>{projection.complianceProjection}%</strong></div>
+                  <div className="p-3 rounded-lg border">Projected Closure Rate: <strong>{projection.closureRate}%</strong></div>
+                  <div className="p-3 rounded-lg border">Projected Overdue Load: <strong>{projection.overdueProjection}</strong></div>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="font-semibold text-lg mb-3">PDSA Action List</h3>
+                <div className="space-y-2">
+                  {pdsaItems.length === 0 ? <p className="text-sm text-muted-foreground">No current issues to convert into PDSA actions.</p> : pdsaItems.map((item, idx) => (
+                    <div key={idx} className="p-3 rounded-lg border text-sm">
+                      <p><strong>Plan:</strong> {item.plan}</p>
+                      <p><strong>Do:</strong> {item.do}</p>
+                      <p><strong>Study:</strong> {item.study}</p>
+                      <p><strong>Act:</strong> {item.act}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
               {/* Tool Performance */}
               {summary.byTool.length > 0 && (

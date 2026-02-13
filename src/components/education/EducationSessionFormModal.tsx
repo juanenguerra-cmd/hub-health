@@ -12,6 +12,8 @@ import { toast } from '@/hooks/use-toast';
 import type { EducationSession, EduTopic } from '@/types/nurse-educator';
 import { Check, ChevronsUpDown, GraduationCap, BookOpen, ClipboardList } from 'lucide-react';
 import { findMatchingCompetencies, formatCompetenciesForNotes } from '@/lib/competency-library';
+import { useApp } from '@/contexts/AppContext';
+import { buildStructuredDictionaries } from '@/lib/structured-dictionaries';
 
 interface EducationSessionFormModalProps {
   open: boolean;
@@ -53,6 +55,8 @@ export function EducationSessionFormModal({
   eduLibrary = []
 }: EducationSessionFormModalProps) {
   const isEdit = !!session;
+  const { qaActions, eduSessions } = useApp();
+  const dictionaries = useMemo(() => buildStructuredDictionaries(qaActions, eduSessions), [qaActions, eduSessions]);
   
   const [selectedTopicId, setSelectedTopicId] = useState<string>('');
   const [formData, setFormData] = useState({
@@ -178,7 +182,8 @@ export function EducationSessionFormModal({
       templateTitle: session?.templateTitle || '',
       templateId: session?.templateId || '',
       issue: session?.issue || '',
-      linkedQaActionId: session?.linkedQaActionId || ''
+      linkedQaActionId: session?.linkedQaActionId || prefill?.linkedQaActionId || '',
+      caseId: session?.caseId || prefill?.caseId || ''
     };
 
     onSave(newSession);
@@ -255,13 +260,14 @@ export function EducationSessionFormModal({
           {/* Topic */}
           <div className="space-y-2">
             <Label htmlFor="topic">Topic *</Label>
-            <Input
+            <Input list="topic-options"
               id="topic"
               value={formData.topic}
               onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
               placeholder="e.g., Hand Hygiene Refresher"
               required
             />
+            <datalist id="topic-options">{dictionaries.topics.map((option) => <option key={option} value={option} />)}</datalist>
           </div>
 
           {/* Summary */}
@@ -333,24 +339,26 @@ export function EducationSessionFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="unit">Unit</Label>
-              <Input
+              <Input list="unit-options"
                 id="unit"
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 placeholder="e.g., All Units, 2N"
               />
+              <datalist id="unit-options">{dictionaries.units.map((option) => <option key={option} value={option} />)}</datalist>
             </div>
           </div>
 
           {/* Instructor */}
           <div className="space-y-2">
             <Label htmlFor="instructor">Instructor</Label>
-            <Input
+            <Input list="owner-options"
               id="instructor"
               value={formData.instructor}
               onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
               placeholder="Instructor name"
             />
+            <datalist id="owner-options">{dictionaries.owners.map((option) => <option key={option} value={option} />)}</datalist>
           </div>
 
           {/* Date fields */}

@@ -41,6 +41,7 @@ import {
 import { parseBackupFile, processBackupData, createBackup, type RestoreResult } from '@/lib/backup-restore';
 import { getNavItemById, getNavItemByPath } from '@/lib/navigation';
 import { categorizeByKeywords } from '@/lib/regulatory-categories';
+import { migrateLegacyLabel } from '@/lib/structured-dictionaries';
 
 interface AppContextType {
   // Data
@@ -116,7 +117,10 @@ const normalizeQaActions = (items: QaAction[]): QaAction[] => (
     staffAudited: action.staffAudited || '',
     linkedEducationSessions: action.linkedEducationSessions || (action.linkedEduSessionId ? [action.linkedEduSessionId] : []),
     closureValidated: action.closureValidated ?? true,
-    closureValidationErrors: action.closureValidationErrors || []
+    closureValidationErrors: action.closureValidationErrors || [],
+    caseId: action.caseId || '',
+    severity: action.severity || 'medium',
+    unit: migrateLegacyLabel(action.unit || '', ['Unit 1A', 'Unit 1B', 'Unit 2A', action.unit || '']),
   }))
 );
 
@@ -249,7 +253,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTemplates(loadTemplates());
     setSessionsState(normalizeSessionStaff(loadSessions()));
     setQaActionsState(normalizeQaActions(loadQaActions()));
-    setEduSessionsState(loadEduSessions());
+    setEduSessionsState(loadEduSessions().map((session) => ({ ...session, caseId: session.caseId || '' })));
     setOrientationRecords(loadOrientationRecords());
     setEduLibrary(migratedLibrary);
     setStaffDirectory(loadStaffDirectory());
