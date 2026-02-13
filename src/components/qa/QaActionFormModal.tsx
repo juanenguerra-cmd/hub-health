@@ -18,6 +18,7 @@ interface QaActionFormModalProps {
   action: QaAction | null;
   templates: AuditTemplate[];
   onSave: (action: QaAction) => void;
+  dictionaries?: { units: string[]; owners: string[]; staffRoles: string[]; topics: string[] };
 }
 
 export function QaActionFormModal({
@@ -25,7 +26,8 @@ export function QaActionFormModal({
   onOpenChange,
   action,
   templates,
-  onSave
+  onSave,
+  dictionaries
 }: QaActionFormModalProps) {
   const isEditing = !!action;
   const today = todayYMD();
@@ -191,11 +193,12 @@ export function QaActionFormModal({
             </div>
             <div>
               <Label>Owner</Label>
-              <Input
+              <Input list="owner-options"
                 value={formData.owner || ''}
                 onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
                 placeholder="Assigned owner..."
               />
+              <datalist id="owner-options">{(dictionaries?.owners || []).map((option) => <option key={option} value={option} />)}</datalist>
             </div>
           </div>
 
@@ -220,22 +223,34 @@ export function QaActionFormModal({
             </div>
             <div>
               <Label>Unit</Label>
-              <Input
+              <Input list="unit-options"
                 value={formData.unit || ''}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 placeholder="e.g., 1A, 2B..."
               />
+              <datalist id="unit-options">{(dictionaries?.units || []).map((option) => <option key={option} value={option} />)}</datalist>
             </div>
           </div>
 
           {/* Staff Audited */}
-          <div>
-            <Label>Staff Being Audited *</Label>
-            <Input
-              value={formData.staffAudited || ''}
-              onChange={(e) => setFormData({ ...formData, staffAudited: e.target.value })}
-              placeholder="Staff member name..."
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Staff Being Audited *</Label>
+              <Input
+                value={formData.staffAudited || ''}
+                onChange={(e) => setFormData({ ...formData, staffAudited: e.target.value })}
+                placeholder="Staff member name..."
+              />
+            </div>
+            <div>
+              <Label>Staff Role</Label>
+              <Input list="staff-role-options"
+                value={formData.staffRole || ''}
+                onChange={(e) => setFormData({ ...formData, staffRole: e.target.value })}
+                placeholder="RN, LPN, CNA..."
+              />
+              <datalist id="staff-role-options">{(dictionaries?.staffRoles || []).map((option) => <option key={option} value={option} />)}</datalist>
+            </div>
           </div>
 
           {/* Dates */}
@@ -261,11 +276,12 @@ export function QaActionFormModal({
           {/* Topic & Summary */}
           <div>
             <Label>Topic</Label>
-            <Input
+            <Input list="topic-options"
               value={formData.topic || ''}
               onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
               placeholder="Education topic or category..."
             />
+            <datalist id="topic-options">{(dictionaries?.topics || []).map((option) => <option key={option} value={option} />)}</datalist>
           </div>
           <div>
             <Label>Summary</Label>

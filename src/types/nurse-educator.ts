@@ -147,6 +147,8 @@ export interface EditableActionItem {
 }
 
 export interface QaAction {
+  caseId?: string;
+  severity?: 'critical' | 'high' | 'medium' | 'low';
   id: string;
   createdAt: string;
   status: 'open' | 'in_progress' | 'complete';
@@ -224,6 +226,7 @@ export interface StaffPerformanceRecord {
 }
 
 export interface EducationSession {
+  caseId?: string;
   id: string;
   createdAt: string;
   status: 'planned' | 'completed';

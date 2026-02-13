@@ -18,6 +18,7 @@ import { PrintableQaActionsReport } from '@/components/reports/PrintableQaAction
 import { toast } from '@/hooks/use-toast';
 import { useAuditNavigation } from '@/hooks/use-audit-navigation';
 import { validateQaActionClosure } from '@/lib/qa-validation';
+import { buildStructuredDictionaries } from '@/lib/structured-dictionaries';
 import { ReAuditLinkageModal } from '@/components/qa/ReAuditLinkageModal';
 import type { QaAction } from '@/types/nurse-educator';
 import { 
@@ -94,6 +95,8 @@ export function QaActionsPage() {
 
   const stats = computeClosedLoopStats(filtered);
   const tools = ['All', ...Array.from(new Set(qaActions.map(a => a.templateTitle).filter(Boolean))).sort()];
+  const dictionaries = useMemo(() => buildStructuredDictionaries(qaActions, eduSessions), [qaActions, eduSessions]);
+
   const recommendationMatches = useMemo(() => {
     if (filtered.length === 0) return [];
     const actionText = filtered
@@ -661,6 +664,7 @@ export function QaActionsPage() {
         onOpenChange={setShowFormModal}
         action={editAction}
         templates={templates}
+        dictionaries={dictionaries}
         onSave={handleSaveAction}
       />
 

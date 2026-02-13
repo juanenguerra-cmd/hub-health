@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,10 +44,11 @@ interface FollowUpItem {
   templateId?: string;
   templateTitle?: string;
   topic?: string;
+  caseId?: string;
 }
 
 export function FollowUpPage() {
-  const { qaActions, setQaActions, eduSessions, setEduSessions, eduLibrary } = useApp();
+  const { qaActions, setQaActions, eduSessions, setEduSessions, eduLibrary, setActiveTab } = useApp();
   const { startAudit } = useAuditNavigation();
   const today = todayYMD();
   
@@ -84,7 +86,8 @@ export function FollowUpPage() {
         linkedId: qa.id,
         templateId: qa.templateId,
         templateTitle: qa.templateTitle,
-        topic: qa.topic
+        topic: qa.topic,
+        caseId: qa.caseId
       });
       
       // Re-audit due dates
@@ -104,7 +107,8 @@ export function FollowUpPage() {
           linkedId: qa.id,
           templateId: qa.reAuditTemplateId || qa.templateId,
           templateTitle: qa.templateTitle,
-          topic: qa.topic
+          topic: qa.topic,
+          caseId: qa.caseId
         });
       }
     }
@@ -129,7 +133,8 @@ export function FollowUpPage() {
         linkedId: edu.id,
         templateId: edu.templateId,
         templateTitle: edu.templateTitle,
-        topic: edu.topic
+        topic: edu.topic,
+        caseId: edu.caseId
       });
     }
     
@@ -314,6 +319,11 @@ export function FollowUpPage() {
       ));
       toast({ title: 'Re-Audit Completed', description: 'The re-audit has been marked as complete.' });
     } else {
+      const qa = qaActions.find((a) => a.id === selectedItem.linkedId);
+      if (qa && (!qa.ev_policyReviewed || !qa.ev_educationProvided || !qa.ev_competencyValidated)) {
+        toast({ title: 'Evidence Required', description: 'Policy review, education, and competency validation are required before completion.', variant: 'destructive' });
+        return;
+      }
       setQaActions(qaActions.map(a => 
         a.id === selectedItem.linkedId 
           ? { ...a, status: 'complete' as const, completedAt: today }
@@ -338,6 +348,27 @@ export function FollowUpPage() {
     setSelectedItem(null);
   };
 
+
+
+  const handleMarkInProgress = (item: FollowUpItem) => {
+    if (item.type !== 'qa') return;
+    setQaActions(qaActions.map((a) => a.id === item.linkedId ? { ...a, status: 'in_progress' as const } : a));
+    toast({ title: 'QA In Progress', description: 'QA item moved to in progress.' });
+  };
+
+  const handleMarkDelivered = (item: FollowUpItem) => {
+    if (item.type !== 'education') return;
+    setEduSessions(eduSessions.map((e) => e.id === item.linkedId ? { ...e, status: 'completed' as const, completedDate: today } : e));
+    toast({ title: 'Education Delivered', description: 'Education session marked delivered.' });
+  };
+
+  const handleValidateCompetency = (item: FollowUpItem) => {
+    if (item.type !== 'education') return;
+    const edu = eduSessions.find((e) => e.id === item.linkedId);
+    if (!edu?.linkedQaActionId) return;
+    setQaActions(qaActions.map((a) => a.id === edu.linkedQaActionId ? { ...a, ev_competencyValidated: true } : a));
+    toast({ title: 'Competency Validated', description: 'Competency evidence checked on linked QA action.' });
+  };
   // Check if QA action already has education linked
   const getLinkedEducation = (linkedId: string) => {
     const qa = qaActions.find(a => a.id === linkedId);
@@ -524,7 +555,22 @@ export function FollowUpPage() {
                       </div>
                       
                       {/* Quick action buttons */}
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
+                        {item.type === 'qa' && (
+                          <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); handleMarkInProgress(item); }}>In Progress</Button>
+                        )}
+                        {item.type === 'qa' && (
+                          <Button size="sm" onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setTimeout(() => handleMarkComplete(), 0); }}>Complete</Button>
+                        )}
+                        {item.type === 'education' && (
+                          <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); handleMarkDelivered(item); }}>Delivered</Button>
+                        )}
+                        {item.type === 'education' && (
+                          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleValidateCompetency(item); }}>Competency ✓</Button>
+                        )}
+                        {item.caseId && (
+                          <Button size="sm" variant="ghost" asChild onClick={(e) => e.stopPropagation()}><Link to={`/cases/${item.caseId}`}>Case</Link></Button>
+                        )}
                         {(item.type === 'qa' || item.type === 'reaudit') && item.templateId && (
                           <Button 
                             size="sm" 

@@ -23,6 +23,8 @@ import { PostAuditPrintModal } from '@/components/audit/PostAuditPrintModal';
 import { findMatchingCompetencies, getCompetencyRecommendations } from '@/lib/competency-library';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { createClosedLoopBundle } from '@/lib/closed-loop-bundle';
+import { trackBundleGenerated } from '@/lib/telemetry';
 import { 
   Play, 
   FileText, 
@@ -400,46 +402,29 @@ export function SessionsPage() {
     
     // Generate QA actions for failed samples
     const newActions: QaAction[] = [];
+    const newEducationDrafts = [];
     for (const smp of scoredSamples) {
       if (smp.result && !smp.result.pass) {
         for (const action of smp.result.actionNeeded) {
-          const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + 14);
-          
-          newActions.push({
-            id: `qa_${Math.random().toString(16).slice(2, 10)}`,
-            createdAt: nowISO(),
-            status: 'open',
+          const bundle = createClosedLoopBundle({
             templateId: activeSession.templateId,
             templateTitle: activeSession.templateTitle,
-            unit: activeSession.header.unit,
+            findingLabel: action.label,
+            findingReason: action.reason,
             auditDate: activeSession.header.auditDate,
             sessionId: activeSession.header.sessionId,
-            sample: getSubjectCode(smp.answers) || smp.id,
-            issue: action.label,
-            reason: action.reason,
-            topic: '',
-            summary: '',
-            owner: '',
-            dueDate: dueDate.toISOString().slice(0, 10),
-            completedAt: '',
-            notes: '',
+            sampleId: getSubjectCode(smp.answers) || smp.id,
+            unit: activeSession.header.unit,
+            topic: action.label,
+            staffAudited: smp.staffAudited || 'Unknown - Requires Update',
+            staffRole: smp.staffRole || '',
             ftagTags: tpl.ftagTags || [],
             nydohTags: tpl.nydohTags || [],
-            reAuditDueDate: '',
-            reAuditCompletedAt: '',
-            reAuditSessionRef: '',
-            reAuditTemplateId: '',
-            ev_policyReviewed: false,
-            ev_educationProvided: false,
-            ev_competencyValidated: false,
-            ev_correctiveAction: false,
-            ev_monitoringInPlace: false,
-            linkedEduSessionId: '',
-            linkedEducationSessions: [],
-            staffAudited: smp.staffAudited || 'Unknown - Requires Update',
-            staffRole: smp.staffRole || ''
           });
+
+          newActions.push(bundle.qaAction);
+          newEducationDrafts.push(bundle.educationDraft);
+          trackBundleGenerated();
         }
       }
     }
@@ -447,6 +432,7 @@ export function SessionsPage() {
     setSessions(sessions.map(s => s.id === completed.id ? completed : s));
     if (newActions.length > 0) {
       setQaActions([...newActions, ...qaActions]);
+      setEduSessions([...newEducationDrafts, ...eduSessions]);
       setActiveTab('recommendations');
     }
     setActiveSession(null);
