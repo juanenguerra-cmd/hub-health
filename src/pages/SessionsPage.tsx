@@ -27,6 +27,7 @@ import { createClosedLoopBundle } from '@/lib/closed-loop-bundle';
 import { StaffSelect } from '@/components/ui/staff-select';
 import { validateAndNormalizeDate } from '@/lib/date-utils';
 import { sanitizeText } from '@/lib/sanitize';
+import { validateStaffName } from '@/lib/staff-validation';
 import { trackBundleGenerated } from '@/lib/telemetry';
 import { 
   Play, 
@@ -56,7 +57,8 @@ export function SessionsPage() {
     startAuditRequest,
     setStartAuditRequest,
     openSessionRequest,
-    setOpenSessionRequest
+    setOpenSessionRequest,
+    staffDirectory
   } = useApp();
   const allUnits = getAllUnitOptions(facilityUnits);
   
@@ -314,7 +316,7 @@ export function SessionsPage() {
       ...activeSession,
       header: {
         ...activeSession.header,
-        [field]: value
+        [field]: field.includes('Date') ? value : sanitizeText(value)
       }
     };
 
@@ -362,6 +364,26 @@ export function SessionsPage() {
   const deleteSession = (sessionId: string) => {
     const target = sessions.find(session => session.id === sessionId);
     if (!target) return;
+
+    const linkedActions = qaActions.filter(action => action.sessionId === target.header.sessionId);
+    if (linkedActions.length > 0 && target.header.status === 'complete') {
+      const continueDelete = window.confirm(
+        `This session has ${linkedActions.length} linked QA action(s).
+
+Deleting will orphan these actions. Continue?
+
+Tip: Archive completed sessions instead of deleting.`
+      );
+      if (!continueDelete) return;
+
+      const updatedActions = qaActions.map((a) =>
+        linkedActions.some((la) => la.id === a.id)
+          ? { ...a, sessionId: '', templateTitle: `${a.templateTitle} (Session Deleted)` }
+          : a
+      );
+      setQaActions(updatedActions);
+    }
+
     const confirmed = window.confirm(`Delete audit session ${target.header.sessionId}? This cannot be undone.`);
     if (!confirmed) return;
 
@@ -396,6 +418,18 @@ export function SessionsPage() {
     const missingStaff = activeSession.samples.find((sample) => !sample.staffAudited?.trim());
     if (missingStaff) {
       toast({ title: 'Validation Error', description: 'Staff member required for audit sample', variant: 'destructive' });
+      return;
+    }
+
+    const invalidStaff = activeSession.samples
+      .map((sample, idx) => {
+        const validation = validateStaffName(sample.staffAudited || '', staffDirectory);
+        return validation.valid ? null : `Sample #${idx + 1}: ${validation.message}`;
+      })
+      .filter(Boolean) as string[];
+
+    if (invalidStaff.length > 0) {
+      window.alert(`Cannot complete session. Invalid staff names\n\n${invalidStaff.join('\n')}`);
       return;
     }
 

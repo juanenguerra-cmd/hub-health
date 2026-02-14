@@ -202,13 +202,21 @@ export interface QaAction {
   modifiedBy?: string;
   deletedAt?: string;
   deletedBy?: string;
+  deleted?: boolean;
   changeHistory?: Array<{
     timestamp: string;
     user: string;
-    field: string;
-    oldValue: string;
-    newValue: string;
+    action: 'created' | 'updated' | 'status_changed' | 'deleted';
+    field?: string;
+    oldValue?: string;
+    newValue?: string;
+    description?: string;
   }>;
+}
+
+export interface StaffDirectory {
+  rows: StaffMember[];
+  asOf: string;
 }
 
 export interface StaffPerformanceRecord {

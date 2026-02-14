@@ -29,6 +29,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BackupSettingsModal } from "@/components/BackupSettingsModal";
 import { loadBackupSettings, updateLastBackupTime } from "@/lib/backup-settings-storage";
+import { formatBytes, getStorageUsage } from "@/lib/storage-monitor";
 import { formatLastBackup } from "@/types/backup-settings";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -61,6 +62,7 @@ export function SettingsPage() {
 
   const [isRestoring, setIsRestoring] = useState(false);
   const [showBackupSettings, setShowBackupSettings] = useState(false);
+  const [storageUsage, setStorageUsage] = useState(() => getStorageUsage());
   const [backupSettings, setBackupSettings] = useState(() => loadBackupSettings());
 
   const [oneDriveLocation, setOneDriveLocation] = useState("");
@@ -329,6 +331,40 @@ export function SettingsPage() {
               placeholder="Enter facility name"
             />
           </div>
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-sm font-semibold mb-3">Storage Breakdown</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Used:</span>
+                <span className="font-medium">{formatBytes(storageUsage.used)} / {formatBytes(storageUsage.total)}</span>
+              </div>
+
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${
+                    storageUsage.percentage > 90 ? 'bg-destructive' :
+                    storageUsage.percentage > 75 ? 'bg-warning' : 'bg-green-600'
+                  }`}
+                  style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1">
+                {storageUsage.itemBreakdown.slice(0, 5).map((item) => (
+                  <div key={item.key} className="flex justify-between">
+                    <span>{item.key}:</span>
+                    <span>{formatBytes(item.size)} ({item.percentage.toFixed(1)}%)</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button size="sm" variant="outline" className="w-full" onClick={() => setStorageUsage(getStorageUsage())}>
+                <RefreshCw className="h-3 w-3 mr-2" />
+                Refresh Usage
+              </Button>
+            </div>
+          </div>
+
         </CardContent>
       </Card>
 
@@ -441,6 +477,40 @@ export function SettingsPage() {
               })
             )}
           </div>
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-sm font-semibold mb-3">Storage Breakdown</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Used:</span>
+                <span className="font-medium">{formatBytes(storageUsage.used)} / {formatBytes(storageUsage.total)}</span>
+              </div>
+
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${
+                    storageUsage.percentage > 90 ? 'bg-destructive' :
+                    storageUsage.percentage > 75 ? 'bg-warning' : 'bg-green-600'
+                  }`}
+                  style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1">
+                {storageUsage.itemBreakdown.slice(0, 5).map((item) => (
+                  <div key={item.key} className="flex justify-between">
+                    <span>{item.key}:</span>
+                    <span>{formatBytes(item.size)} ({item.percentage.toFixed(1)}%)</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button size="sm" variant="outline" className="w-full" onClick={() => setStorageUsage(getStorageUsage())}>
+                <RefreshCw className="h-3 w-3 mr-2" />
+                Refresh Usage
+              </Button>
+            </div>
+          </div>
+
         </CardContent>
       </Card>
 
@@ -509,6 +579,40 @@ export function SettingsPage() {
               <div className="text-sm text-muted-foreground">Education Topics</div>
             </div>
           </div>
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-sm font-semibold mb-3">Storage Breakdown</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Used:</span>
+                <span className="font-medium">{formatBytes(storageUsage.used)} / {formatBytes(storageUsage.total)}</span>
+              </div>
+
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${
+                    storageUsage.percentage > 90 ? 'bg-destructive' :
+                    storageUsage.percentage > 75 ? 'bg-warning' : 'bg-green-600'
+                  }`}
+                  style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1">
+                {storageUsage.itemBreakdown.slice(0, 5).map((item) => (
+                  <div key={item.key} className="flex justify-between">
+                    <span>{item.key}:</span>
+                    <span>{formatBytes(item.size)} ({item.percentage.toFixed(1)}%)</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button size="sm" variant="outline" className="w-full" onClick={() => setStorageUsage(getStorageUsage())}>
+                <RefreshCw className="h-3 w-3 mr-2" />
+                Refresh Usage
+              </Button>
+            </div>
+          </div>
+
         </CardContent>
       </Card>
 
@@ -671,6 +775,40 @@ export function SettingsPage() {
               </Button>
             </div>
           </div>
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-sm font-semibold mb-3">Storage Breakdown</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Used:</span>
+                <span className="font-medium">{formatBytes(storageUsage.used)} / {formatBytes(storageUsage.total)}</span>
+              </div>
+
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${
+                    storageUsage.percentage > 90 ? 'bg-destructive' :
+                    storageUsage.percentage > 75 ? 'bg-warning' : 'bg-green-600'
+                  }`}
+                  style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1">
+                {storageUsage.itemBreakdown.slice(0, 5).map((item) => (
+                  <div key={item.key} className="flex justify-between">
+                    <span>{item.key}:</span>
+                    <span>{formatBytes(item.size)} ({item.percentage.toFixed(1)}%)</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button size="sm" variant="outline" className="w-full" onClick={() => setStorageUsage(getStorageUsage())}>
+                <RefreshCw className="h-3 w-3 mr-2" />
+                Refresh Usage
+              </Button>
+            </div>
+          </div>
+
         </CardContent>
       </Card>
 

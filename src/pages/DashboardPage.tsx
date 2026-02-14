@@ -33,9 +33,12 @@ import {
   Bell,
   Users
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { checkStorageQuota } from '@/lib/storage-monitor';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Download } from 'lucide-react';
 
 export function DashboardPage() {
   const { 
@@ -46,7 +49,8 @@ export function DashboardPage() {
     dashFilters, 
     setDashFilters,
     loadDemoData,
-    setActiveTab
+    setActiveTab,
+    exportBackup
   } = useApp();
 
   const daysAgo = parseInt(dashFilters.range, 10);
@@ -111,6 +115,25 @@ export function DashboardPage() {
   ]), [qaStats.done, summary.compliance, summary.sessions]);
   const [activeInfographicStep, setActiveInfographicStep] = useState(infographicSteps[0]?.id ?? 'assess');
   const activeStep = infographicSteps.find(step => step.id === activeInfographicStep) ?? infographicSteps[0];
+  const [storageStatus, setStorageStatus] = useState(() => checkStorageQuota());
+
+  useEffect(() => {
+    const interval = setInterval(() => setStorageStatus(checkStorageQuota()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleExportFromWarning = () => {
+    const content = exportBackup();
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hub-health-archive-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const urgentItems = useMemo(() => {
     const overdueActions = qaActions.filter((a) => a.status !== 'complete' && isDateBefore(a.dueDate, today));
@@ -137,6 +160,28 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {storageStatus.status === 'critical' && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Storage Critical</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{storageStatus.message}</span>
+            <Button size="sm" variant="outline" onClick={handleExportFromWarning}>
+              <Download className="h-4 w-4 mr-2" />Export Now
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {storageStatus.status === 'warning' && (
+        <Alert className="border-amber-500 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-900">Storage Warning</AlertTitle>
+          <AlertDescription className="flex items-center justify-between text-amber-800">
+            <span>{storageStatus.message}</span>
+            <Button size="sm" variant="outline" onClick={() => setActiveTab('settings')}>Manage Storage</Button>
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

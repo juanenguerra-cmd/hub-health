@@ -12,6 +12,7 @@ import type {
 } from '@/types/nurse-educator';
 import { SEED_TEMPLATES, SEED_EDU_TOPICS } from './seed-templates';
 import { normalizeTemplate } from './template-schema';
+import { safeLocalStorageSet } from './storage-monitor';
 
 const LS_KEYS = {
   templates: 'NES_TEMPLATES_V1',
@@ -36,6 +37,14 @@ const DEFAULT_OWNERS: AdminOwners = {
   unitMgr: 'Unit Manager',
   admin: 'Administrator'
 };
+
+
+function safeWrite(key: string, payload: unknown): void {
+  const result = safeLocalStorageSet(key, JSON.stringify(payload));
+  if (!result.success) {
+    window.dispatchEvent(new CustomEvent('hub-storage-error', { detail: result.error }));
+  }
+}
 
 // Templates - merge seed templates with user data to ensure new templates are available
 export function loadTemplates(): AuditTemplate[] {
@@ -73,7 +82,7 @@ export function loadTemplates(): AuditTemplate[] {
 }
 
 export function saveTemplates(templates: AuditTemplate[]): void {
-  localStorage.setItem(LS_KEYS.templates, JSON.stringify(templates));
+  safeWrite(LS_KEYS.templates, templates);
 }
 
 // Sessions
@@ -89,7 +98,7 @@ export function loadSessions(): AuditSession[] {
 }
 
 export function saveSessions(sessions: AuditSession[]): void {
-  localStorage.setItem(LS_KEYS.sessions, JSON.stringify(sessions));
+  safeWrite(LS_KEYS.sessions, sessions);
 }
 
 // QA Actions
@@ -105,7 +114,7 @@ export function loadQaActions(): QaAction[] {
 }
 
 export function saveQaActions(actions: QaAction[]): void {
-  localStorage.setItem(LS_KEYS.qaActions, JSON.stringify(actions));
+  safeWrite(LS_KEYS.qaActions, actions);
 }
 
 // Education Sessions
@@ -121,7 +130,7 @@ export function loadEduSessions(): EducationSession[] {
 }
 
 export function saveEduSessions(sessions: EducationSession[]): void {
-  localStorage.setItem(LS_KEYS.eduSessions, JSON.stringify(sessions));
+  safeWrite(LS_KEYS.eduSessions, sessions);
 }
 
 // Orientation Records
@@ -137,7 +146,7 @@ export function loadOrientationRecords(): OrientationRecord[] {
 }
 
 export function saveOrientationRecords(records: OrientationRecord[]): void {
-  localStorage.setItem(LS_KEYS.orientationRecords, JSON.stringify(records));
+  safeWrite(LS_KEYS.orientationRecords, records);
 }
 
 // Education Library - merge seed topics with user data to ensure new topics are available
@@ -171,7 +180,7 @@ export function loadEduLibrary(): EduTopic[] {
 }
 
 export function saveEduLibrary(library: EduTopic[]): void {
-  localStorage.setItem(LS_KEYS.eduLibrary, JSON.stringify(library));
+  safeWrite(LS_KEYS.eduLibrary, library);
 }
 
 // Staff Directory
@@ -190,7 +199,7 @@ export function loadStaffDirectory(): { rows: StaffMember[]; asOf: string } {
 }
 
 export function saveStaffDirectory(data: { rows: StaffMember[]; asOf: string }): void {
-  localStorage.setItem(LS_KEYS.staffDirectory, JSON.stringify(data));
+  safeWrite(LS_KEYS.staffDirectory, data);
 }
 
 // Admin Owners
@@ -206,7 +215,7 @@ export function loadAdminOwners(): AdminOwners {
 }
 
 export function saveAdminOwners(owners: AdminOwners): void {
-  localStorage.setItem(LS_KEYS.adminOwners, JSON.stringify(owners));
+  safeWrite(LS_KEYS.adminOwners, owners);
 }
 
 // Facility Name
@@ -220,7 +229,7 @@ export function loadFacilityName(): string {
 
 export function saveFacilityName(name: string): void {
   try {
-    localStorage.setItem(LS_KEYS.facilityName, name);
+    safeWrite(LS_KEYS.facilityName, name);
   } catch {
     // Ignore storage errors (e.g., blocked storage) to prevent runtime crashes.
   }
@@ -258,7 +267,7 @@ export function loadFacilityUnits(): FacilityUnit[] {
 }
 
 export function saveFacilityUnits(units: FacilityUnit[]): void {
-  localStorage.setItem(LS_KEYS.facilityUnits, JSON.stringify(units));
+  safeWrite(LS_KEYS.facilityUnits, units);
 }
 
 // Generate demo data for preview

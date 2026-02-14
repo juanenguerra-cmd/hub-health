@@ -14,6 +14,7 @@ import type { QaAction, AuditTemplate } from '@/types/nurse-educator';
 import { todayYMD } from '@/lib/calculations';
 import { sanitizeMultiline, sanitizeText } from '@/lib/sanitize';
 import { validateAndNormalizeDate } from '@/lib/date-utils';
+import { validateStaffName } from '@/lib/staff-validation';
 import { StaffSelect } from '@/components/ui/staff-select';
 import { findMatchingCompetencies, formatCompetenciesForNotes } from '@/lib/competency-library';
 import { findDuplicateQaAction } from '@/lib/duplicate-detection';
@@ -69,10 +70,7 @@ export function QaActionFormModal({
 
   const [dateErrors, setDateErrors] = useState<{ dueDate?: string; reAuditDueDate?: string }>({});
 
-  const validateStaff = (name: string): boolean => {
-    if (!name.trim()) return false;
-    return staffDirectory.rows.some((s) => s.name === name && s.status === 'Active');
-  };
+  const validateStaff = (name: string) => validateStaffName(name, staffDirectory);
 
   const validateDateField = (field: 'dueDate' | 'reAuditDueDate', value: string): string => {
     if (!value) {
@@ -137,10 +135,10 @@ export function QaActionFormModal({
       return;
     }
 
-    const staffIsValid = validateStaff(formData.staffAudited || '');
+    const staffValidation = validateStaff(formData.staffAudited || '');
     const isLegacyStaff = isEditing && action?.staffAudited === formData.staffAudited;
-    if (!staffIsValid && !isLegacyStaff) {
-      toast({ title: 'Error', description: 'Staff member must be selected from active staff directory', variant: 'destructive' });
+    if (!staffValidation.valid && !isLegacyStaff) {
+      toast({ title: 'Error', description: staffValidation.message || 'Staff member must be selected from active staff directory', variant: 'destructive' });
       return;
     }
 
@@ -190,7 +188,7 @@ export function QaActionFormModal({
       }),
       id: action?.id || crypto.randomUUID(),
       issue: sanitizeText(formData.issue || ''),
-      unit: formData.unit || '',
+      unit: sanitizeText(formData.unit || ''),
       staffAudited: sanitizeText(formData.staffAudited || ''),
       status: (formData.status as 'open' | 'in_progress' | 'complete') || 'open',
       dueDate: dueDate || '',
@@ -208,20 +206,20 @@ export function QaActionFormModal({
       status: formData.status as 'open' | 'in_progress' | 'complete',
       templateId: formData.templateId || '',
       templateTitle: formData.templateTitle || '',
-      unit: formData.unit || '',
+      unit: sanitizeText(formData.unit || ''),
       auditDate: action?.auditDate || today,
       sessionId: action?.sessionId || '',
       sample: action?.sample || '',
       issue: sanitizeText(formData.issue || ''),
-      reason: sanitizeText(action?.reason || ''),
+      reason: sanitizeText(formData.reason || action?.reason || ''),
       topic: sanitizeText(formData.topic || ''),
       summary: sanitizeMultiline(formData.summary || ''),
-      owner: formData.owner || '',
+      owner: sanitizeText(formData.owner || ''),
       dueDate: dueDate || '',
       completedAt: formData.status === 'complete' && !action?.completedAt ? today : (action?.completedAt || ''),
       notes: sanitizeMultiline(formData.notes || ''),
-      ftagTags: action?.ftagTags || [],
-      nydohTags: action?.nydohTags || [],
+      ftagTags: (action?.ftagTags || []).map(sanitizeText),
+      nydohTags: (action?.nydohTags || []).map(sanitizeText),
       reAuditDueDate: reAuditDueDate || '',
       reAuditCompletedAt: action?.reAuditCompletedAt || '',
       reAuditSessionRef: action?.reAuditSessionRef || '',
@@ -294,12 +292,11 @@ export function QaActionFormModal({
             </div>
             <div>
               <Label>Owner</Label>
-              <Input list="owner-options"
+              <StaffSelect
                 value={formData.owner || ''}
-                onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                placeholder="Assigned owner..."
+                onValueChange={(value) => setFormData({ ...formData, owner: value })}
+                placeholder="Assign to staff member"
               />
-              <datalist id="owner-options">{(dictionaries?.owners || []).map((option) => <option key={option} value={option} />)}</datalist>
             </div>
           </div>
 
@@ -342,8 +339,8 @@ export function QaActionFormModal({
                 onValueChange={(value) => setFormData({ ...formData, staffAudited: value })}
                 placeholder="Select staff member..."
               />
-              {formData.staffAudited && !validateStaff(formData.staffAudited) && (
-                <Badge variant="secondary" className="mt-2">Not in active staff directory</Badge>
+              {formData.staffAudited && !validateStaff(formData.staffAudited).valid && (
+                <Badge variant="secondary" className="mt-2">{validateStaff(formData.staffAudited).message}</Badge>
               )}
             </div>
             <div>

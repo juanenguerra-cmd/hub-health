@@ -7,11 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
 import { filterActionsByRange, computeClosedLoopStats } from '@/lib/calculations';
 import { isOverdue } from '@/lib/date-utils';
-import { SafeText } from '@/lib/sanitize';
-import { getChangeLog, recordChange } from '@/lib/audit-trail';
+import { recordChange, recordCreation, detectChanges, recordDeletion } from '@/lib/audit-trail';
 import { recommendationRules } from '@/lib/recommendation-rules';
 import { KpiCard, KpiGrid } from '@/components/KpiCard';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChangeHistoryModal } from '@/components/qa/ChangeHistoryModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { QaActionFormModal } from '@/components/qa/QaActionFormModal';
@@ -38,7 +38,8 @@ import {
   Play,
   ClipboardCheck,
   GraduationCap,
-  Printer
+  Printer,
+  History
 } from 'lucide-react';
 
 // Helper to extract competency titles from notes
@@ -68,12 +69,12 @@ export function QaActionsPage() {
   const [editAction, setEditAction] = useState<QaAction | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showReAuditModal, setShowReAuditModal] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [historyAction, setHistoryAction] = useState<QaAction | null>(null);
 
   const daysAgo = parseInt(actionsFilters.range, 10);
   
   // Filter actions
-  let filtered = filterActionsByRange(qaActions.filter((a) => !a.deletedAt), daysAgo);
+  let filtered = filterActionsByRange(qaActions.filter((a) => !a.deleted), daysAgo);
   
   if (actionsFilters.status !== 'All') {
     filtered = filtered.filter(a => a.status === actionsFilters.status);
@@ -100,7 +101,6 @@ export function QaActionsPage() {
   const tools = ['All', ...Array.from(new Set(qaActions.map(a => a.templateTitle).filter(Boolean))).sort()];
   const dictionaries = useMemo(() => buildStructuredDictionaries(qaActions, eduSessions), [qaActions, eduSessions]);
 
-  const isActiveStaff = (name: string) => staffDirectory.rows.some((s) => s.name === name && s.status === 'Active');
 
   const recommendationMatches = useMemo(() => {
     if (filtered.length === 0) return [];
@@ -200,12 +200,13 @@ export function QaActionsPage() {
 
   const handleDeleteAction = () => {
     if (!selectedAction) return;
-    const now = new Date().toISOString();
-    const updated = qaActions.map((a) => a.id === selectedAction.id
-      ? { ...recordChange(a, 'deletedAt', now, 'Current User'), deletedAt: now, deletedBy: 'Current User', status: 'complete' as const, modifiedAt: now, modifiedBy: 'Current User' }
-      : a
-    );
-    setQaActions(updated);
+
+    const deletedAction = {
+      ...recordDeletion(selectedAction, 'User deleted via UI'),
+      deleted: true,
+    };
+
+    setQaActions(qaActions.map((a) => (a.id === selectedAction.id ? deletedAction : a)));
     setSelectedAction(null);
     toast({ title: 'Action Deleted', description: 'The QA action has been marked as deleted in audit history.' });
   };
@@ -229,18 +230,20 @@ export function QaActionsPage() {
       return;
     }
 
-    const exists = qaActions.find(a => a.id === normalizedAction.id);
+    const exists = qaActions.find((a) => a.id === normalizedAction.id);
     if (exists) {
-      let updatedAction: QaAction = { ...normalizedAction };
-      (Object.keys(normalizedAction) as Array<keyof QaAction>).forEach((key) => {
-        if (exists[key] !== normalizedAction[key]) {
-          updatedAction = recordChange(updatedAction, key, normalizedAction[key], 'Current User');
-        }
-      });
-      setQaActions(qaActions.map(a => a.id === normalizedAction.id ? updatedAction : a));
+      const changes = detectChanges(exists, normalizedAction);
+      const finalAction = Object.keys(changes).length > 0
+        ? recordChange(normalizedAction, changes, changes.status ? 'status_changed' : 'updated')
+        : normalizedAction;
+      setQaActions(qaActions.map((a) => (a.id === normalizedAction.id ? finalAction : a)));
     } else {
-      setQaActions([{ ...normalizedAction, createdBy: 'Current User' }, ...qaActions]);
+      const finalAction = recordCreation(normalizedAction);
+      setQaActions([finalAction, ...qaActions]);
     }
+
+    setShowFormModal(false);
+    setEditAction(null);
   };
 
   const handleStartAudit = (templateId: string) => {
@@ -627,7 +630,7 @@ export function QaActionsPage() {
               {selectedAction.notes && (
                 <div>
                   <p className="text-muted-foreground text-sm">Notes</p>
-                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded whitespace-pre-wrap"><SafeText>{selectedAction.notes}</SafeText></p>
+                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded whitespace-pre-wrap">{selectedAction.notes}</p>
                 </div>
               )}
               
@@ -667,7 +670,10 @@ export function QaActionsPage() {
                       Start Re-Audit
                     </Button>
                   )}
-                  <Button variant="outline" onClick={() => setShowHistory(true)}>View History</Button>
+                  <Button variant="outline" onClick={() => setHistoryAction(selectedAction)}>
+                      <History className="w-4 h-4 mr-1" />
+                      View History
+                    </Button>
                   <Button variant="outline" onClick={() => setShowReAuditModal(true)}>Link Re-Audit</Button>
                   <Button onClick={handleEditAction}>
                     <Pencil className="w-4 h-4 mr-1" />
@@ -702,19 +708,11 @@ export function QaActionsPage() {
           setSelectedAction(updated.find((action) => action.id === selectedAction.id) || null);
         }}
       />
-
-
-      <Dialog open={showHistory} onOpenChange={setShowHistory}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>QA Action Change History</DialogTitle>
-            <DialogDescription>Review all recorded field updates for this action.</DialogDescription>
-          </DialogHeader>
-          <pre className="text-xs whitespace-pre-wrap bg-muted/50 p-3 rounded max-h-[60vh] overflow-auto">
-            {selectedAction ? getChangeLog(selectedAction) : 'No action selected'}
-          </pre>
-        </DialogContent>
-      </Dialog>
+      <ChangeHistoryModal
+        open={!!historyAction}
+        onOpenChange={(open) => !open && setHistoryAction(null)}
+        action={historyAction}
+      />
 
       <PrintableQaActionsReport
         open={showPrintModal}
