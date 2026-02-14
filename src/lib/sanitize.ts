@@ -1,12 +1,13 @@
-import { createElement } from 'react';
-
 /**
  * Sanitize user input to prevent XSS attacks
- * Removes HTML tags and encodes special characters
+ * Strips HTML tags and encodes special characters
  */
 export function sanitizeText(input: string): string {
   if (!input) return '';
-  return input
+
+  const stripped = input.replace(/<[^>]*>/g, '');
+  return stripped
+    .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
@@ -15,7 +16,7 @@ export function sanitizeText(input: string): string {
 }
 
 /**
- * Sanitize multi-line text (preserve newlines)
+ * Sanitize multi-line text (preserves newlines)
  */
 export function sanitizeMultiline(input: string): string {
   if (!input) return '';
@@ -26,8 +27,23 @@ export function sanitizeMultiline(input: string): string {
 }
 
 /**
- * Safe render for potentially unsafe content
+ * Sanitize for URL context (additional encoding)
  */
-export function SafeText({ children }: { children: string }) {
-  return createElement('span', { dangerouslySetInnerHTML: { __html: sanitizeText(children) } });
+export function sanitizeUrl(input: string): string {
+  if (!input) return '';
+  try {
+    const url = new URL(input);
+    return url.href;
+  } catch {
+    return '';
+  }
 }
+
+/**
+ * Strip all HTML tags (aggressive sanitization)
+ */
+export function stripHtml(input: string): string {
+  if (!input) return '';
+  return input.replace(/<[^>]*>/g, '');
+}
+

@@ -16,33 +16,15 @@ import type {
   SampleResult
 } from '@/types/nurse-educator';
 import type { TemplateQuestion } from '@/types/nurse-educator';
-import { isDateBefore, isOverdue } from '@/lib/date-utils';
+import { addDays as safeAddDays, daysBetween as safeDaysBetween, isDateBefore, isOverdue } from '@/lib/date-utils';
 
 // Date utilities
 export const todayYMD = (): string => new Date().toISOString().split('T')[0];
 export const nowISO = (): string => new Date().toISOString();
 
-export const dateAddDays = (ymd: string, days: number): string => {
-  try {
-    const d = new Date(ymd + 'T00:00:00');
-    if (isNaN(d.getTime())) return '';
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
-  } catch {
-    return '';
-  }
-};
+export const dateAddDays = safeAddDays;
 
-export const daysBetween = (startYmd: string, endYmd: string): number => {
-  try {
-    const a = new Date(startYmd + 'T00:00:00');
-    const b = new Date(endYmd + 'T00:00:00');
-    const ms = b.getTime() - a.getTime();
-    return Math.max(0, Math.round(ms / 86400000));
-  } catch {
-    return 0;
-  }
-};
+export const daysBetween = safeDaysBetween;
 
 export const isCriticalFailTriggered = (question: TemplateQuestion, answer: string): boolean => {
   if (!answer) return false;

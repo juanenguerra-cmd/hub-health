@@ -206,7 +206,7 @@ export function EducationSessionFormModal({
       topic: sanitizeText(formData.topic),
       summary: sanitizeMultiline(formData.summary),
       category: formData.category,
-      audience: formData.audience,
+      audience: sanitizeText(formData.audience),
       instructor: sanitizeText(formData.instructor),
       unit: sanitizeText(formData.unit),
       scheduledDate: scheduledDate,
