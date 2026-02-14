@@ -43,6 +43,76 @@ describe('buildCourseCompletionReport', () => {
       },
     ]);
   });
+
+
+
+  it('groups each user once per department when multiple modules are assigned', () => {
+    const csv = [
+      'User Name,Department They Belong,Module Status,Module',
+      'Anna,ICU,Completed,Infection Control',
+      'ANNA, ICU ,Pending,Fire Safety',
+      'Mark,ICU,Completed,HIPAA',
+      'Lia,Rehab,Completed,Hand Hygiene',
+    ].join('\n');
+
+    const report = buildCourseCompletionReport(csv);
+
+    expect(report.departmentRows).toEqual([
+      {
+        department: 'Rehab',
+        staffCount: 1,
+        totalModules: 1,
+        completedModules: 1,
+        completionRate: 100,
+        completedStaffCount: 1,
+        pendingStaffCount: 0,
+      },
+      {
+        department: 'ICU',
+        staffCount: 2,
+        totalModules: 3,
+        completedModules: 2,
+        completionRate: 67,
+        completedStaffCount: 1,
+        pendingStaffCount: 1,
+      },
+    ]);
+
+    expect(report.staffRows.find((row) => row.staffName === 'Anna')?.totalModules).toBe(2);
+  });
+  it('parses name of staff and department assigned headers for drill-down rows', () => {
+    const csv = [
+      'Name of Staff,Department Assigned,Course Status',
+      'Alice,ICU,Completed',
+      'Bob,ICU,Pending',
+      'Cara,Rehab,Completed',
+    ].join('\n');
+
+    const report = buildCourseCompletionReport(csv);
+
+    expect(report.departmentRows).toEqual([
+      {
+        department: 'Rehab',
+        staffCount: 1,
+        totalModules: 1,
+        completedModules: 1,
+        completionRate: 100,
+        completedStaffCount: 1,
+        pendingStaffCount: 0,
+      },
+      {
+        department: 'ICU',
+        staffCount: 2,
+        totalModules: 2,
+        completedModules: 1,
+        completionRate: 50,
+        completedStaffCount: 1,
+        pendingStaffCount: 1,
+      },
+    ]);
+
+    expect(report.staffRows.map((row) => row.staffName)).toEqual(['Alice', 'Cara', 'Bob']);
+  });
 });
 
 describe('buildChecklistCompletionReport', () => {

@@ -86,6 +86,7 @@ const parseCsvLine = (line: string): string[] => {
 };
 
 const normalizeHeader = (header: string): string => header.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+const normalizeEntityKey = (value: string): string => value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const findHeader = (headers: string[], candidates: string[]): string | null => {
   for (const candidate of candidates) {
@@ -140,9 +141,35 @@ export const buildCourseCompletionReport = (content: string): CourseCompletionRe
   }
 
   const headers = Object.keys(records[0]);
-  const staffHeader = findHeader(headers, ['staff', 'staffname', 'employee', 'employeename', 'name']);
-  const departmentHeader = findHeader(headers, ['department', 'unit', 'team']);
-  const statusHeader = findHeader(headers, ['status', 'completionstatus', 'completed']);
+  const staffHeader = findHeader(headers, [
+    'staff',
+    'staffname',
+    'stafffullname',
+    'nameofstaff',
+    'user',
+    'username',
+    'fullname',
+    'employee',
+    'employeename',
+    'name',
+  ]);
+  const departmentHeader = findHeader(headers, [
+    'department',
+    'departmentassigned',
+    'assigneddepartment',
+    'departmenttheybelong',
+    'staffdepartment',
+    'unit',
+    'team',
+  ]);
+  const statusHeader = findHeader(headers, [
+    'status',
+    'completionstatus',
+    'completed',
+    'coursestatus',
+    'modulestatus',
+    'trainingstatus',
+  ]);
 
   const byStaff = new Map<string, {
     staffName: string;
@@ -154,7 +181,7 @@ export const buildCourseCompletionReport = (content: string): CourseCompletionRe
   for (const record of records) {
     const staffName = (staffHeader ? record[staffHeader] : '').trim() || 'Unknown Staff';
     const department = (departmentHeader ? record[departmentHeader] : '').trim() || 'Unassigned';
-    const mapKey = `${staffName}::${department}`;
+    const mapKey = `${normalizeEntityKey(staffName)}::${normalizeEntityKey(department)}`;
 
     if (!byStaff.has(mapKey)) {
       byStaff.set(mapKey, {
@@ -246,8 +273,27 @@ export const buildChecklistCompletionReport = (content: string, selectedChecklis
   const headers = Object.keys(records[0]);
   const checklistHeader = findHeader(headers, ['checklist', 'checklistname', 'name', 'form']);
   const statusHeader = findHeader(headers, ['status', 'completionstatus', 'completed']);
-  const staffHeader = findHeader(headers, ['staff', 'staffname', 'employee', 'employeename', 'name']);
-  const departmentHeader = findHeader(headers, ['department', 'unit', 'team']);
+  const staffHeader = findHeader(headers, [
+    'staff',
+    'staffname',
+    'stafffullname',
+    'nameofstaff',
+    'user',
+    'username',
+    'fullname',
+    'employee',
+    'employeename',
+    'name',
+  ]);
+  const departmentHeader = findHeader(headers, [
+    'department',
+    'departmentassigned',
+    'assigneddepartment',
+    'departmenttheybelong',
+    'staffdepartment',
+    'unit',
+    'team',
+  ]);
 
   const checklistMap = new Map<string, { totalItems: number; completedItems: number }>();
   const filterSet = new Set(selectedChecklists);
