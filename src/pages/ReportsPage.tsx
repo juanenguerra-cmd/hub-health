@@ -2,8 +2,11 @@ import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { generateICReport } from '@/lib/ic-calculations';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
   summarizeSessions, 
   computeClosedLoopStats, 
@@ -23,8 +26,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   TrendingUp,
+  TrendingDown,
   Users,
-  GraduationCap
+  GraduationCap,
+  Shield
 } from 'lucide-react';
 
 export function ReportsPage() {
@@ -116,6 +121,8 @@ export function ReportsPage() {
     study: `Check re-audit outcome for ${issue}`,
     act: `Standardize successful intervention for ${issue}`,
   })), [topIssues]);
+
+  const icReport = useMemo(() => generateICReport(sessions, qaActions, eduSessions, templates, 0), [sessions, qaActions, eduSessions, templates]);
 
   const copyQapiNarrative = async () => {
     const narrative = `QAPI ${rangeLabel}: Compliance ${summary.compliance}%. Closure rate ${qaStats.closureRate}%. Overdue actions ${qaStats.overdueCount}.`; 
@@ -233,10 +240,11 @@ export function ReportsPage() {
 
       {/* Report Tabs */}
       <Tabs value={activeReport} onValueChange={setActiveReport}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="qapi-summary">QAPI Summary</TabsTrigger>
           <TabsTrigger value="action-plan">Action Plan</TabsTrigger>
           <TabsTrigger value="huddle">Huddle Report</TabsTrigger>
+          <TabsTrigger value="ic-safety">IC Safety</TabsTrigger>
         </TabsList>
 
         {/* QAPI Summary Report */}
@@ -607,6 +615,279 @@ export function ReportsPage() {
                     </li>
                   )}
                 </ul>
+              </section>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+        {/* Infection Control Safety Meeting Report */}
+        <TabsContent value="ic-safety">
+          <Card className="print:shadow-none print:border-0">
+            <CardHeader className="print:pb-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    Infection Control Safety Meeting Report
+                  </CardTitle>
+                  <CardDescription>
+                    {facilityName} • {icReport.period.label} • {selectedUnit === 'All' ? 'All Units' : `Unit ${selectedUnit}`}
+                  </CardDescription>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Generated: {new Date().toLocaleDateString()}
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <section>
+                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Executive Summary
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50 text-center">
+                    <p className="text-2xl font-bold">{icReport.summary.totalAudits}</p>
+                    <p className="text-sm text-muted-foreground">IC Audits</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 text-center">
+                    <p className="text-2xl font-bold">{icReport.summary.totalSamples}</p>
+                    <p className="text-sm text-muted-foreground">Samples Reviewed</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <p className={`text-2xl font-bold ${icReport.summary.complianceRate >= 90 ? 'text-success' : icReport.summary.complianceRate >= 75 ? 'text-warning' : 'text-error'}`}>
+                        {icReport.summary.complianceRate}%
+                      </p>
+                      {icReport.summary.priorMonthComparison.complianceChange !== 0 && (
+                        <span className={`text-xs ${icReport.summary.priorMonthComparison.complianceChange > 0 ? 'text-success' : 'text-error'}`}>
+                          {icReport.summary.priorMonthComparison.complianceChange > 0 ? '+' : ''}
+                          {icReport.summary.priorMonthComparison.complianceChange}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">IC Compliance</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <p className={`text-2xl font-bold ${icReport.summary.criticalFails === 0 ? 'text-success' : 'text-error'}`}>
+                        {icReport.summary.criticalFails}
+                      </p>
+                      {icReport.summary.priorMonthComparison.criticalFailsChange !== 0 && (
+                        <span className={`text-xs ${icReport.summary.priorMonthComparison.criticalFailsChange < 0 ? 'text-success' : 'text-error'}`}>
+                          {icReport.summary.priorMonthComparison.criticalFailsChange > 0 ? '+' : ''}
+                          {icReport.summary.priorMonthComparison.criticalFailsChange}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Critical Fails</p>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  6-Month Infection Control Trend
+                </h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={icReport.trendData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="compliance" stroke="#10b981" strokeWidth={2} name="Compliance %" />
+                    <Line yAxisId="right" type="monotone" dataKey="criticals" stroke="#ef4444" strokeWidth={2} name="Critical Fails" />
+                    <Line yAxisId="right" type="monotone" dataKey="actions" stroke="#f59e0b" strokeWidth={2} name="QA Actions" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </section>
+
+              {icReport.byTemplate.length > 0 && (
+                <section>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5" />
+                    Performance by IC Audit Tool
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2">Audit Tool</th>
+                          <th className="text-center p-2">Samples</th>
+                          <th className="text-center p-2">Compliance</th>
+                          <th className="text-center p-2">Critical Fails</th>
+                          <th className="text-center p-2">F-Tags</th>
+                          <th className="text-center p-2">Trend</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {icReport.byTemplate.map((tool) => (
+                          <tr key={tool.templateId} className="border-b">
+                            <td className="p-2 font-medium">{tool.templateTitle}</td>
+                            <td className="text-center p-2">{tool.samples}</td>
+                            <td className="text-center p-2">
+                              <StatusBadge status={tool.rate >= 90 ? 'success' : tool.rate >= 75 ? 'warning' : 'error'}>
+                                {tool.rate}%
+                              </StatusBadge>
+                            </td>
+                            <td className="text-center p-2">
+                              <span className={tool.criticals > 0 ? 'text-error font-semibold' : ''}>{tool.criticals}</span>
+                            </td>
+                            <td className="text-center p-2">
+                              <div className="flex flex-wrap gap-1 justify-center">
+                                {tool.ftags.slice(0, 3).map((ftag) => (
+                                  <Badge key={ftag} variant="outline" className="text-xs">
+                                    {ftag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="text-center p-2">
+                              {tool.trend === 'improving' && <TrendingUp className="w-4 h-4 text-success inline" />}
+                              {tool.trend === 'declining' && <TrendingDown className="w-4 h-4 text-error inline" />}
+                              {tool.trend === 'stable' && <span className="text-muted-foreground text-xs">Stable</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {icReport.byFTag.length > 0 && (
+                <section>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    CMS F-Tag Compliance (F880-F888)
+                  </h3>
+                  <div className="space-y-2">
+                    {icReport.byFTag.map((ftag) => (
+                      <div key={ftag.ftag} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div className="flex-1">
+                          <p className="font-medium">{ftag.ftag}: {ftag.description}</p>
+                          <p className="text-sm text-muted-foreground">{ftag.audits} audit(s) conducted</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className={`text-xl font-bold ${ftag.status === 'compliant' ? 'text-success' : ftag.status === 'at-risk' ? 'text-warning' : 'text-error'}`}>
+                              {ftag.compliance}%
+                            </p>
+                          </div>
+                          <StatusBadge status={ftag.status === 'compliant' ? 'success' : ftag.status === 'at-risk' ? 'warning' : 'error'}>
+                            {ftag.status === 'compliant' ? 'Compliant' : ftag.status === 'at-risk' ? 'At Risk' : 'Non-Compliant'}
+                          </StatusBadge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5" />
+                  IC Education & Training
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className="text-xl font-bold">{icReport.education.sessionsCompleted}</p>
+                    <p className="text-xs text-muted-foreground">Sessions Completed</p>
+                  </div>
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className="text-xl font-bold">{icReport.education.topicsCount}</p>
+                    <p className="text-xs text-muted-foreground">Unique Topics</p>
+                  </div>
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className="text-xl font-bold">{icReport.education.attendanceTotal}</p>
+                    <p className="text-xs text-muted-foreground">Total Attendance</p>
+                  </div>
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className={`text-xl font-bold ${icReport.education.effectiveness >= 75 ? 'text-success' : 'text-warning'}`}>
+                      {icReport.education.effectiveness}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">QA Resolution Rate</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">{icReport.education.linkedToQA} QA action(s) linked to education sessions</p>
+              </section>
+
+              <section>
+                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  IC-Related QA Actions
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className="text-xl font-bold">{icReport.qaActions.total}</p>
+                    <p className="text-xs text-muted-foreground">Total Actions</p>
+                  </div>
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className="text-xl font-bold text-warning">{icReport.qaActions.open}</p>
+                    <p className="text-xs text-muted-foreground">Open</p>
+                  </div>
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className={`text-xl font-bold ${icReport.qaActions.overdue > 0 ? 'text-error' : 'text-success'}`}>
+                      {icReport.qaActions.overdue}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Overdue</p>
+                  </div>
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className="text-xl font-bold text-success">{icReport.qaActions.closed}</p>
+                    <p className="text-xs text-muted-foreground">Closed</p>
+                  </div>
+                  <div className="p-3 rounded-lg border text-center">
+                    <p className="text-xl font-bold">{icReport.qaActions.avgDaysToClose}</p>
+                    <p className="text-xs text-muted-foreground">Avg Days to Close</p>
+                  </div>
+                </div>
+              </section>
+
+              {icReport.qaActions.recurringIssues.length > 0 && (
+                <section>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 text-error">
+                    <AlertTriangle className="w-5 h-5" />
+                    Recurring IC Issues (Systemic Concerns)
+                  </h3>
+                  <div className="space-y-2">
+                    {icReport.qaActions.recurringIssues.map((issue) => (
+                      <div key={`${issue.issue}-${issue.count}`} className="p-3 rounded-lg border border-error/30 bg-error/5">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-medium">{issue.issue}</p>
+                            <p className="text-sm text-muted-foreground">Found in: {issue.templates.join(', ')}</p>
+                          </div>
+                          <Badge variant="destructive">{issue.count}x occurrences</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                    <p className="text-sm font-medium">⚠️ Action Required:</p>
+                    <p className="text-sm">Recurring issues indicate potential systemic problems. Convene multidisciplinary team to conduct root cause analysis and implement system-level interventions.</p>
+                  </div>
+                </section>
+              )}
+
+              <section className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <h3 className="font-semibold text-lg mb-3">Safety Meeting Discussion Points</h3>
+                <ul className="list-disc list-inside space-y-2 text-sm">
+                  {icReport.recommendations.map((rec, idx) => (
+                    <li key={idx}>{rec}</li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="p-4 rounded-lg bg-muted/30 border">
+                <h3 className="font-semibold text-sm mb-2">📋 Regulatory Documentation Notes</h3>
+                <p className="text-xs text-muted-foreground">
+                  This report supports CMS F880 (Infection Prevention & Control Program) requirements for ongoing monitoring,
+                  analysis, and corrective action. Retain with QAPI committee meeting minutes. Next IP quarterly report due: [DATE].
+                </p>
               </section>
             </CardContent>
           </Card>
