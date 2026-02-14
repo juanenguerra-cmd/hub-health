@@ -18,6 +18,7 @@ import {
 import { StatusBadge } from '@/components/StatusBadge';
 import { PrintableQaActionsReport } from '@/components/reports/PrintableQaActionsReport';
 import { StaffPerformanceReport } from '@/components/reports/StaffPerformanceReport';
+import { CsvTrainingImportReport } from '@/components/reports/CsvTrainingImportReport';
 import { 
   FileText, 
   Download, 
@@ -240,11 +241,12 @@ export function ReportsPage() {
 
       {/* Report Tabs */}
       <Tabs value={activeReport} onValueChange={setActiveReport}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="qapi-summary">QAPI Summary</TabsTrigger>
           <TabsTrigger value="action-plan">Action Plan</TabsTrigger>
           <TabsTrigger value="huddle">Huddle Report</TabsTrigger>
           <TabsTrigger value="ic-safety">IC Safety</TabsTrigger>
+          <TabsTrigger value="csv-import">CSV Imports</TabsTrigger>
         </TabsList>
 
         {/* QAPI Summary Report */}
@@ -891,6 +893,10 @@ export function ReportsPage() {
               </section>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="csv-import">
+          <CsvTrainingImportReport />
         </TabsContent>
       </Tabs>
 
