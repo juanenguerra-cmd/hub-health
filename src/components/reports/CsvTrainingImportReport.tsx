@@ -72,17 +72,6 @@ export function CsvTrainingImportReport() {
       `)
       .join('');
 
-    const followThroughRows = checklistReport.followThroughRows
-      .map((row) => `
-        <tr>
-          <td>${row.checklistName}</td>
-          <td>${row.staffName}</td>
-          <td>${row.department}</td>
-          <td>${row.status}</td>
-        </tr>
-      `)
-      .join('');
-
     printWindow.document.write(`
       <html>
         <head>
@@ -115,19 +104,8 @@ export function CsvTrainingImportReport() {
             <tbody>${departmentRows || '<tr><td colspan="6">No course data loaded.</td></tr>'}</tbody>
           </table>
 
-          <h2>Checklist Completion Follow-through (Filtered)</h2>
+          <h2>Checklist Completion Summary (Filtered)</h2>
           <p>Checklists: ${selectedLabel}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Checklist</th>
-                <th>Staff</th>
-                <th>Department</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>${followThroughRows || '<tr><td colspan="4">No follow-through rows for current filters.</td></tr>'}</tbody>
-          </table>
         </body>
       </html>
     `);
@@ -143,7 +121,7 @@ export function CsvTrainingImportReport() {
         <CardHeader>
           <CardTitle>Mastered IT Review</CardTitle>
           <CardDescription>
-            Upload Course Completion and Checklist Completion CSV files to review staff completion, department drill-downs, and filtered follow-through lists.
+            Upload Course Completion and Checklist Completion CSV files to review staff completion and department drill-downs.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -275,7 +253,7 @@ export function CsvTrainingImportReport() {
       <Card>
         <CardHeader>
           <CardTitle>Checklist Completion Report</CardTitle>
-          <CardDescription>Select multiple checklists and drill down to staff/department follow-through needs.</CardDescription>
+          <CardDescription>Select multiple checklists to review completion totals.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-2">
@@ -326,33 +304,6 @@ export function CsvTrainingImportReport() {
             </table>
           </div>
 
-          <div className="rounded-md border overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/30">
-                <tr>
-                  <th className="p-2 text-left">Checklist</th>
-                  <th className="p-2 text-left">Staff</th>
-                  <th className="p-2 text-left">Department</th>
-                  <th className="p-2 text-left">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {checklistReport.followThroughRows.map((row, index) => (
-                  <tr key={`${row.checklistName}-${row.staffName}-${row.department}-${index}`} className="border-t">
-                    <td className="p-2">{row.checklistName}</td>
-                    <td className="p-2">{row.staffName}</td>
-                    <td className="p-2">{row.department}</td>
-                    <td className="p-2">{row.status}</td>
-                  </tr>
-                ))}
-                {checklistReport.followThroughRows.length === 0 && (
-                  <tr>
-                    <td className="p-3 text-muted-foreground" colSpan={4}>No follow-through needed for current checklist filters.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
         </CardContent>
       </Card>
     </div>
