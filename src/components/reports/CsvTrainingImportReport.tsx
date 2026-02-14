@@ -53,11 +53,9 @@ export function CsvTrainingImportReport() {
     ));
   };
 
-  const printFilteredReport = () => {
+  const printCourseCompletionReport = () => {
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) return;
-
-    const selectedLabel = selectedChecklists.length ? selectedChecklists.join(', ') : 'All checklists';
 
     const departmentRows = courseReport.departmentRows
       .map((row) => `
@@ -103,9 +101,115 @@ export function CsvTrainingImportReport() {
             </thead>
             <tbody>${departmentRows || '<tr><td colspan="6">No course data loaded.</td></tr>'}</tbody>
           </table>
+        </body>
+      </html>
+    `);
 
-          <h2>Checklist Completion Summary (Filtered)</h2>
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const printDrillDownReport = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    const selectedDepartment = expandedDepartment;
+    const rows = courseReport.staffRows
+      .filter((row) => !selectedDepartment || row.department === selectedDepartment)
+      .map((row) => `
+        <tr>
+          <td>${row.department}</td>
+          <td>${row.staffName}</td>
+          <td style="text-align:right;">${row.completedModules}/${row.totalModules}</td>
+          <td style="text-align:right;">${row.completionRate}%</td>
+          <td>${row.status}</td>
+        </tr>
+      `)
+      .join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Mastered IT Drill-down Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1, h2 { margin: 0 0 10px; }
+            p { margin: 0 0 14px; color: #555; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; }
+            th { background: #f5f5f5; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h1>Mastered IT Drill-down Report</h1>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+          <p>Department: ${selectedDepartment || 'All Departments'}</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Department</th>
+                <th>Staff</th>
+                <th style="text-align:right;">Completed Modules</th>
+                <th style="text-align:right;">Rate</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows || '<tr><td colspan="5">No drill-down rows available.</td></tr>'}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const printChecklistCompletionReport = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    const selectedLabel = selectedChecklists.length ? selectedChecklists.join(', ') : 'All checklists';
+    const checklistRows = checklistReport.checklists
+      .map((row) => `
+        <tr>
+          <td>${row.checklistName}</td>
+          <td style="text-align:right;">${row.completedItems}/${row.totalItems}</td>
+          <td style="text-align:right;">${row.completionRate}%</td>
+        </tr>
+      `)
+      .join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Mastered IT Checklist Completion Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1, h2 { margin: 0 0 10px; }
+            p { margin: 0 0 14px; color: #555; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; }
+            th { background: #f5f5f5; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h1>Mastered IT Checklist Completion Report</h1>
+          <p>Generated: ${new Date().toLocaleString()}</p>
           <p>Checklists: ${selectedLabel}</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Checklist</th>
+                <th style="text-align:right;">Completed</th>
+                <th style="text-align:right;">Rate</th>
+              </tr>
+            </thead>
+            <tbody>${checklistRows || '<tr><td colspan="3">No checklist rows match the selected filters.</td></tr>'}</tbody>
+          </table>
         </body>
       </html>
     `);
@@ -155,10 +259,6 @@ export function CsvTrainingImportReport() {
             </label>
           </div>
 
-          <Button variant="outline" onClick={printFilteredReport}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print Filtered Report
-          </Button>
         </CardContent>
       </Card>
 
@@ -168,6 +268,13 @@ export function CsvTrainingImportReport() {
           <CardDescription>Department summary with drill-down for complete and incomplete/pending staff.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={printCourseCompletionReport}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Course Completion Review
+            </Button>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-5">
             <Metric label="Staff" value={String(courseReport.departmentSummary.staffCount)} />
             <Metric label="Modules" value={String(courseReport.departmentSummary.totalModules)} />
@@ -220,7 +327,13 @@ export function CsvTrainingImportReport() {
 
           {expandedDepartment && (
             <div className="rounded-md border p-3 space-y-3">
-              <p className="font-medium">{expandedDepartment} Staff Drill-down</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium">{expandedDepartment} Staff Drill-down</p>
+                <Button variant="outline" size="sm" onClick={printDrillDownReport}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Drill-down Report
+                </Button>
+              </div>
               <div className="rounded-md border overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/30">
@@ -256,6 +369,13 @@ export function CsvTrainingImportReport() {
           <CardDescription>Select multiple checklists to review completion totals.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={printChecklistCompletionReport}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Checklist Completion Report
+            </Button>
+          </div>
+
           <div className="space-y-2">
             <p className="text-sm font-medium">Checklist Filter</p>
             <div className="max-h-40 overflow-y-auto rounded-md border p-3 space-y-2">
