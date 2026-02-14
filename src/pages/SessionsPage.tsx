@@ -24,6 +24,9 @@ import { findMatchingCompetencies, getCompetencyRecommendations } from '@/lib/co
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { createClosedLoopBundle } from '@/lib/closed-loop-bundle';
+import { StaffSelect } from '@/components/ui/staff-select';
+import { validateAndNormalizeDate } from '@/lib/date-utils';
+import { sanitizeText } from '@/lib/sanitize';
 import { trackBundleGenerated } from '@/lib/telemetry';
 import { 
   Play, 
@@ -194,7 +197,11 @@ export function SessionsPage() {
   const startNewSession = () => {
     if (!selectedTemplate) return;
     
-    const auditDate = newSessionDate || todayYMD();
+    const auditDate = validateAndNormalizeDate(newSessionDate || todayYMD());
+    if (!auditDate) {
+      toast({ title: 'Invalid date', description: 'Audit date is invalid', variant: 'destructive' });
+      return;
+    }
     const sessionId = `${selectedTemplate.id.slice(0, 4).toUpperCase()}-${auditDate.replace(/-/g, '')}-${newSessionUnit || 'GEN'}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
     
     const newSession: AuditSession = {
@@ -227,9 +234,12 @@ export function SessionsPage() {
   // Update audit date on active session
   const updateAuditDate = (newDate: string) => {
     if (!activeSession) return;
+    const normalized = validateAndNormalizeDate(newDate);
+    if (newDate && !normalized) return;
+
     const updated = {
       ...activeSession,
-      header: { ...activeSession.header, auditDate: newDate }
+      header: { ...activeSession.header, auditDate: normalized || '' }
     };
     setActiveSession(updated);
     setSessions(sessions.map(s => s.id === updated.id ? updated : s));
@@ -263,7 +273,7 @@ export function SessionsPage() {
       ...activeSession,
       samples: activeSession.samples.map(smp => {
         if (smp.id !== sampleId) return smp;
-        return { ...smp, staffAudited: value };
+        return { ...smp, staffAudited: sanitizeText(value) };
       })
     };
     
@@ -815,12 +825,11 @@ export function SessionsPage() {
                               <tr key={sample.id} className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
                                 <td className="px-2 py-2 font-medium">#{idx + 1}</td>
                                 <td className="px-2 py-2">
-                                  <Input
+                                  <StaffSelect
                                     value={sample.staffAudited || ''}
-                                    onChange={(e) => updateStaffAudited(sample.id, e.target.value)}
-                                    placeholder="e.g., John Smith, RN"
+                                    onValueChange={(value) => updateStaffAudited(sample.id, value)}
+                                    placeholder="Select staff"
                                     disabled={isReadOnly}
-                                    className="h-8 text-xs"
                                   />
                                 </td>
                                 {activeSessionTemplate.sampleQuestions.map(q => (
@@ -958,12 +967,11 @@ export function SessionsPage() {
                         {/* Staff Being Audited Field */}
                         <div className="mb-3 max-w-xs">
                           <Label className="text-xs text-muted-foreground">Staff Being Audited *</Label>
-                          <Input
+                          <StaffSelect
                             value={sample.staffAudited || ''}
-                            onChange={(e) => updateStaffAudited(sample.id, e.target.value)}
-                            placeholder="e.g., John Smith, RN"
+                            onValueChange={(value) => updateStaffAudited(sample.id, value)}
+                            placeholder="Select staff"
                             disabled={isReadOnly}
-                            className="h-8 text-sm"
                           />
                         </div>
                         

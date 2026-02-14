@@ -2,15 +2,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
+import { useApp } from '@/contexts/AppContext';
 import { GraduationCap, ClipboardList } from 'lucide-react';
 import type { QaAction, AuditTemplate } from '@/types/nurse-educator';
 import { todayYMD } from '@/lib/calculations';
+import { sanitizeMultiline, sanitizeText } from '@/lib/sanitize';
+import { validateAndNormalizeDate } from '@/lib/date-utils';
+import { StaffSelect } from '@/components/ui/staff-select';
 import { findMatchingCompetencies, formatCompetenciesForNotes } from '@/lib/competency-library';
+import { findDuplicateQaAction } from '@/lib/duplicate-detection';
 
 interface QaActionFormModalProps {
   open: boolean;
@@ -31,6 +37,7 @@ export function QaActionFormModal({
 }: QaActionFormModalProps) {
   const isEditing = !!action;
   const today = todayYMD();
+  const { staffDirectory, qaActions } = useApp();
 
   const [formData, setFormData] = useState<Partial<QaAction>>({
     status: 'open',
@@ -58,6 +65,34 @@ export function QaActionFormModal({
   const matchingCompetencies = useMemo(() => {
     return findMatchingCompetencies(formData.issue || '', formData.topic || '');
   }, [formData.issue, formData.topic]);
+
+
+  const [dateErrors, setDateErrors] = useState<{ dueDate?: string; reAuditDueDate?: string }>({});
+
+  const validateStaff = (name: string): boolean => {
+    if (!name.trim()) return false;
+    return staffDirectory.rows.some((s) => s.name === name && s.status === 'Active');
+  };
+
+  const validateDateField = (field: 'dueDate' | 'reAuditDueDate', value: string): string => {
+    if (!value) {
+      setDateErrors((prev) => ({ ...prev, [field]: undefined }));
+      return '';
+    }
+
+    const normalized = validateAndNormalizeDate(value);
+    if (!normalized) {
+      const message = 'Enter a valid date in YYYY-MM-DD format';
+      setDateErrors((prev) => ({ ...prev, [field]: message }));
+      return '';
+    }
+
+    setDateErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (normalized !== value) {
+      setFormData((prev) => ({ ...prev, [field]: normalized }));
+    }
+    return normalized;
+  };
 
   useEffect(() => {
     if (action) {
@@ -90,6 +125,8 @@ export function QaActionFormModal({
   }, [action, open]);
 
   const handleSave = () => {
+    const dueDate = validateDateField('dueDate', formData.dueDate || '');
+    const reAuditDueDate = validateDateField('reAuditDueDate', formData.reAuditDueDate || '');
     if (!formData.issue?.trim()) {
       toast({ title: 'Error', description: 'Issue is required', variant: 'destructive' });
       return;
@@ -100,7 +137,71 @@ export function QaActionFormModal({
       return;
     }
 
+    const staffIsValid = validateStaff(formData.staffAudited || '');
+    const isLegacyStaff = isEditing && action?.staffAudited === formData.staffAudited;
+    if (!staffIsValid && !isLegacyStaff) {
+      toast({ title: 'Error', description: 'Staff member must be selected from active staff directory', variant: 'destructive' });
+      return;
+    }
+
+    if ((formData.dueDate || '') && !dueDate) {
+      toast({ title: 'Error', description: 'Due date is invalid', variant: 'destructive' });
+      return;
+    }
+
+    if ((formData.reAuditDueDate || '') && !reAuditDueDate) {
+      toast({ title: 'Error', description: 'Re-audit due date is invalid', variant: 'destructive' });
+      return;
+    }
+
     const now = new Date().toISOString();
+    const duplicate = findDuplicateQaAction({
+      ...(action || {
+        createdAt: now,
+        status: 'open',
+        templateId: '',
+        templateTitle: '',
+        unit: '',
+        auditDate: today,
+        sessionId: '',
+        sample: '',
+        issue: '',
+        reason: '',
+        topic: '',
+        summary: '',
+        owner: '',
+        dueDate: '',
+        completedAt: '',
+        notes: '',
+        ftagTags: [],
+        nydohTags: [],
+        reAuditDueDate: '',
+        reAuditCompletedAt: '',
+        reAuditSessionRef: '',
+        reAuditTemplateId: '',
+        ev_policyReviewed: false,
+        ev_educationProvided: false,
+        ev_competencyValidated: false,
+        ev_correctiveAction: false,
+        ev_monitoringInPlace: false,
+        linkedEduSessionId: '',
+        linkedEducationSessions: [],
+        staffAudited: ''
+      }),
+      id: action?.id || crypto.randomUUID(),
+      issue: sanitizeText(formData.issue || ''),
+      unit: formData.unit || '',
+      staffAudited: sanitizeText(formData.staffAudited || ''),
+      status: (formData.status as 'open' | 'in_progress' | 'complete') || 'open',
+      dueDate: dueDate || '',
+      reAuditDueDate: reAuditDueDate || ''
+    }, qaActions.filter((item) => item.id !== action?.id));
+
+    if (duplicate) {
+      toast({ title: 'Possible duplicate', description: `Existing action found: ${duplicate.issue}`, variant: 'destructive' });
+      return;
+    }
+
     const savedAction: QaAction = {
       id: action?.id || `qa_${Date.now().toString(16)}`,
       createdAt: action?.createdAt || now,
@@ -111,17 +212,17 @@ export function QaActionFormModal({
       auditDate: action?.auditDate || today,
       sessionId: action?.sessionId || '',
       sample: action?.sample || '',
-      issue: formData.issue || '',
-      reason: action?.reason || '',
-      topic: formData.topic || '',
-      summary: formData.summary || '',
+      issue: sanitizeText(formData.issue || ''),
+      reason: sanitizeText(action?.reason || ''),
+      topic: sanitizeText(formData.topic || ''),
+      summary: sanitizeMultiline(formData.summary || ''),
       owner: formData.owner || '',
-      dueDate: formData.dueDate || '',
+      dueDate: dueDate || '',
       completedAt: formData.status === 'complete' && !action?.completedAt ? today : (action?.completedAt || ''),
-      notes: formData.notes || '',
+      notes: sanitizeMultiline(formData.notes || ''),
       ftagTags: action?.ftagTags || [],
       nydohTags: action?.nydohTags || [],
-      reAuditDueDate: formData.reAuditDueDate || '',
+      reAuditDueDate: reAuditDueDate || '',
       reAuditCompletedAt: action?.reAuditCompletedAt || '',
       reAuditSessionRef: action?.reAuditSessionRef || '',
       reAuditTemplateId: formData.reAuditTemplateId || '',
@@ -132,7 +233,7 @@ export function QaActionFormModal({
       ev_monitoringInPlace: !!formData.ev_monitoringInPlace,
       linkedEduSessionId: action?.linkedEduSessionId || '',
       linkedEducationSessions: action?.linkedEducationSessions || [],
-      staffAudited: formData.staffAudited || '',
+      staffAudited: sanitizeText(formData.staffAudited || ''),
       staffRole: formData.staffRole || action?.staffRole || ''
     };
 
@@ -236,11 +337,14 @@ export function QaActionFormModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Staff Being Audited *</Label>
-              <Input
+              <StaffSelect
                 value={formData.staffAudited || ''}
-                onChange={(e) => setFormData({ ...formData, staffAudited: e.target.value })}
-                placeholder="Staff member name..."
+                onValueChange={(value) => setFormData({ ...formData, staffAudited: value })}
+                placeholder="Select staff member..."
               />
+              {formData.staffAudited && !validateStaff(formData.staffAudited) && (
+                <Badge variant="secondary" className="mt-2">Not in active staff directory</Badge>
+              )}
             </div>
             <div>
               <Label>Staff Role</Label>
@@ -261,7 +365,9 @@ export function QaActionFormModal({
                 type="date"
                 value={formData.dueDate || ''}
                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                onBlur={(e) => validateDateField('dueDate', e.target.value)}
               />
+              {dateErrors.dueDate && <p className="text-xs text-destructive mt-1">{dateErrors.dueDate}</p>}
             </div>
             <div>
               <Label>Re-Audit Due Date</Label>
@@ -269,7 +375,9 @@ export function QaActionFormModal({
                 type="date"
                 value={formData.reAuditDueDate || ''}
                 onChange={(e) => setFormData({ ...formData, reAuditDueDate: e.target.value })}
+                onBlur={(e) => validateDateField('reAuditDueDate', e.target.value)}
               />
+              {dateErrors.reAuditDueDate && <p className="text-xs text-destructive mt-1">{dateErrors.reAuditDueDate}</p>}
             </div>
           </div>
 

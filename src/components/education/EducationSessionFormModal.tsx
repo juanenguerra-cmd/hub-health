@@ -14,6 +14,8 @@ import { Check, ChevronsUpDown, GraduationCap, BookOpen, ClipboardList } from 'l
 import { findMatchingCompetencies, formatCompetenciesForNotes } from '@/lib/competency-library';
 import { useApp } from '@/contexts/AppContext';
 import { buildStructuredDictionaries } from '@/lib/structured-dictionaries';
+import { sanitizeMultiline, sanitizeText } from '@/lib/sanitize';
+import { validateAndNormalizeDate } from '@/lib/date-utils';
 
 interface EducationSessionFormModalProps {
   open: boolean;
@@ -59,6 +61,7 @@ export function EducationSessionFormModal({
   const dictionaries = useMemo(() => buildStructuredDictionaries(qaActions, eduSessions), [qaActions, eduSessions]);
   
   const [selectedTopicId, setSelectedTopicId] = useState<string>('');
+  const [dateErrors, setDateErrors] = useState<{ scheduledDate?: string; completedDate?: string }>({});
   const [formData, setFormData] = useState({
     topic: '',
     summary: '',
@@ -72,6 +75,26 @@ export function EducationSessionFormModal({
     status: 'planned' as 'planned' | 'completed',
     attendees: ''
   });
+
+
+  const validateDateField = (field: 'scheduledDate' | 'completedDate', value: string): string => {
+    if (!value) {
+      setDateErrors((prev) => ({ ...prev, [field]: undefined }));
+      return '';
+    }
+
+    const normalized = validateAndNormalizeDate(value);
+    if (!normalized) {
+      setDateErrors((prev) => ({ ...prev, [field]: 'Enter a valid date in YYYY-MM-DD format' }));
+      return '';
+    }
+
+    setDateErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (normalized !== value) {
+      setFormData((prev) => ({ ...prev, [field]: normalized }));
+    }
+    return normalized;
+  };
 
   // Filter out archived topics
   const availableTopics = eduLibrary.filter(t => !t.archived);
@@ -160,6 +183,17 @@ export function EducationSessionFormModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const scheduledDate = validateDateField('scheduledDate', formData.scheduledDate);
+    const completedDate = validateDateField('completedDate', formData.completedDate);
+    if (formData.scheduledDate && !scheduledDate) {
+      toast({ title: 'Invalid date', description: 'Scheduled date is invalid', variant: 'destructive' });
+      return;
+    }
+    if (formData.completedDate && !completedDate) {
+      toast({ title: 'Invalid date', description: 'Completed date is invalid', variant: 'destructive' });
+      return;
+    }
+
     const attendeesArray = formData.attendees
       .split(',')
       .map(a => a.trim())
@@ -169,16 +203,16 @@ export function EducationSessionFormModal({
       id: session?.id || `edu-${Date.now()}`,
       createdAt: session?.createdAt || new Date().toISOString(),
       status: formData.status,
-      topic: formData.topic,
-      summary: formData.summary,
+      topic: sanitizeText(formData.topic),
+      summary: sanitizeMultiline(formData.summary),
       category: formData.category,
       audience: formData.audience,
-      instructor: formData.instructor,
-      unit: formData.unit,
-      scheduledDate: formData.scheduledDate,
-      completedDate: formData.completedDate,
-      notes: formData.notes,
-      attendees: attendeesArray,
+      instructor: sanitizeText(formData.instructor),
+      unit: sanitizeText(formData.unit),
+      scheduledDate: scheduledDate,
+      completedDate: completedDate,
+      notes: sanitizeMultiline(formData.notes),
+      attendees: attendeesArray.map((a) => sanitizeText(a)),
       templateTitle: session?.templateTitle || '',
       templateId: session?.templateId || '',
       issue: session?.issue || '',
@@ -370,7 +404,9 @@ export function EducationSessionFormModal({
                 type="date"
                 value={formData.scheduledDate}
                 onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
+                onBlur={(e) => validateDateField('scheduledDate', e.target.value)}
               />
+              {dateErrors.scheduledDate && <p className="text-xs text-destructive">{dateErrors.scheduledDate}</p>}
             </div>
 
             {formData.status === 'completed' && (
@@ -381,7 +417,9 @@ export function EducationSessionFormModal({
                   type="date"
                   value={formData.completedDate}
                   onChange={(e) => setFormData({ ...formData, completedDate: e.target.value })}
+                  onBlur={(e) => validateDateField('completedDate', e.target.value)}
                 />
+                {dateErrors.completedDate && <p className="text-xs text-destructive">{dateErrors.completedDate}</p>}
               </div>
             )}
           </div>

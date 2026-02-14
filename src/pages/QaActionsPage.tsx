@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge, ComplianceIndicator } from '@/components/StatusBadge';
-import { filterActionsByRange, computeClosedLoopStats, todayYMD } from '@/lib/calculations';
+import { filterActionsByRange, computeClosedLoopStats } from '@/lib/calculations';
+import { isOverdue } from '@/lib/date-utils';
+import { SafeText } from '@/lib/sanitize';
+import { getChangeLog, recordChange } from '@/lib/audit-trail';
 import { recommendationRules } from '@/lib/recommendation-rules';
 import { KpiCard, KpiGrid } from '@/components/KpiCard';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -56,7 +59,7 @@ const extractCompetenciesFromNotes = (notes: string): string[] => {
 };
 
 export function QaActionsPage() {
-  const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab, sessions, eduSessions, startQAActionRequest, setStartQAActionRequest } = useApp();
+  const { qaActions, setQaActions, actionsFilters, setActionsFilters, templates, setActiveTab, sessions, eduSessions, staffDirectory, startQAActionRequest, setStartQAActionRequest } = useApp();
   const { startAudit, openAuditSession } = useAuditNavigation();
   
   // Modal states
@@ -65,12 +68,12 @@ export function QaActionsPage() {
   const [editAction, setEditAction] = useState<QaAction | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showReAuditModal, setShowReAuditModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const daysAgo = parseInt(actionsFilters.range, 10);
-  const today = todayYMD();
   
   // Filter actions
-  let filtered = filterActionsByRange(qaActions, daysAgo);
+  let filtered = filterActionsByRange(qaActions.filter((a) => !a.deletedAt), daysAgo);
   
   if (actionsFilters.status !== 'All') {
     filtered = filtered.filter(a => a.status === actionsFilters.status);
@@ -96,6 +99,8 @@ export function QaActionsPage() {
   const stats = computeClosedLoopStats(filtered);
   const tools = ['All', ...Array.from(new Set(qaActions.map(a => a.templateTitle).filter(Boolean))).sort()];
   const dictionaries = useMemo(() => buildStructuredDictionaries(qaActions, eduSessions), [qaActions, eduSessions]);
+
+  const isActiveStaff = (name: string) => staffDirectory.rows.some((s) => s.name === name && s.status === 'Active');
 
   const recommendationMatches = useMemo(() => {
     if (filtered.length === 0) return [];
@@ -167,13 +172,12 @@ export function QaActionsPage() {
   }, [setStartQAActionRequest, startQAActionRequest]);
 
   const getStatusBadge = (action: typeof qaActions[0]) => {
-    const due = (action.dueDate || '').slice(0, 10);
-    const isOverdue = due && due < today && action.status !== 'complete';
+    const overdue = isOverdue(action.dueDate || '', action.status);
     
     if (action.status === 'complete') {
       return <StatusBadge status="success"><CheckCircle2 className="w-3 h-3" /> Complete</StatusBadge>;
     }
-    if (isOverdue) {
+    if (overdue) {
       return <StatusBadge status="error"><AlertCircle className="w-3 h-3" /> Overdue</StatusBadge>;
     }
     if (action.status === 'in_progress') {
@@ -196,9 +200,14 @@ export function QaActionsPage() {
 
   const handleDeleteAction = () => {
     if (!selectedAction) return;
-    setQaActions(qaActions.filter(a => a.id !== selectedAction.id));
+    const now = new Date().toISOString();
+    const updated = qaActions.map((a) => a.id === selectedAction.id
+      ? { ...recordChange(a, 'deletedAt', now, 'Current User'), deletedAt: now, deletedBy: 'Current User', status: 'complete' as const, modifiedAt: now, modifiedBy: 'Current User' }
+      : a
+    );
+    setQaActions(updated);
     setSelectedAction(null);
-    toast({ title: 'Action Deleted', description: 'The QA action has been deleted.' });
+    toast({ title: 'Action Deleted', description: 'The QA action has been marked as deleted in audit history.' });
   };
 
   const handleSaveAction = (action: QaAction) => {
@@ -222,9 +231,15 @@ export function QaActionsPage() {
 
     const exists = qaActions.find(a => a.id === normalizedAction.id);
     if (exists) {
-      setQaActions(qaActions.map(a => a.id === normalizedAction.id ? normalizedAction : a));
+      let updatedAction: QaAction = { ...normalizedAction };
+      (Object.keys(normalizedAction) as Array<keyof QaAction>).forEach((key) => {
+        if (exists[key] !== normalizedAction[key]) {
+          updatedAction = recordChange(updatedAction, key, normalizedAction[key], 'Current User');
+        }
+      });
+      setQaActions(qaActions.map(a => a.id === normalizedAction.id ? updatedAction : a));
     } else {
-      setQaActions([normalizedAction, ...qaActions]);
+      setQaActions([{ ...normalizedAction, createdBy: 'Current User' }, ...qaActions]);
     }
   };
 
@@ -405,9 +420,9 @@ export function QaActionsPage() {
                     <div className="flex items-center gap-2 mb-1">
                       {getStatusBadge(action)}
                     </div>
-                    <h3 className="font-semibold">{action.issue || 'Untitled Issue'}</h3>
+                    <h3 className="font-semibold"><SafeText>{action.issue || 'Untitled Issue'}</SafeText></h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {action.topic || action.summary || 'No description'}
+                      <SafeText>{action.topic || action.summary || 'No description'}</SafeText>
                     </p>
                     
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-muted-foreground">
@@ -425,6 +440,9 @@ export function QaActionsPage() {
                         <User className="w-3 h-3" />
                         {action.owner || 'Unassigned'}
                       </span>
+                      {action.staffAudited && !isActiveStaff(action.staffAudited) && (
+                        <Badge variant="secondary">Staff not in directory</Badge>
+                      )}
                       {action.unit && (
                         <span>Unit {action.unit}</span>
                       )}
@@ -499,9 +517,9 @@ export function QaActionsPage() {
               
               {/* Issue */}
               <div>
-                <h3 className="text-lg font-semibold">{selectedAction.issue}</h3>
+                <h3 className="text-lg font-semibold"><SafeText>{selectedAction.issue}</SafeText></h3>
                 {selectedAction.topic && (
-                  <p className="text-sm text-muted-foreground mt-1">{selectedAction.topic}</p>
+                  <p className="text-sm text-muted-foreground mt-1"><SafeText>{selectedAction.topic}</SafeText></p>
                 )}
               </div>
               
@@ -513,6 +531,9 @@ export function QaActionsPage() {
                     <User className="w-4 h-4" />
                     {selectedAction.owner || 'Unassigned'}
                   </p>
+                  {selectedAction.staffAudited && !isActiveStaff(selectedAction.staffAudited) && (
+                    <Badge variant="secondary" className="mt-2">Staff not in active directory</Badge>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground">Due Date</p>
@@ -606,7 +627,7 @@ export function QaActionsPage() {
               {selectedAction.notes && (
                 <div>
                   <p className="text-muted-foreground text-sm">Notes</p>
-                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded whitespace-pre-wrap">{selectedAction.notes}</p>
+                  <p className="text-sm mt-1 bg-muted/50 p-2 rounded whitespace-pre-wrap"><SafeText>{selectedAction.notes}</SafeText></p>
                 </div>
               )}
               
@@ -646,6 +667,7 @@ export function QaActionsPage() {
                       Start Re-Audit
                     </Button>
                   )}
+                  <Button variant="outline" onClick={() => setShowHistory(true)}>View History</Button>
                   <Button variant="outline" onClick={() => setShowReAuditModal(true)}>Link Re-Audit</Button>
                   <Button onClick={handleEditAction}>
                     <Pencil className="w-4 h-4 mr-1" />
@@ -680,6 +702,19 @@ export function QaActionsPage() {
           setSelectedAction(updated.find((action) => action.id === selectedAction.id) || null);
         }}
       />
+
+
+      <Dialog open={showHistory} onOpenChange={setShowHistory}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>QA Action Change History</DialogTitle>
+            <DialogDescription>Review all recorded field updates for this action.</DialogDescription>
+          </DialogHeader>
+          <pre className="text-xs whitespace-pre-wrap bg-muted/50 p-3 rounded max-h-[60vh] overflow-auto">
+            {selectedAction ? getChangeLog(selectedAction) : 'No action selected'}
+          </pre>
+        </DialogContent>
+      </Dialog>
 
       <PrintableQaActionsReport
         open={showPrintModal}

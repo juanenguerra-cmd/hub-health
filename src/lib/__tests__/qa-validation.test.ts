@@ -38,7 +38,7 @@ const createMockQaAction = (overrides: Partial<QaAction> = {}): QaAction => ({
 });
 
 describe('validateQaActionClosure', () => {
-  it('should require at least one evidence item', () => {
+  it('should require at least two evidence items', () => {
     const action = createMockQaAction({
       ev_policyReviewed: false,
       ev_educationProvided: false,
@@ -48,7 +48,7 @@ describe('validateQaActionClosure', () => {
     });
     const result = validateQaActionClosure(action);
     expect(result.canClose).toBe(false);
-    expect(result.errors).toContain('At least one evidence item must be documented');
+    expect(result.errors).toContain('At least TWO evidence items must be documented for closure');
   });
 
   it('should flag missing re-audit when required', () => {
@@ -58,6 +58,6 @@ describe('validateQaActionClosure', () => {
       reAuditResults: undefined,
     });
     const result = validateQaActionClosure(action);
-    expect(result.errors).toContain('Re-audit required but not completed');
+    expect(result.errors).toContain('Re-audit scheduled but not completed');
   });
 });
