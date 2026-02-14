@@ -423,9 +423,9 @@ export function QaActionsPage() {
                     <div className="flex items-center gap-2 mb-1">
                       {getStatusBadge(action)}
                     </div>
-                    <h3 className="font-semibold"><SafeText>{action.issue || 'Untitled Issue'}</SafeText></h3>
+                    <h3 className="font-semibold">{action.issue || 'Untitled Issue'}</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      <SafeText>{action.topic || action.summary || 'No description'}</SafeText>
+                      {action.topic || action.summary || 'No description'}
                     </p>
                     
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-muted-foreground">
@@ -520,9 +520,9 @@ export function QaActionsPage() {
               
               {/* Issue */}
               <div>
-                <h3 className="text-lg font-semibold"><SafeText>{selectedAction.issue}</SafeText></h3>
+                <h3 className="text-lg font-semibold">{selectedAction.issue}</h3>
                 {selectedAction.topic && (
-                  <p className="text-sm text-muted-foreground mt-1"><SafeText>{selectedAction.topic}</SafeText></p>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedAction.topic}</p>
                 )}
               </div>
               
