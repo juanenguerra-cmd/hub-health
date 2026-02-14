@@ -246,7 +246,7 @@ export function ReportsPage() {
           <TabsTrigger value="action-plan">Action Plan</TabsTrigger>
           <TabsTrigger value="huddle">Huddle Report</TabsTrigger>
           <TabsTrigger value="ic-safety">IC Safety</TabsTrigger>
-          <TabsTrigger value="csv-import">CSV Imports</TabsTrigger>
+          <TabsTrigger value="csv-import">Mastered IT Review</TabsTrigger>
         </TabsList>
 
         {/* QAPI Summary Report */}

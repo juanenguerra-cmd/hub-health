@@ -4,8 +4,17 @@ export interface CourseCompletionStaffRow {
   totalModules: number;
   completedModules: number;
   completionRate: number;
-  averageScore: number;
-  reviewNotes: string[];
+  status: 'Complete' | 'Incomplete/Pending';
+}
+
+export interface CourseCompletionDepartmentRow {
+  department: string;
+  staffCount: number;
+  totalModules: number;
+  completedModules: number;
+  completionRate: number;
+  completedStaffCount: number;
+  pendingStaffCount: number;
 }
 
 export interface CourseCompletionSummary {
@@ -13,11 +22,13 @@ export interface CourseCompletionSummary {
   totalModules: number;
   completedModules: number;
   completionRate: number;
-  averageScore: number;
+  completedStaffCount: number;
+  pendingStaffCount: number;
 }
 
 export interface CourseCompletionReport {
   staffRows: CourseCompletionStaffRow[];
+  departmentRows: CourseCompletionDepartmentRow[];
   departmentSummary: CourseCompletionSummary;
 }
 
@@ -28,9 +39,17 @@ export interface ChecklistCompletionRow {
   completionRate: number;
 }
 
+export interface ChecklistFollowThroughRow {
+  checklistName: string;
+  staffName: string;
+  department: string;
+  status: string;
+}
+
 export interface ParsedChecklistReport {
   checklists: ChecklistCompletionRow[];
   checklistNames: string[];
+  followThroughRows: ChecklistFollowThroughRow[];
 }
 
 const COMPLETED_VALUES = new Set(['complete', 'completed', 'yes', 'y', 'done', 'pass', 'passed', '1', 'true']);
@@ -77,13 +96,6 @@ const findHeader = (headers: string[], candidates: string[]): string | null => {
   return null;
 };
 
-const toNumber = (value: string | undefined): number => {
-  if (!value) return 0;
-  const cleanValue = value.replace('%', '').trim();
-  const parsed = Number(cleanValue);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
 const isCompleted = (value: string | undefined): boolean => {
   if (!value) return false;
   return COMPLETED_VALUES.has(value.trim().toLowerCase());
@@ -115,12 +127,14 @@ export const buildCourseCompletionReport = (content: string): CourseCompletionRe
   if (!records.length) {
     return {
       staffRows: [],
+      departmentRows: [],
       departmentSummary: {
         staffCount: 0,
         totalModules: 0,
         completedModules: 0,
         completionRate: 0,
-        averageScore: 0,
+        completedStaffCount: 0,
+        pendingStaffCount: 0,
       },
     };
   }
@@ -129,22 +143,17 @@ export const buildCourseCompletionReport = (content: string): CourseCompletionRe
   const staffHeader = findHeader(headers, ['staff', 'staffname', 'employee', 'employeename', 'name']);
   const departmentHeader = findHeader(headers, ['department', 'unit', 'team']);
   const statusHeader = findHeader(headers, ['status', 'completionstatus', 'completed']);
-  const scoreHeader = findHeader(headers, ['score', 'percent', 'percentage', 'result']);
-  const reviewHeader = findHeader(headers, ['review', 'reviewnotes', 'notes', 'comments']);
 
   const byStaff = new Map<string, {
     staffName: string;
     department: string;
     totalModules: number;
     completedModules: number;
-    scoreTotal: number;
-    scoreCount: number;
-    reviewNotes: string[];
   }>();
 
   for (const record of records) {
-    const staffName = (staffHeader ? record[staffHeader] : '') || 'Unknown Staff';
-    const department = (departmentHeader ? record[departmentHeader] : '') || 'Unassigned';
+    const staffName = (staffHeader ? record[staffHeader] : '').trim() || 'Unknown Staff';
+    const department = (departmentHeader ? record[departmentHeader] : '').trim() || 'Unassigned';
     const mapKey = `${staffName}::${department}`;
 
     if (!byStaff.has(mapKey)) {
@@ -153,9 +162,6 @@ export const buildCourseCompletionReport = (content: string): CourseCompletionRe
         department,
         totalModules: 0,
         completedModules: 0,
-        scoreTotal: 0,
-        scoreCount: 0,
-        reviewNotes: [],
       });
     }
 
@@ -166,64 +172,92 @@ export const buildCourseCompletionReport = (content: string): CourseCompletionRe
     if (isCompleted(statusHeader ? record[statusHeader] : '')) {
       row.completedModules += 1;
     }
-
-    const score = toNumber(scoreHeader ? record[scoreHeader] : '');
-    if (score > 0) {
-      row.scoreTotal += score;
-      row.scoreCount += 1;
-    }
-
-    const review = (reviewHeader ? record[reviewHeader] : '').trim();
-    if (review) {
-      row.reviewNotes.push(review);
-    }
   }
 
   const staffRows = Array.from(byStaff.values())
-    .map((row) => ({
-      staffName: row.staffName,
-      department: row.department,
-      totalModules: row.totalModules,
-      completedModules: row.completedModules,
-      completionRate: row.totalModules ? Math.round((row.completedModules / row.totalModules) * 100) : 0,
-      averageScore: row.scoreCount ? Math.round(row.scoreTotal / row.scoreCount) : 0,
-      reviewNotes: row.reviewNotes,
-    }))
+    .map((row) => {
+      const completionRate = row.totalModules ? Math.round((row.completedModules / row.totalModules) * 100) : 0;
+      return {
+        ...row,
+        completionRate,
+        status: completionRate === 100 ? 'Complete' : 'Incomplete/Pending',
+      };
+    })
     .sort((a, b) => b.completionRate - a.completionRate || a.staffName.localeCompare(b.staffName));
+
+  const departmentMap = new Map<string, CourseCompletionDepartmentRow>();
+  for (const row of staffRows) {
+    if (!departmentMap.has(row.department)) {
+      departmentMap.set(row.department, {
+        department: row.department,
+        staffCount: 0,
+        totalModules: 0,
+        completedModules: 0,
+        completionRate: 0,
+        completedStaffCount: 0,
+        pendingStaffCount: 0,
+      });
+    }
+
+    const departmentRow = departmentMap.get(row.department);
+    if (!departmentRow) continue;
+
+    departmentRow.staffCount += 1;
+    departmentRow.totalModules += row.totalModules;
+    departmentRow.completedModules += row.completedModules;
+    if (row.status === 'Complete') {
+      departmentRow.completedStaffCount += 1;
+    } else {
+      departmentRow.pendingStaffCount += 1;
+    }
+  }
+
+  const departmentRows = Array.from(departmentMap.values())
+    .map((row) => ({
+      ...row,
+      completionRate: row.totalModules ? Math.round((row.completedModules / row.totalModules) * 100) : 0,
+    }))
+    .sort((a, b) => b.completionRate - a.completionRate || a.department.localeCompare(b.department));
 
   const totalModules = staffRows.reduce((sum, row) => sum + row.totalModules, 0);
   const completedModules = staffRows.reduce((sum, row) => sum + row.completedModules, 0);
-  const averageScoreRows = staffRows.filter((row) => row.averageScore > 0);
-  const averageScore = averageScoreRows.length
-    ? Math.round(averageScoreRows.reduce((sum, row) => sum + row.averageScore, 0) / averageScoreRows.length)
-    : 0;
+  const completedStaffCount = staffRows.filter((row) => row.status === 'Complete').length;
 
   return {
     staffRows,
+    departmentRows,
     departmentSummary: {
       staffCount: staffRows.length,
       totalModules,
       completedModules,
       completionRate: totalModules ? Math.round((completedModules / totalModules) * 100) : 0,
-      averageScore,
+      completedStaffCount,
+      pendingStaffCount: staffRows.length - completedStaffCount,
     },
   };
 };
 
-export const buildChecklistCompletionReport = (content: string, selectedChecklist = 'All'): ParsedChecklistReport => {
+export const buildChecklistCompletionReport = (content: string, selectedChecklists: string[] = []): ParsedChecklistReport => {
   const records = parseCsvRecords(content);
   if (!records.length) {
-    return { checklists: [], checklistNames: [] };
+    return { checklists: [], checklistNames: [], followThroughRows: [] };
   }
 
   const headers = Object.keys(records[0]);
   const checklistHeader = findHeader(headers, ['checklist', 'checklistname', 'name', 'form']);
   const statusHeader = findHeader(headers, ['status', 'completionstatus', 'completed']);
+  const staffHeader = findHeader(headers, ['staff', 'staffname', 'employee', 'employeename', 'name']);
+  const departmentHeader = findHeader(headers, ['department', 'unit', 'team']);
 
   const checklistMap = new Map<string, { totalItems: number; completedItems: number }>();
+  const filterSet = new Set(selectedChecklists);
+  const showAll = selectedChecklists.length === 0;
+
+  const followThroughRows: ChecklistFollowThroughRow[] = [];
 
   for (const record of records) {
-    const checklistName = (checklistHeader ? record[checklistHeader] : '') || 'General Checklist';
+    const checklistName = (checklistHeader ? record[checklistHeader] : '').trim() || 'General Checklist';
+    const status = statusHeader ? record[statusHeader] : '';
 
     if (!checklistMap.has(checklistName)) {
       checklistMap.set(checklistName, { totalItems: 0, completedItems: 0 });
@@ -233,15 +267,25 @@ export const buildChecklistCompletionReport = (content: string, selectedChecklis
     if (!checklist) continue;
 
     checklist.totalItems += 1;
-    if (isCompleted(statusHeader ? record[statusHeader] : '')) {
+    if (isCompleted(status)) {
       checklist.completedItems += 1;
+    }
+
+    const includeInReport = showAll || filterSet.has(checklistName);
+    if (includeInReport && !isCompleted(status)) {
+      followThroughRows.push({
+        checklistName,
+        staffName: (staffHeader ? record[staffHeader] : '').trim() || 'Unknown Staff',
+        department: (departmentHeader ? record[departmentHeader] : '').trim() || 'Unassigned',
+        status: status || 'Incomplete/Pending',
+      });
     }
   }
 
   const checklistNames = Array.from(checklistMap.keys()).sort((a, b) => a.localeCompare(b));
 
   const checklists = checklistNames
-    .filter((name) => selectedChecklist === 'All' || name === selectedChecklist)
+    .filter((name) => showAll || filterSet.has(name))
     .map((name) => {
       const row = checklistMap.get(name);
       const totalItems = row?.totalItems ?? 0;
@@ -255,5 +299,11 @@ export const buildChecklistCompletionReport = (content: string, selectedChecklis
       };
     });
 
-  return { checklists, checklistNames };
+  return {
+    checklists,
+    checklistNames,
+    followThroughRows: followThroughRows.sort(
+      (a, b) => a.department.localeCompare(b.department) || a.staffName.localeCompare(b.staffName)
+    ),
+  };
 };
