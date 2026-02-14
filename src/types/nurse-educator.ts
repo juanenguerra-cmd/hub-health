@@ -197,6 +197,18 @@ export interface QaAction {
   };
   closureValidated?: boolean;
   closureValidationErrors?: string[];
+  createdBy?: string;
+  modifiedAt?: string;
+  modifiedBy?: string;
+  deletedAt?: string;
+  deletedBy?: string;
+  changeHistory?: Array<{
+    timestamp: string;
+    user: string;
+    field: string;
+    oldValue: string;
+    newValue: string;
+  }>;
 }
 
 export interface StaffPerformanceRecord {

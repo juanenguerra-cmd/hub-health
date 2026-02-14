@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AuditSession, AuditTemplate } from '@/types/nurse-educator';
 import { useSmartDefaults } from '@/hooks/use-smart-defaults';
+import { validateAndNormalizeDate } from '@/lib/date-utils';
 
 interface AuditSessionWizardProps {
   template: AuditTemplate;
@@ -70,7 +71,13 @@ export function AuditSessionWizard({ template, onComplete }: AuditSessionWizardP
       title: 'Session Setup',
       description: 'Select the audit date, unit, and auditor.',
       component: SessionSetupStep,
-      validate: (data) => ({ valid: !!data.auditDate && !!data.unit && !!data.auditor, errors: data.auditDate && data.unit && data.auditor ? [] : ['Audit date, unit, and auditor are required.'] }),
+      validate: (data) => {
+        const normalizedDate = validateAndNormalizeDate(String(data.auditDate ?? ''));
+        if (!normalizedDate || !data.unit || !data.auditor) {
+          return { valid: false, errors: ['Audit date, unit, and auditor are required (YYYY-MM-DD date).'] };
+        }
+        return { valid: true, errors: [] };
+      },
     },
     {
       id: 'samples',
@@ -99,7 +106,7 @@ export function AuditSessionWizard({ template, onComplete }: AuditSessionWizardP
           header: {
             status: 'complete',
             sessionId: `S-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-            auditDate: String(data.auditDate ?? ""),
+            auditDate: validateAndNormalizeDate(String(data.auditDate ?? "")),
             auditor: String(data.auditor ?? ""),
             unit: String(data.unit ?? ""),
           },

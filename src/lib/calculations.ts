@@ -16,6 +16,7 @@ import type {
   SampleResult
 } from '@/types/nurse-educator';
 import type { TemplateQuestion } from '@/types/nurse-educator';
+import { isDateBefore, isOverdue } from '@/lib/date-utils';
 
 // Date utilities
 export const todayYMD = (): string => new Date().toISOString().split('T')[0];
@@ -250,8 +251,7 @@ export function computeClosedLoopStats(actions: QaAction[]): ClosedLoopStats {
     byOwner[owner][st as keyof typeof byOwner[typeof owner]] = (byOwner[owner][st as keyof typeof byOwner[typeof owner]] || 0) + 1;
     byUnit[unit][st as keyof typeof byUnit[typeof unit]] = (byUnit[unit][st as keyof typeof byUnit[typeof unit]] || 0) + 1;
 
-    const due = (a.dueDate || '').slice(0, 10);
-    if (st !== 'complete' && due && due < today) {
+    if (st !== 'complete' && isDateBefore(a.dueDate || '', today)) {
       byOwner[owner].overdue++;
       byUnit[unit].overdue++;
     }
@@ -272,10 +272,7 @@ export function computeClosedLoopStats(actions: QaAction[]): ClosedLoopStats {
 
   const closureRate = total ? Math.round((done / total) * 100) : 0;
   const avgCloseDays = closeDaysN ? Math.round((closeDaysSum / closeDaysN) * 10) / 10 : 0;
-  const overdueCount = actions.filter(a => {
-    const due = (a.dueDate || '').slice(0, 10);
-    return due && due < today && a.status !== 'complete';
-  }).length;
+  const overdueCount = actions.filter((a) => isOverdue(a.dueDate || '', a.status)).length;
 
   return {
     total,

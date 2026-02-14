@@ -8,6 +8,7 @@ export function validateQaActionClosure(action: QaAction): {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  // At least 2 evidence items required (stricter)
   const evidenceCount = [
     action.ev_policyReviewed,
     action.ev_educationProvided,
@@ -16,20 +17,32 @@ export function validateQaActionClosure(action: QaAction): {
     action.ev_monitoringInPlace
   ].filter(Boolean).length;
 
-  if (evidenceCount === 0) {
-    errors.push('At least one evidence item must be documented');
+  if (evidenceCount < 2) {
+    errors.push('At least TWO evidence items must be documented for closure');
   }
 
+  // Education provided must have linked session
+  if (action.ev_educationProvided && (!action.linkedEducationSessions || action.linkedEducationSessions.length === 0)) {
+    errors.push('Education checkbox marked but no education session linked');
+  }
+
+  // Re-audit validation
   if (action.reAuditDueDate && !action.reAuditResults) {
-    errors.push('Re-audit required but not completed');
+    errors.push('Re-audit scheduled but not completed');
   }
 
   if (action.reAuditResults && !action.reAuditResults.passed) {
-    warnings.push('Re-audit did not pass - issue may not be resolved');
+    errors.push('Re-audit failed - action cannot be closed until re-audit passes');
   }
 
-  if (action.issue.toLowerCase().includes('competency') && (action.linkedEducationSessions || []).length === 0) {
-    warnings.push('Competency issue should link to education session');
+  // Competency issues require validation
+  if (action.issue.toLowerCase().includes('competency') && !action.ev_competencyValidated) {
+    errors.push('Competency-related issues require competency validation');
+  }
+
+  // Critical severity requires corrective action
+  if (action.severity === 'critical' && !action.ev_correctiveAction) {
+    errors.push('Critical severity requires documented corrective action');
   }
 
   return {

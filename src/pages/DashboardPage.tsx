@@ -16,6 +16,7 @@ import {
   findRecurringIssues,
   countStaffWithMultipleActions
 } from '@/lib/calculations';
+import { isDateBefore, validateAndNormalizeDate } from '@/lib/date-utils';
 import { 
   FileText, 
   Target, 
@@ -112,10 +113,19 @@ export function DashboardPage() {
   const activeStep = infographicSteps.find(step => step.id === activeInfographicStep) ?? infographicSteps[0];
 
   const urgentItems = useMemo(() => {
-    const overdueActions = qaActions.filter(a => a.status !== 'complete' && a.dueDate && a.dueDate < today);
-    const dueThisWeek = qaActions.filter(a => a.status !== 'complete' && a.dueDate && a.dueDate >= today && a.dueDate <= dateAddDays(today, 7));
-    const reAuditsDue = qaActions.filter(a => a.reAuditDueDate && a.reAuditDueDate <= dateAddDays(today, 2) && !a.reAuditCompletedAt);
-    const upcomingEducation = eduSessions.filter(e => e.status === 'planned' && e.scheduledDate >= today && e.scheduledDate <= dateAddDays(today, 7));
+    const overdueActions = qaActions.filter((a) => a.status !== 'complete' && isDateBefore(a.dueDate, today));
+    const dueThisWeek = qaActions.filter((a) => {
+      const due = validateAndNormalizeDate(a.dueDate);
+      return a.status !== 'complete' && !!due && due >= today && due <= dateAddDays(today, 7);
+    });
+    const reAuditsDue = qaActions.filter((a) => {
+      const reAudit = validateAndNormalizeDate(a.reAuditDueDate);
+      return !!reAudit && reAudit <= dateAddDays(today, 2) && !a.reAuditCompletedAt;
+    });
+    const upcomingEducation = eduSessions.filter((e) => {
+      const scheduled = validateAndNormalizeDate(e.scheduledDate);
+      return e.status === 'planned' && !!scheduled && scheduled >= today && scheduled <= dateAddDays(today, 7);
+    });
     const recurringIssues = findRecurringIssues(qaActions, 30);
     const staffWithMultipleActions = countStaffWithMultipleActions(qaActions);
 
