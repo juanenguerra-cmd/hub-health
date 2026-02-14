@@ -100,6 +100,12 @@ export function QaActionsPage() {
   const stats = computeClosedLoopStats(filtered);
   const tools = ['All', ...Array.from(new Set(qaActions.map(a => a.templateTitle).filter(Boolean))).sort()];
   const dictionaries = useMemo(() => buildStructuredDictionaries(qaActions, eduSessions), [qaActions, eduSessions]);
+  const activeStaffNames = useMemo(
+    () => new Set(staffDirectory.rows.filter((staff) => staff.status === 'Active').map((staff) => staff.name.trim())),
+    [staffDirectory.rows]
+  );
+
+  const isActiveStaff = (name: string) => activeStaffNames.has(name.trim());
 
 
   const recommendationMatches = useMemo(() => {
