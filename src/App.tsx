@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useApp } from '@/contexts/AppContext';
+import { FeatureErrorBoundary } from '@/components/FeatureErrorBoundary';
 import { AppSidebar } from '@/components/AppSidebar';
 import { AppHeader } from '@/components/AppHeader';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -40,34 +41,132 @@ function AppContent() {
       <AppSidebar mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
       <div className="flex-1 flex min-h-0 flex-col min-w-0 overflow-hidden">
         <AppHeader onMenuClick={() => setMobileNavOpen(true)} />
-        <main className="flex-1 min-h-0 overflow-auto p-4 lg:p-6">
+        <main className="flex-1 min-h-0 overflow-auto p-4 lg:p-6" role="main">
           <BackupReminderBanner />
-          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading page...</div>}>
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status" aria-label="Loading"></div>
+                <p className="text-sm text-muted-foreground">Loading page...</p>
+              </div>
+            </div>
+          }>
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/templates" element={<TemplatesPage />} />
-              <Route path="/sessions" element={<SessionsPage />} />
-              <Route path="/sessions/:id" element={<SessionsPage />} />
-              <Route path="/qa-actions" element={<QaActionsPage />} />
-              <Route path="/workflow-dashboard" element={<WorkflowDashboardPage />} />
-              <Route path="/education" element={<EducationPage />} />
-              <Route path="/edu-library" element={<EduTopicLibraryPage />} />
-              <Route path="/orientation" element={<OrientationPage />} />
-              <Route path="/follow-up" element={<FollowUpPage />} />
-              <Route path="/cases/:caseId" element={<CaseWorkspacePage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/regulatory-references" element={<RegulatoryReferencesPage />} />
-              <Route path="/recommendations" element={<RecommendationCenterPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/user-guide" element={<UserGuidePage />} />
+              
+              <Route path="/dashboard" element={
+                <FeatureErrorBoundary featureName="Dashboard">
+                  <DashboardPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/templates" element={
+                <FeatureErrorBoundary featureName="Templates">
+                  <TemplatesPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/sessions" element={
+                <FeatureErrorBoundary featureName="Audit Sessions">
+                  <SessionsPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/sessions/:id" element={
+                <FeatureErrorBoundary featureName="Audit Session Details">
+                  <SessionsPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/qa-actions" element={
+                <FeatureErrorBoundary featureName="QA Actions">
+                  <QaActionsPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/workflow-dashboard" element={
+                <FeatureErrorBoundary featureName="Workflow Dashboard">
+                  <WorkflowDashboardPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/education" element={
+                <FeatureErrorBoundary featureName="Education">
+                  <EducationPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/edu-library" element={
+                <FeatureErrorBoundary featureName="Education Library">
+                  <EduTopicLibraryPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/orientation" element={
+                <FeatureErrorBoundary featureName="Orientation">
+                  <OrientationPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/follow-up" element={
+                <FeatureErrorBoundary featureName="Follow-up">
+                  <FollowUpPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/cases/:caseId" element={
+                <FeatureErrorBoundary featureName="Case Workspace">
+                  <CaseWorkspacePage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/analytics" element={
+                <FeatureErrorBoundary featureName="Analytics">
+                  <AnalyticsPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/calendar" element={
+                <FeatureErrorBoundary featureName="Calendar">
+                  <CalendarPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/reports" element={
+                <FeatureErrorBoundary featureName="Reports">
+                  <ReportsPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/regulatory-references" element={
+                <FeatureErrorBoundary featureName="Regulatory References">
+                  <RegulatoryReferencesPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/recommendations" element={
+                <FeatureErrorBoundary featureName="Recommendations">
+                  <RecommendationCenterPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/settings" element={
+                <FeatureErrorBoundary featureName="Settings">
+                  <SettingsPage />
+                </FeatureErrorBoundary>
+              } />
+              
+              <Route path="/user-guide" element={
+                <FeatureErrorBoundary featureName="User Guide">
+                  <UserGuidePage />
+                </FeatureErrorBoundary>
+              } />
+              
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
         </main>
-        <footer className="py-2 px-4 text-center text-xs text-muted-foreground border-t border-border">
+        <footer className="py-2 px-4 text-center text-xs text-muted-foreground border-t border-border" role="contentinfo">
           Developed by Juan Enguerra © 2026. All rights reserved.
         </footer>
       </div>
