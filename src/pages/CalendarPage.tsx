@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { todayYMD } from '@/lib/calculations';
 import { getDueStatus } from '@/lib/due-status';
-import { ChevronLeft, ChevronRight, Calendar, GraduationCap, ClipboardCheck, AlertTriangle, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, GraduationCap, ClipboardCheck, AlertTriangle, Plus, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CalendarQuickActionModal } from '@/components/calendar/CalendarQuickActionModal';
 
@@ -137,6 +137,10 @@ export function CalendarPage() {
     setSelectedDate(today);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   // Build calendar grid
   const calendarDays: { date: string; day: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
   
@@ -202,6 +206,10 @@ export function CalendarPage() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1">
+            <Printer className="w-4 h-4" />
+            Print
+          </Button>
           <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
           <Button variant="outline" size="icon" onClick={prevMonth}>
             <ChevronLeft className="w-4 h-4" />
