@@ -21,7 +21,8 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from 'lucide-react';
 
 // Generate year options (current year ± 2 years)
@@ -41,6 +42,35 @@ const MONTHS = [
   { value: '11', label: 'November' },
   { value: '12', label: 'December' }
 ];
+
+type EducationViewMode = 'table' | 'weekly' | 'monthly';
+
+const toDate = (dateValue?: string) => {
+  if (!dateValue) return null;
+  const [year, month, day] = dateValue.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const formatLongDate = (dateValue?: string) => {
+  const date = toDate(dateValue);
+  if (!date) return 'TBD';
+  return date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+const getWeekStart = (dateValue?: string) => {
+  const date = toDate(dateValue);
+  if (!date) return null;
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() - date.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart;
+};
 
 export function EducationPage() {
   const { eduSessions, eduFilters, setEduFilters, setEduSessions, facilityName, eduLibrary, setActiveTab, startEducationRequest, setStartEducationRequest } = useApp();
@@ -83,6 +113,7 @@ export function EducationPage() {
   // Month/Year filter state
   const [filterMonth, setFilterMonth] = useState<string>('All');
   const [filterYear, setFilterYear] = useState<string>(String(currentYear));
+  const [viewMode, setViewMode] = useState<EducationViewMode>('table');
   const { scheduleReAuditFromEducation } = useWorkflowNavigation();
 
   // Filter sessions
@@ -134,6 +165,40 @@ export function EducationPage() {
     return session.status === 'planned' && session.scheduledDate && session.scheduledDate < today;
   };
 
+  const weeklyGroups = Object.entries(
+    filtered.reduce<Record<string, EducationSession[]>>((acc, session) => {
+      const weekStart = getWeekStart(getSessionDate(session));
+      if (!weekStart) return acc;
+      const key = weekStart.toISOString().slice(0, 10);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(session);
+      return acc;
+    }, {})
+  )
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([weekStart, sessions]) => {
+      const start = toDate(weekStart);
+      const end = start ? new Date(start) : null;
+      if (end) end.setDate(end.getDate() + 6);
+
+      return {
+        weekStart,
+        label: `${formatLongDate(weekStart)} - ${end ? formatLongDate(end.toISOString().slice(0, 10)) : 'TBD'}`,
+        sessions: [...sessions].sort((a, b) => (getSessionDate(a) || '').localeCompare(getSessionDate(b) || ''))
+      };
+    });
+
+  const monthlyGroups = Object.entries(
+    filtered.reduce<Record<string, EducationSession[]>>((acc, session) => {
+      const sessionDate = getSessionDate(session);
+      if (!sessionDate) return acc;
+      if (!acc[sessionDate]) acc[sessionDate] = [];
+      acc[sessionDate].push(session);
+      return acc;
+    }, {})
+  )
+    .sort(([a], [b]) => a.localeCompare(b));
+
   // Handlers
   const handleCreateSession = () => {
     setEditSession(null);
@@ -168,6 +233,10 @@ export function EducationPage() {
     setSignOffSession(selectedSession);
     setSelectedSession(null);
     setShowSignOffModal(true);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -210,7 +279,7 @@ export function EducationPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 items-center">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -260,11 +329,28 @@ export function EducationPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={viewMode} onValueChange={(v) => setViewMode(v as EducationViewMode)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="View" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="table">Table View</SelectItem>
+                <SelectItem value="weekly">Weekly View</SelectItem>
+                <SelectItem value="monthly">Calendar Agenda</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" onClick={handlePrint} className="gap-2">
+              <Printer className="w-4 h-4" />
+              Print View
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Sessions Table */}
+      {viewMode === 'table' && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -346,6 +432,82 @@ export function EducationPage() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {viewMode === 'weekly' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Weekly Inservice Calendar
+            </CardTitle>
+            <CardDescription>Print-friendly weekly list of planned and completed sessions.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {weeklyGroups.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No sessions found for this filter.</p>
+            ) : weeklyGroups.map((group) => (
+              <div key={group.weekStart} className="rounded-lg border p-4 space-y-3">
+                <h3 className="font-medium">Week of {group.label}</h3>
+                <div className="space-y-2">
+                  {group.sessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => setSelectedSession(session)}
+                      className="w-full text-left rounded-md border p-3 hover:bg-muted/40"
+                    >
+                      <p className="font-medium">{session.topic || 'Untitled Session'}</p>
+                      <p className="text-sm text-muted-foreground">{formatLongDate(getSessionDate(session))} • {session.audience || 'All Staff'}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{session.status === 'completed' ? 'Completed' : isOverdue(session) ? 'Overdue' : 'Planned'}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {viewMode === 'monthly' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Full Calendar Agenda
+            </CardTitle>
+            <CardDescription>Whole calendar list with readable inservice topics by date.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {monthlyGroups.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No sessions found for this filter.</p>
+            ) : (
+              <div className="space-y-4">
+                {monthlyGroups.map(([date, sessions]) => (
+                  <div key={date} className="rounded-lg border p-4">
+                    <h3 className="font-medium mb-2">{formatLongDate(date)}</h3>
+                    <ul className="space-y-2">
+                      {sessions.map((session) => (
+                        <li key={session.id}>
+                          <button
+                            type="button"
+                            className="w-full text-left rounded-md bg-muted/40 p-3 hover:bg-muted"
+                            onClick={() => setSelectedSession(session)}
+                          >
+                            <p className="font-medium">{session.topic || 'Untitled Session'}</p>
+                            <p className="text-sm text-muted-foreground">{session.summary || 'No summary provided.'}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{session.status === 'completed' ? 'Completed' : isOverdue(session) ? 'Overdue' : 'Planned'}</p>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Session Detail Modal */}
       <SessionDetailModal
